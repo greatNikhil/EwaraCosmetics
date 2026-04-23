@@ -78,7 +78,7 @@ export function Navbar() {
         </div>
       </div>
       {/* 🔥 MAIN NAVBAR */}
-      <header className="sticky top-0 z-50 bg-[#f7e7ea]/80 backdrop-blur-md border-b border-[#ead2d8]  shadow-sm transition-all duration-300 shadow-[0_4px_20px_rgba(0,0,0,0.1)]">
+      <header className="sticky top-0 z-50 bg-[#f7e7ea]/80 backdrop-blur-md border-b border-[#ead2d8] transition-all duration-300 shadow-[0_4px_20px_rgba(0,0,0,0.1)]">
         <div className="mx-auto max-w-7xl px-4 py-4 flex items-center justify-between">
           {/* LOGO */}
           <div
@@ -214,7 +214,7 @@ export function Navbar() {
             {/* 🛍 BAG */}
             <ShoppingBag
               size={20}
-              className="cursor-pointer text-black transition duration-300 hover:text-blue-500 hover:scale-110 transition duration-200 "
+              className="cursor-pointer text-black transition duration-300 hover:text-blue-500 hover:scale-110"
               onClick={() => setBagOpen(true)}
             />
             <div className="md:hidden">

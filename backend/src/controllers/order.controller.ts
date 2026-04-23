@@ -152,7 +152,7 @@ export const createOrder = async (req: any, res: Response) => {
     if (razorpayPaymentId) {
       sendPaymentSuccessEmail(customerEmail, {
         customerName: req.user?.name || "Valued Customer",
-        orderId: order._id,
+        orderId: order._id.toString(),
         amount: totalAmount,
         paymentMethod: "Razorpay",
         transactionId: razorpayPaymentId,
