@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Search, LogOut, Settings } from "lucide-react";
 import { Sparkles } from "lucide-react";
 import { Heart, ShoppingBag, User } from "lucide-react";
@@ -42,16 +42,21 @@ export function Navbar() {
     localStorage.removeItem("token");
     localStorage.removeItem("userData");
     router.push("/login");
+  };
+
+  const [isProfileOpen, setIsProfileOpen] = useState(false);
+  const profileRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
     const updateUser = () => {
       const storedUser = localStorage.getItem("user");
-      setUser(storedUser);
+      if (storedUser) setUser(storedUser);
     };
+    window.addEventListener("userChanged", updateUser);
     return () => {
       window.removeEventListener("userChanged", updateUser);
     };
   }, []);
-  const [isProfileOpen, setIsProfileOpen] = useState(false);
-  const profileRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     function handleClickOutside(event: any) {
