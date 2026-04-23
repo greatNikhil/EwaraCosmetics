@@ -251,7 +251,7 @@ export default function CheckoutModal({
     },
   ];
 
-  const subtotal = getCartTotal();
+  const subtotal = getTotalPrice();
   let discount = 0;
 
   if (appliedCoupon) {
