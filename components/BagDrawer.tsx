@@ -2,38 +2,23 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import {
-  getCartItems,
-  updateCartQuantity,
-  getCartTotal,
-  removeFromCart,
-} from "@/utils/cart";
+import { useCartStore } from "@/store/cartStore";
+import { useAuthStore } from "@/store/authStore";
 import CheckoutModal from "./CheckoutModal";
 
 export default function BagDrawer({ open, setOpen }: any) {
-  const [cart, setCart] = useState<any[]>([]);
-  const [loggedIn, setLoggedIn] = useState(false);
+  const { items: cart, removeItem, updateQuantity, getTotalPrice } = useCartStore();
+  const { token } = useAuthStore();
   const [showCheckout, setShowCheckout] = useState(false);
   const router = useRouter();
 
-  useEffect(() => {
-    const checkLogin = () => {
-      const status = localStorage.getItem("isLoggedIn");
-      setLoggedIn(status === "true");
-      setCart(getCartItems());
-    };
-
-    checkLogin();
-
-    window.addEventListener("userChanged", checkLogin);
-
-    return () => {
-      window.removeEventListener("userChanged", checkLogin);
-    };
-  }, [open]);
-
-  const refresh = () => {
-    setCart(getCartItems());
+  const handleCheckout = () => {
+    if (!token) {
+      alert("Please login first");
+      router.push("/login");
+      return;
+    }
+    setShowCheckout(true);
   };
 
   return (

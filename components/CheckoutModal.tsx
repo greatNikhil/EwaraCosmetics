@@ -3,9 +3,11 @@
 import { useState, useEffect } from "react";
 import axios from "axios";
 import { ArrowLeft, ChevronDown, ChevronUp, X, Check } from "lucide-react";
-import { getCartItems, getCartTotal, clearCart } from "@/utils/cart";
 import { useRouter } from "next/navigation";
+import { useCartStore } from "@/store/cartStore";
+import { useAuthStore } from "@/store/authStore";
 import AddressSelectorModal from "./checkout/AddressSelectorModal";
+import { loadStripe } from "@stripe/js";
 
 interface CheckoutModalProps {
   isOpen: boolean;
@@ -17,17 +19,17 @@ export default function CheckoutModal({
   onClose,
 }: CheckoutModalProps) {
   const router = useRouter();
+  const { items: cartItems, getTotalPrice, clearCart } = useCartStore();
+  const { user, token } = useAuthStore();
 
-  const [cart, setCart] = useState<any[]>([]);
-  const [user, setUser] = useState<any>(null);
   const [showExitConfirm, setShowExitConfirm] = useState(false);
   const [showAddressSelector, setShowAddressSelector] = useState(false);
   const [couponCode, setCouponCode] = useState("");
-  const [selectedPayment, setSelectedPayment] = useState("upi");
-  const [expandedPayment, setExpandedPayment] = useState("upi");
+  const [selectedPayment, setSelectedPayment] = useState("stripe");
+  const [expandedPayment, setExpandedPayment] = useState("stripe");
   const [isProcessing, setIsProcessing] = useState(false);
   const [appliedCoupon, setAppliedCoupon] = useState<any>(null);
-  const [authLoading, setAuthLoading] = useState(false);
+  const [userAddress, setUserAddress] = useState<any>(null);
 
   const coupons = [
     { code: "EWARA10", type: "percent", value: 10 },
@@ -51,80 +53,33 @@ export default function CheckoutModal({
     const loadCheckoutData = async () => {
       if (!isOpen) return;
 
-      setAuthLoading(true);
-
-      const token = localStorage.getItem("token");
-
       if (!token) {
         alert("Please login first");
         router.push("/login");
-        setAuthLoading(false);
         return;
       }
 
       try {
-        const res = await fetch("http://localhost:5000/api/auth/me", {
-          method: "GET",
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        });
-
-        const data = await res.json();
-
-        if (!res.ok || !data.success || !data.user) {
-          localStorage.removeItem("token");
-          localStorage.removeItem("userData");
-          localStorage.removeItem("isLoggedIn");
-          localStorage.removeItem("isAdmin");
-
-          alert("Session expired. Please login again");
-          router.push("/login");
-          setAuthLoading(false);
-          return;
-        }
-
-        let parsedUser = data.user;
-        const userKey = parsedUser.email || parsedUser.phone;
-
+        const userKey = user?.email || user?.phone;
         if (userKey) {
           const addresses = localStorage.getItem(`addresses_${userKey}`);
-
           if (addresses) {
             const parsedAddresses = JSON.parse(addresses);
             const defaultAddress = parsedAddresses.find(
               (addr: any) => addr.default
             );
-
             if (defaultAddress) {
-              parsedUser = {
-                ...parsedUser,
-                address: defaultAddress,
-              };
+              setUserAddress(defaultAddress);
             }
           }
         }
-
-        setUser(parsedUser);
-        localStorage.setItem("userData", JSON.stringify(parsedUser));
-        setCart(getCartItems());
       } catch (error) {
-        console.error("CHECKOUT AUTH ERROR:", error);
-
-        localStorage.removeItem("token");
-        localStorage.removeItem("userData");
-        localStorage.removeItem("isLoggedIn");
-        localStorage.removeItem("isAdmin");
-
-        alert("Please login again");
-        router.push("/login");
-      } finally {
-        setAuthLoading(false);
+        console.error("CHECKOUT DATA ERROR:", error);
       }
     };
 
     loadCheckoutData();
-  }, [isOpen, router]);
+  }, [isOpen, router, token, user]);
 
   const handleClose = () => {
     setShowExitConfirm(true);
@@ -139,15 +94,53 @@ export default function CheckoutModal({
     setShowExitConfirm(false);
   };
 
+  const handleStripeCheckout = async () => {
+    if (!cartItems.length) {
+      alert("Cart is empty");
+      return;
+    }
+
+    if (!userAddress) {
+      alert("Please select a delivery address");
+      return;
+    }
+
+    setIsProcessing(true);
+
+    try {
+      // Call backend checkout endpoint
+      const response = await axios.post(
+        `${process.env.NEXT_PUBLIC_API_URL}/api/checkout`,
+        {
+          items: cartItems,
+          customerEmail: user?.email,
+          shippingAddress: userAddress,
+        }
+      );
+
+      const { sessionId, url } = response.data;
+
+      if (url) {
+        // Redirect to Stripe
+        window.location.href = url;
+      } else {
+        alert("Failed to create checkout session");
+      }
+    } catch (error: any) {
+      console.error("Stripe checkout error:", error);
+      alert(error.response?.data?.error || "Checkout failed");
+    } finally {
+      setIsProcessing(false);
+    }
+  };
+
   const paymentOptions = [
     {
-      id: "upi",
-      name: "UPI Payment",
+      id: "stripe",
+      name: "Stripe Card Payment",
       icon: "💳",
-      description: "Save ₹12.50 by paying online",
+      description: "Secure credit/debit card payment",
     },
-    {
-      id: "card",
       name: "Credit/Debit Card",
       icon: "💳",
       description: "Visa, Mastercard, RuPay",

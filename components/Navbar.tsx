@@ -1,53 +1,47 @@
 "use client";
 
 import Link from "next/link";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Search, LogOut, Settings } from "lucide-react";
 import { Sparkles } from "lucide-react";
 import { Heart, ShoppingBag, User } from "lucide-react";
-import { useRef, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import BagDrawer from "@/components/BagDrawer";
+import { useAuthStore } from "@/store/authStore";
+import { useCartStore } from "@/store/cartStore";
 
 export function Navbar() {
   const [bagOpen, setBagOpen] = useState(false);
-  const [liked, setLiked] = useState(false);
   const [userInput, setUserInput] = useState("");
-  // const [isLoggedIn, setIsLoggedIn] = useState(false);
   const router = useRouter();
   const [wishlistCount, setWishlistCount] = useState(0);
   const [isMenuOpen, setIsMenuOpen] = useState(false);
 
-  const [user, setUser] = useState<any>(null);
+  const { user, logout } = useAuthStore();
+  const { items: cartItems, getTotalItems } = useCartStore();
   const [isAdmin, setIsAdmin] = useState(false);
 
   useEffect(() => {
-    const storedUser = localStorage.getItem("userData");
-    setUser(storedUser ? JSON.parse(storedUser) : null);
-    setIsAdmin(localStorage.getItem("isAdmin") === "true");
-
-    const updateUser = () => {
-      const data = localStorage.getItem("userData");
-      setUser(data ? JSON.parse(data) : null);
-      setIsAdmin(localStorage.getItem("isAdmin") === "true");
-    };
-
-    window.addEventListener("userChanged", updateUser);
-
-    return () => {
-      window.removeEventListener("userChanged", updateUser);
-    };
-  }, []);
+    setIsAdmin(user?.role === "admin");
+  }, [user]);
 
   useEffect(() => {
-    const user = localStorage.getItem("userData");
-    if (!user) return;
-
-    const data = JSON.parse(localStorage.getItem("userData") || "{}");
-    setWishlistCount(data.wishlist?.length || 0);
+    const storedWishlist = localStorage.getItem("wishlist");
+    if (storedWishlist) {
+      try {
+        const wishlist = JSON.parse(storedWishlist);
+        setWishlistCount(wishlist.length);
+      } catch (error) {
+        console.error("Error parsing wishlist:", error);
+      }
+    }
   }, []);
 
-  useEffect(() => {
+  const handleLogout = () => {
+    logout();
+    localStorage.removeItem("token");
+    localStorage.removeItem("userData");
+    router.push("/login");
     const updateUser = () => {
       const storedUser = localStorage.getItem("user");
       setUser(storedUser);
