@@ -2,9 +2,8 @@
   "env": {
     "NEXT_PUBLIC_API_URL": "@next_public_api_url",
     "NEXT_PUBLIC_APP_URL": "@next_public_app_url",
-    "NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY": "@next_public_stripe_publishable_key",
-    "STRIPE_SECRET_KEY": "@stripe_secret_key",
-    "STRIPE_WEBHOOK_SECRET": "@stripe_webhook_secret"
+    "NEXT_PUBLIC_RAZORPAY_KEY_ID": "@next_public_razorpay_key_id",
+    "RAZORPAY_KEY_SECRET": "@razorpay_key_secret"
   },
   "buildCommand": "npm run build",
   "devCommand": "npm run dev",

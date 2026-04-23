@@ -7,11 +7,16 @@ import { useRouter } from "next/navigation";
 import { useCartStore } from "@/store/cartStore";
 import { useAuthStore } from "@/store/authStore";
 import AddressSelectorModal from "./checkout/AddressSelectorModal";
-import { loadStripe } from "@stripe/js";
 
 interface CheckoutModalProps {
   isOpen: boolean;
   onClose: () => void;
+}
+
+declare global {
+  interface Window {
+    Razorpay: any;
+  }
 }
 
 export default function CheckoutModal({
@@ -25,8 +30,8 @@ export default function CheckoutModal({
   const [showExitConfirm, setShowExitConfirm] = useState(false);
   const [showAddressSelector, setShowAddressSelector] = useState(false);
   const [couponCode, setCouponCode] = useState("");
-  const [selectedPayment, setSelectedPayment] = useState("stripe");
-  const [expandedPayment, setExpandedPayment] = useState("stripe");
+  const [selectedPayment, setSelectedPayment] = useState("razorpay");
+  const [expandedPayment, setExpandedPayment] = useState("razorpay");
   const [isProcessing, setIsProcessing] = useState(false);
   const [appliedCoupon, setAppliedCoupon] = useState<any>(null);
   const [userAddress, setUserAddress] = useState<any>(null);
@@ -81,6 +86,16 @@ export default function CheckoutModal({
     loadCheckoutData();
   }, [isOpen, router, token, user]);
 
+  useEffect(() => {
+    // Load Razorpay script
+    if (!window.Razorpay) {
+      const script = document.createElement("script");
+      script.src = "https://checkout.razorpay.com/v1/checkout.js";
+      script.async = true;
+      document.body.appendChild(script);
+    }
+  }, []);
+
   const handleClose = () => {
     setShowExitConfirm(true);
   };
@@ -94,7 +109,7 @@ export default function CheckoutModal({
     setShowExitConfirm(false);
   };
 
-  const handleStripeCheckout = async () => {
+  const handleRazorpayCheckout = async () => {
     if (!cartItems.length) {
       alert("Cart is empty");
       return;
@@ -108,27 +123,96 @@ export default function CheckoutModal({
     setIsProcessing(true);
 
     try {
-      // Call backend checkout endpoint
+      const total = getTotalPrice();
+
+      // Create Razorpay order
       const response = await axios.post(
-        `${process.env.NEXT_PUBLIC_API_URL}/api/checkout`,
+        `${process.env.NEXT_PUBLIC_API_URL}/api/checkout/razorpay`,
         {
           items: cartItems,
           customerEmail: user?.email,
+          customerPhone: user?.phone,
+          total: total,
           shippingAddress: userAddress,
         }
       );
 
-      const { sessionId, url } = response.data;
+      const { orderId, amount, key_id } = response.data;
 
-      if (url) {
-        // Redirect to Stripe
-        window.location.href = url;
-      } else {
-        alert("Failed to create checkout session");
+      if (!window.Razorpay) {
+        alert("Razorpay is not loaded. Please refresh and try again.");
+        return;
       }
+
+      // Open Razorpay checkout
+      const options = {
+        key: key_id,
+        amount: amount, // in paise
+        currency: 'INR',
+        name: 'Ewara Cosmetics',
+        description: `Order with ${cartItems.length} items`,
+        order_id: orderId,
+        handler: async function (response: any) {
+          console.log('✅ Payment successful:', response);
+
+          // Verify payment on backend
+          try {
+            const orderRes = await axios.post(
+              `${process.env.NEXT_PUBLIC_API_URL}/api/orders`,
+              {
+                razorpayPaymentId: response.razorpay_payment_id,
+                razorpayOrderId: response.razorpay_order_id,
+                razorpaySignature: response.razorpay_signature,
+                items: cartItems,
+                shippingAddress: userAddress,
+                total: total,
+                paymentMethod: "Razorpay",
+              },
+              {
+                headers: {
+                  Authorization: `Bearer ${token}`,
+                },
+              }
+            );
+
+            const mongoOrderId = orderRes.data.order._id;
+            clearCart();
+            setIsProcessing(false);
+            onClose();
+            alert("✅ Payment successful! Order created.");
+            router.push(`/order-success/${mongoOrderId}`);
+          } catch (error: any) {
+            console.error('Order creation error:', error);
+            alert('Payment verified but order creation failed. Please contact support.');
+            setIsProcessing(false);
+          }
+        },
+        prefill: {
+          name: user?.name || '',
+          email: user?.email || '',
+          contact: user?.phone || '',
+        },
+        theme: {
+          color: '#4a2c2a',
+        },
+        modal: {
+          ondismiss: function () {
+            console.log('Payment modal closed');
+            setIsProcessing(false);
+          },
+        },
+      };
+
+      const rzp = new window.Razorpay(options);
+      rzp.on('payment.failed', function (response: any) {
+        console.error('Payment failed:', response.error);
+        alert('❌ Payment failed: ' + response.error.description);
+        setIsProcessing(false);
+      });
+      rzp.open();
     } catch (error: any) {
-      console.error("Stripe checkout error:", error);
-      alert(error.response?.data?.error || "Checkout failed");
+      console.error('Razorpay checkout error:', error);
+      alert(error.response?.data?.error || 'Checkout failed');
     } finally {
       setIsProcessing(false);
     }
@@ -136,26 +220,28 @@ export default function CheckoutModal({
 
   const paymentOptions = [
     {
-      id: "stripe",
-      name: "Stripe Card Payment",
+      id: "razorpay",
+      name: "Razorpay - All Methods",
       icon: "💳",
-      description: "Secure credit/debit card payment",
+      description: "Cards, UPI, Wallets, NetBanking",
     },
+    {
+      id: "card",
       name: "Credit/Debit Card",
       icon: "💳",
       description: "Visa, Mastercard, RuPay",
+    },
+    {
+      id: "upi",
+      name: "UPI",
+      icon: "📲",
+      description: "Google Pay, PhonePe, PayTM",
     },
     {
       id: "netbanking",
       name: "Net Banking",
       icon: "🏦",
       description: "All major banks",
-    },
-    {
-      id: "wallets",
-      name: "Wallets",
-      icon: "📱",
-      description: "Paytm, Mobikwik, Ola Money",
     },
     {
       id: "cod",
@@ -178,8 +264,6 @@ export default function CheckoutModal({
 
   const shipping = selectedPayment === "cod" ? 50 : 0;
   const gst = Math.round((subtotal - discount) * 0.18);
-  const total = subtotal - discount + shipping + gst;
-
   const handlePlaceOrder = async () => {
     if (!user) {
       alert("Please login first");
@@ -187,44 +271,36 @@ export default function CheckoutModal({
       return;
     }
 
-    if (!user.address) {
+    if (!userAddress) {
       alert("Please add/select an address first");
       return;
     }
 
-    if (cart.length === 0) {
+    if (cartItems.length === 0) {
       alert("Your cart is empty");
       return;
     }
 
-    const token = localStorage.getItem("token");
-
-    if (!token) {
-      alert("Please login again");
-      router.push("/login");
+    // If Razorpay is selected, use Razorpay checkout
+    if (selectedPayment === "razorpay") {
+      handleRazorpayCheckout();
       return;
     }
 
+    // For other payment methods (COD, etc)
     setIsProcessing(true);
 
     try {
-      const orderItems = cart.map((item) => ({
-        productId: item._id,
-        name: item.name,
-        price: item.price,
-        quantity: item.quantity,
-        image: item.image,
-      }));
-
       const paymentMethod =
         paymentOptions.find((p) => p.id === selectedPayment)?.name || "COD";
 
       const res = await axios.post(
-        "http://localhost:5000/api/orders",
+        `${process.env.NEXT_PUBLIC_API_URL}/api/orders`,
         {
-          items: orderItems,
-          totalAmount: total,
+          items: cartItems,
+          totalAmount: getTotalPrice(),
           paymentMethod,
+          shippingAddress: userAddress,
         },
         {
           headers: {
@@ -236,7 +312,6 @@ export default function CheckoutModal({
       if (res.data.success) {
         const orderId = res.data.order._id;
         clearCart();
-        setCart([]);
         setIsProcessing(false);
         onClose();
         alert("Order placed successfully ✅");

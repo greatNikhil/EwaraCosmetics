@@ -1,12 +1,43 @@
 import { Request, Response } from "express";
 import mongoose from "mongoose";
+import crypto from "crypto";
 import Order from "../models/order.model";
 import Product from "../models/Product";
+
+// VERIFY RAZORPAY SIGNATURE
+const verifyRazorpaySignature = (
+  razorpayOrderId: string,
+  razorpayPaymentId: string,
+  razorpaySignature: string
+): boolean => {
+  const keySecret = process.env.RAZORPAY_KEY_SECRET || "";
+
+  if (!keySecret) {
+    console.error("RAZORPAY_KEY_SECRET not found in environment");
+    return false;
+  }
+
+  const message = `${razorpayOrderId}|${razorpayPaymentId}`;
+  const expectedSignature = crypto
+    .createHmac("sha256", keySecret)
+    .update(message)
+    .digest("hex");
+
+  return expectedSignature === razorpaySignature;
+};
 
 // CREATE ORDER
 export const createOrder = async (req: any, res: Response) => {
   try {
-    const { items, totalAmount, paymentMethod } = req.body;
+    const {
+      items,
+      totalAmount,
+      paymentMethod,
+      razorpayPaymentId,
+      razorpayOrderId,
+      razorpaySignature,
+      shippingAddress,
+    } = req.body;
 
     if (!items || !Array.isArray(items) || items.length === 0) {
       return res.status(400).json({
@@ -20,6 +51,22 @@ export const createOrder = async (req: any, res: Response) => {
         success: false,
         message: "Valid total amount is required",
       });
+    }
+
+    // Verify Razorpay payment if provided
+    if (razorpayPaymentId && razorpayOrderId && razorpaySignature) {
+      const isSignatureValid = verifyRazorpaySignature(
+        razorpayOrderId,
+        razorpayPaymentId,
+        razorpaySignature
+      );
+
+      if (!isSignatureValid) {
+        return res.status(400).json({
+          success: false,
+          message: "Razorpay payment signature verification failed",
+        });
+      }
     }
 
     // 1. Validate products and stock
@@ -83,7 +130,11 @@ export const createOrder = async (req: any, res: Response) => {
       items,
       totalAmount,
       paymentMethod: paymentMethod || "COD",
-      status: "Pending",
+      shippingAddress: shippingAddress || undefined,
+      status: razorpayPaymentId ? "Processing" : "Pending", // Paid orders go to Processing
+      paymentStatus: razorpayPaymentId ? "Completed" : "Pending",
+      razorpayPaymentId: razorpayPaymentId || undefined,
+      razorpayOrderId: razorpayOrderId || undefined,
     });
 
     return res.status(201).json({
