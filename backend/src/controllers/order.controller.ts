@@ -3,6 +3,10 @@ import mongoose from "mongoose";
 import crypto from "crypto";
 import Order from "../models/order.model";
 import Product from "../models/Product";
+import {
+  sendOrderConfirmationEmail,
+  sendPaymentSuccessEmail,
+} from "../utils/emailService";
 
 // VERIFY RAZORPAY SIGNATURE
 const verifyRazorpaySignature = (
@@ -136,6 +140,24 @@ export const createOrder = async (req: any, res: Response) => {
       razorpayPaymentId: razorpayPaymentId || undefined,
       razorpayOrderId: razorpayOrderId || undefined,
     });
+
+    // Send Order Confirmation Email
+    const customerEmail = req.user?.email || "customer@email.com";
+    sendOrderConfirmationEmail(customerEmail, {
+      ...order.toObject(),
+      customerName: req.user?.name || "Valued Customer",
+    });
+
+    // Send Payment Success Email (if paid)
+    if (razorpayPaymentId) {
+      sendPaymentSuccessEmail(customerEmail, {
+        customerName: req.user?.name || "Valued Customer",
+        orderId: order._id,
+        amount: totalAmount,
+        paymentMethod: "Razorpay",
+        transactionId: razorpayPaymentId,
+      });
+    }
 
     return res.status(201).json({
       success: true,

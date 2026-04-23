@@ -4,6 +4,10 @@ import jwt from "jsonwebtoken";
 import User from "../models/user";
 import Otp from "../models/otp";
 import sendEmail from "../utils/sendEmail";
+import {
+  sendPasswordResetEmail,
+  sendWelcomeEmail,
+} from "../utils/emailService";
 
 // SEND OTP
 export const sendOTP = async (req: Request, res: Response) => {
@@ -132,6 +136,9 @@ export const register = async (req: Request, res: Response) => {
     });
 
     await Otp.deleteMany({ email: normalizedEmail });
+
+    // Send welcome email
+    sendWelcomeEmail(normalizedEmail, trimmedName);
 
     return res.status(201).json({
       success: true,
@@ -282,20 +289,19 @@ export const forgotPasswordSendOTP = async (
       expiresAt: new Date(Date.now() + 5 * 60 * 1000),
     });
 
-    await sendEmail(
-      normalizedEmail,
-      "Ewara Password Reset OTP",
-      `
-        <div style="font-family: Arial, sans-serif; padding: 20px;">
-          <h2>Your password reset OTP is: ${otp}</h2>
-          <p>This OTP is valid for 5 minutes.</p>
-        </div>
-      `
-    );
+    // Create reset link (user will need OTP to verify)
+    const resetLink = `${process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000"}/forgot-password?email=${normalizedEmail}`;
+
+    // Send password reset email with template
+    sendPasswordResetEmail(normalizedEmail, {
+      customerName: user.name || "User",
+      resetLink,
+      expiryTime: "5 minutes",
+    });
 
     return res.status(200).json({
       success: true,
-      message: "OTP sent successfully",
+      message: "Password reset OTP sent to your email",
     });
   } catch (error: any) {
     console.error("FORGOT PASSWORD SEND OTP ERROR:", error);
