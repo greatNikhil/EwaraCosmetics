@@ -13,6 +13,7 @@ import { useCartStore } from "@/store/cartStore";
 export function Navbar() {
   const [bagOpen, setBagOpen] = useState(false);
   const [userInput, setUserInput] = useState("");
+  const [liked, setLiked] = useState(false);
   const router = useRouter();
   const [wishlistCount, setWishlistCount] = useState(0);
   const [isMenuOpen, setIsMenuOpen] = useState(false);
@@ -50,7 +51,9 @@ export function Navbar() {
   useEffect(() => {
     const updateUser = () => {
       const storedUser = localStorage.getItem("user");
-      if (storedUser) setUser(storedUser);
+      if (storedUser) {
+        // User data available, can be used if needed
+      }
     };
     window.addEventListener("userChanged", updateUser);
     return () => {
