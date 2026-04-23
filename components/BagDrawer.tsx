@@ -10,7 +10,15 @@ export default function BagDrawer({ open, setOpen }: any) {
   const { items: cart, removeItem, updateQuantity, getTotalPrice } = useCartStore();
   const { token } = useAuthStore();
   const [showCheckout, setShowCheckout] = useState(false);
+  const [loggedIn, setLoggedIn] = useState(false);
+  const [isMounted, setIsMounted] = useState(false);
   const router = useRouter();
+
+  // Initialize loggedIn state on client-side to avoid hydration issues
+  useEffect(() => {
+    setIsMounted(true);
+    setLoggedIn(!!token);
+  }, [token]);
 
   const handleCheckout = () => {
     if (!token) {
@@ -20,6 +28,11 @@ export default function BagDrawer({ open, setOpen }: any) {
     }
     setShowCheckout(true);
   };
+
+  // Avoid hydration mismatch by not rendering conditional content until mounted
+  if (!isMounted) {
+    return null;
+  }
 
   return (
     <>
@@ -54,7 +67,7 @@ export default function BagDrawer({ open, setOpen }: any) {
           ) : (
             cart.map((item) => (
               <div
-                key={item._id}
+                key={item.id}
                 className="relative mb-4 flex gap-3 rounded-lg border border-[#ead2d8] bg-white p-3 shadow-sm"
               >
                 <img
@@ -62,8 +75,7 @@ export default function BagDrawer({ open, setOpen }: any) {
                   alt="delete"
                   className="absolute top-2 right-2 h-4 w-4 cursor-pointer opacity-60 transition hover:opacity-100"
                   onClick={() => {
-                    removeFromCart(item._id);
-                    refresh();
+                    removeItem(item.id);
                   }}
                 />
 
@@ -85,8 +97,7 @@ export default function BagDrawer({ open, setOpen }: any) {
                   <div className="mt-2 flex items-center gap-2">
                     <button
                       onClick={() => {
-                        updateCartQuantity(item._id, item.quantity - 1);
-                        refresh();
+                        updateQuantity(item.id, item.quantity - 1);
                       }}
                       className="h-8 w-8 rounded-full bg-[#f7e7ea] text-[#7a1f2b] transition hover:bg-[#ead2d8]"
                     >
@@ -99,8 +110,7 @@ export default function BagDrawer({ open, setOpen }: any) {
 
                     <button
                       onClick={() => {
-                        updateCartQuantity(item._id, item.quantity + 1);
-                        refresh();
+                        updateQuantity(item.id, item.quantity + 1);
                       }}
                       className="h-8 w-8 rounded-full bg-[#f7e7ea] text-[#7a1f2b] transition hover:bg-[#ead2d8]"
                     >
@@ -118,7 +128,7 @@ export default function BagDrawer({ open, setOpen }: any) {
             <p className="mb-2 flex justify-between text-[#4a2c2a]">
               <span>Total</span>
               <span className="font-semibold text-[#7a1f2b]">
-                ₹{getCartTotal()}
+                ₹{getTotalPrice()}
               </span>
             </p>
 
