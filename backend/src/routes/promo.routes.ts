@@ -5,7 +5,7 @@ import {
   getPromoTemplates,
 } from "../controllers/promo.controller";
 import { adminMiddleware } from "../middleware/admin";
-import { authenticateToken } from "../middleware/authMiddleware";
+import { authMiddleware } from "../middleware/authMiddleware";
 
 const router = express.Router();
 
@@ -13,10 +13,10 @@ const router = express.Router();
 router.get("/templates", getPromoTemplates);
 
 // Admin routes
-router.post("/send-to-user", authenticateToken, adminMiddleware, sendPromoToUser);
+router.post("/send-to-user", authMiddleware, adminMiddleware, sendPromoToUser);
 router.post(
   "/send-to-all",
-  authenticateToken,
+  authMiddleware,
   adminMiddleware,
   sendPromoToAllUsers
 );
