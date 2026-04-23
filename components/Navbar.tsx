@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useState, useEffect, useRef } from "react";
-import { Search, LogOut, Settings } from "lucide-react";
+import { Search, LogOut, Settings, Menu, X } from "lucide-react";
 import { Sparkles } from "lucide-react";
 import { Heart, ShoppingBag, User } from "lucide-react";
 import { useRouter } from "next/navigation";
@@ -21,6 +21,7 @@ export function Navbar() {
   const { user, logout } = useAuthStore();
   const { items: cartItems, getTotalItems } = useCartStore();
   const [isAdmin, setIsAdmin] = useState(false);
+  const [cartCount, setCartCount] = useState(0);
 
   useEffect(() => {
     setIsAdmin(user?.role === "admin");
@@ -38,6 +39,10 @@ export function Navbar() {
     }
   }, []);
 
+  useEffect(() => {
+    setCartCount(getTotalItems());
+  }, [cartItems]);
+
   const handleLogout = () => {
     logout();
     localStorage.removeItem("token");
@@ -52,7 +57,7 @@ export function Navbar() {
     const updateUser = () => {
       const storedUser = localStorage.getItem("user");
       if (storedUser) {
-        // User data available, can be used if needed
+        // User data available
       }
     };
     window.addEventListener("userChanged", updateUser);
@@ -73,231 +78,320 @@ export function Navbar() {
       document.removeEventListener("mousedown", handleClickOutside);
     };
   }, []);
+
   return (
     <>
-      {/* 🔥 TOP OFFER STRIP */}
-      <div className="overflow-hidden whitespace-nowrap  bg-gradient-to-r from-[#f7e7ea]/70 via-[#f3ede7]/70 to-[#e8d5c4]/70 backdrop-blur-md border-b border-white/30">
-        <div className="animate-marquee inline-block px-4 py-2 text-sm text-[#4a2c2a]">
-          ✨ First Order: Get Extra 10% Off on ₹700+ ✦✦ &nbsp;&nbsp;&nbsp; ✨ Up
-          to 50% Off + Surprise Gifts ✨ &nbsp;&nbsp;&nbsp; ✨ Free Shipping on
-          Orders Above ₹999 ✨&nbsp;&nbsp;&nbsp;✨ First Order: Get Extra 10%
-          Off on ₹700+ ✨ &nbsp;&nbsp;&nbsp; ✨ Up to 50% Off + Surprise Gifts
-          ✨ &nbsp;&nbsp;&nbsp; ✨ Free Shipping on Orders Above ₹999 ✨
+      {/* TOP OFFER BANNER */}
+      <div className="overflow-hidden whitespace-nowrap bg-gradient-to-r from-[#f7e7ea]/90 via-[#f3ede7]/90 to-[#e8d5c4]/90 backdrop-blur-md border-b border-[#ead2d8]/50">
+        <div className="animate-marquee inline-block px-4 py-2.5 text-xs md:text-sm font-medium text-[#4a2c2a]">
+          ✨ First Order: Get Extra 10% Off on ₹700+ &nbsp;&nbsp;✦✦&nbsp;&nbsp; ✨ Up
+          to 50% Off + Surprise Gifts &nbsp;&nbsp;✦✦&nbsp;&nbsp; ✨ Free Shipping on
+          Orders Above ₹999 ✨
         </div>
       </div>
-      {/* 🔥 MAIN NAVBAR */}
-      <header className="sticky top-0 z-50 bg-[#f7e7ea]/80 backdrop-blur-md border-b border-[#ead2d8] transition-all duration-300 shadow-[0_4px_20px_rgba(0,0,0,0.1)]">
-        <div className="mx-auto max-w-7xl px-4 py-4 flex items-center justify-between">
-          {/* LOGO */}
-          <div
-            className="flex items-center p-2 rounded-lg  
-                            shadow-[0_4px_10px_rgba(0,0,0,0.1)]"
-          >
-            <img
-              src="/favicon/logo.png"
-              alt="logo"
-              onClick={() => (window.location.href = "/")}
-              className="h-8 md:h-10 w-auto cursor-pointer object-contain drop-shadow-[0_6px_10px_rgba(0,0,0,0.3)] 
-                        hover:drop-shadow-[0_8px_14px_rgba(0,0,0,0.4)] 
-                        transition"
-            />
-          </div>
 
-          {/* 🔍 SEARCH BAR */}
-          <div className="hidden md:flex items-center w-[40%] bg-[#f3ede7] rounded-full px-4 py-2 border border-[#e6dcd2]  hover:scale-110 transition duration-200">
-            <Search size={16} className="text-gray-500" />
-            <input
-              type="text"
-              placeholder="Search for products..."
-              className="bg-transparent outline-none px-3 w-full text-sm text-[#4a2c2a]"
-            />
-          </div>
-
-          {/* RIGHT ICONS */}
-          <div className="flex items-center gap-4 ml-6 text-[#4a2c2a] ">
-            {/* PROFILE */}
-            <div className="relative hidden md:block hover:scale-110 transition duration-200">
+      {/* MAIN NAVBAR */}
+      <header className="sticky top-0 z-50 bg-white/95 backdrop-blur-md border-b border-[#ead2d8]/50 shadow-[0_2px_12px_rgba(0,0,0,0.06)] transition-all duration-300">
+        <div className="mx-auto max-w-7xl px-4 md:px-6 lg:px-8">
+          {/* Top Row */}
+          <div className="flex items-center justify-between py-4">
+            {/* LOGO */}
+            <Link href="/" className="flex-shrink-0 group">
               <img
-                src="/favicon/profile.svg"
-                alt="profile"
-                onClick={() => setIsProfileOpen(!isProfileOpen)}
-                className="w-6 h-6 cursor-pointer transition duration-300 hover:bg-grey-500 hover:scale-100"
+                src="/favicon/logo.png"
+                alt="Ewara Logo"
+                className="h-8 md:h-10 w-auto object-contain transition-transform duration-300 group-hover:scale-105"
               />
-              {/* DROPDOWN */}
-              {isProfileOpen && (
-                <div
-                  className={`absolute right-0 top-full mt-2 w-44 rounded-xl 
-                  bg-[#f7e7ea] border border-black 
-                  shadow-md backdrop-blur-md 
-                  transition-all duration-300
-                  ${isProfileOpen ? "opacity-100 visible translate-y-0" : "opacity-0 invisible -translate-y-2"}`}
-                  ref={profileRef}
-                >
-                  {/* 🔐 LOGIN / LOGOUT SWITCH */}
-                  {!user ? (
-                    <Link
-                      href="/login"
-                      onClick={() => setIsProfileOpen(false)}
-                      className="block px-4 py-2 text-sm text-[#5a4f4d] 
-    hover:bg-[#5c1721] hover:text-white transition rounded-t-xl"
-                    >
-                      Login
-                    </Link>
-                  ) : (
-                    <button
-                      onClick={() => {
-                        // 🔥 Remove EVERYTHING related to auth
-                        localStorage.removeItem("token");
-                        localStorage.removeItem("userData");
-                        localStorage.removeItem("isLoggedIn");
-                        localStorage.removeItem("isAdmin");
+            </Link>
 
-                        window.dispatchEvent(new Event("userChanged"));
-
-                        setUser(null);
-                        setIsMenuOpen(false);
-
-                        // 🔥 Redirect to login
-                        window.location.href = "/login";
-                      }}
-                      className="w-full text-left px-4 py-2 text-sm text-[#5a4f4d] 
-    hover:bg-[#5c1721] hover:text-white transition rounded-t-xl"
-                    >
-                      Logout
-                    </button>
-                  )}
-
-                  {/* 👤 PROFILE (always visible) */}
-                  <Link
-                    href="/profile"
-                    onClick={() => setIsProfileOpen(false)}
-                    className="block px-4 py-2 text-sm text-[#5a4f4d] 
-                  hover:bg-[#5c1721] hover:text-white transition"
-                  >
-                    Profile
-                  </Link>
-
-                  {/* ❓ HELP (always visible) */}
-                  <Link
-                    href="/help"
-                    onClick={() => setIsProfileOpen(false)}
-                    className="block px-4 py-2 text-sm text-[#5a4f4d] 
-                  hover:bg-[#5c1721] hover:text-white transition rounded-b-xl"
-                  >
-                    Help
-                  </Link>
-                </div>
-              )}
+            {/* SEARCH BAR - HIDDEN ON MOBILE */}
+            <div className="hidden md:flex flex-1 mx-8 items-center bg-[#fdf8f6] rounded-full border border-[#ead2d8] px-4 py-2.5 hover:border-[#7a1f2b]/30 focus-within:border-[#7a1f2b] focus-within:ring-2 focus-within:ring-[#7a1f2b]/10 transition-all duration-200">
+              <Search size={18} className="text-[#9c8b87] flex-shrink-0" />
+              <input
+                type="text"
+                placeholder="Search products, brands..."
+                className="bg-transparent outline-none px-3 w-full text-sm text-[#4a2c2a] placeholder-[#b5a9a4]"
+                value={userInput}
+                onChange={(e) => setUserInput(e.target.value)}
+              />
             </div>
 
-            {/* ❤️ WISHLIST */}
-            <div className="relative hover:scale-110 transition duration-200">
-              <img
-                src="/favicon/heart.svg"
+            {/* RIGHT ICONS */}
+            <div className="flex items-center gap-2 md:gap-6">
+              {/* PROFILE - DESKTOP */}
+              <div className="relative hidden md:block" ref={profileRef}>
+                <button
+                  onClick={() => setIsProfileOpen(!isProfileOpen)}
+                  className="p-2 hover:bg-[#f7e7ea] rounded-lg transition-colors duration-200"
+                >
+                  <User className="h-5 w-5 text-[#4a2c2a]" />
+                </button>
+
+                {/* PROFILE DROPDOWN */}
+                {isProfileOpen && (
+                  <div className="absolute right-0 top-full mt-3 w-48 rounded-lg bg-white border border-[#ead2d8] shadow-lg overflow-hidden z-50 animation-in">
+                    {!user ? (
+                      <Link
+                        href="/login"
+                        onClick={() => setIsProfileOpen(false)}
+                        className="block px-4 py-3 text-sm font-medium text-[#4a2c2a] hover:bg-[#f7e7ea] border-b border-[#ead2d8] transition-colors duration-200"
+                      >
+                        Sign In
+                      </Link>
+                    ) : (
+                      <button
+                        onClick={() => {
+                          handleLogout();
+                          setIsProfileOpen(false);
+                        }}
+                        className="w-full text-left px-4 py-3 text-sm font-medium text-[#4a2c2a] hover:bg-[#f7e7ea] border-b border-[#ead2d8] transition-colors duration-200"
+                      >
+                        Logout
+                      </button>
+                    )}
+
+                    <Link
+                      href="/profile"
+                      onClick={() => setIsProfileOpen(false)}
+                      className="block px-4 py-3 text-sm text-[#6b7280] hover:bg-[#f7e7ea] hover:text-[#4a2c2a] border-b border-[#ead2d8] transition-colors duration-200"
+                    >
+                      My Profile
+                    </Link>
+
+                    <Link
+                      href="/help"
+                      onClick={() => setIsProfileOpen(false)}
+                      className="block px-4 py-3 text-sm text-[#6b7280] hover:bg-[#f7e7ea] hover:text-[#4a2c2a] transition-colors duration-200"
+                    >
+                      Help & Support
+                    </Link>
+                  </div>
+                )}
+              </div>
+
+              {/* WISHLIST */}
+              <button
                 onClick={() => {
                   if (!user) {
                     alert("Please login first");
                     return;
                   }
-
                   setLiked(!liked);
-                  router.push("/wishlist"); // 🔥 navigation control
+                  router.push("/wishlist");
                 }}
-                className={`w-6 h-6 cursor-pointer transition-all duration-300
-      ${liked
-                    ? "scale-125 animate-pulse brightness-0 sepia saturate-[600%] hue-rotate-[310deg]"
-                    : "scale-100"
-                  }
-      hover:scale-110 active:scale-90`}
-              />
+                className="relative p-2 hover:bg-[#f7e7ea] rounded-lg transition-colors duration-200 group"
+              >
+                <Heart
+                  className={`h-5 w-5 transition-all duration-300 ${
+                    liked
+                      ? "fill-[#7a1f2b] text-[#7a1f2b]"
+                      : "text-[#4a2c2a] group-hover:text-[#7a1f2b]"
+                  }`}
+                />
+                {wishlistCount > 0 && (
+                  <span className="absolute top-1 right-1 inline-flex items-center justify-center px-2 py-0.5 text-xs font-bold leading-none text-white transform translate-x-1/2 -translate-y-1/2 bg-[#7a1f2b] rounded-full">
+                    {wishlistCount}
+                  </span>
+                )}
+              </button>
 
-              {/* COUNT */}
-              {wishlistCount > 0 && (
-                <span className="absolute -top-2 -right-2 bg-[#7a1f2b] text-white text-xs px-1.5 rounded-full">
-                  {wishlistCount}
-                </span>
-              )}
+              {/* CART */}
+              <button
+                onClick={() => setBagOpen(true)}
+                className="relative p-2 hover:bg-[#f7e7ea] rounded-lg transition-colors duration-200 group"
+              >
+                <ShoppingBag className="h-5 w-5 text-[#4a2c2a] group-hover:text-[#7a1f2b] transition-colors duration-200" />
+                {cartCount > 0 && (
+                  <span className="absolute top-1 right-1 inline-flex items-center justify-center px-2 py-0.5 text-xs font-bold leading-none text-white transform translate-x-1/2 -translate-y-1/2 bg-[#7a1f2b] rounded-full">
+                    {cartCount}
+                  </span>
+                )}
+              </button>
+
+              {/* MOBILE MENU BUTTON */}
+              <button
+                onClick={() => setIsMenuOpen(true)}
+                className="md:hidden p-2 hover:bg-[#f7e7ea] rounded-lg transition-colors duration-200"
+              >
+                <Menu className="h-5 w-5 text-[#4a2c2a]" />
+              </button>
+            </div>
+          </div>
+
+          {/* Navigation Menu - DESKTOP ONLY */}
+          <div className="hidden md:flex items-center justify-center gap-1 py-3 border-t border-[#ead2d8]/30">
+            <Link
+              href="/new-arrivals"
+              className="px-4 py-2 text-sm font-medium text-[#4a2c2a] hover:text-[#7a1f2b] hover:bg-[#f7e7ea] rounded-lg transition-all duration-200"
+            >
+              New Arrivals
+            </Link>
+
+            <Link
+              href="/category"
+              className="px-4 py-2 text-sm font-medium text-[#4a2c2a] hover:text-[#7a1f2b] hover:bg-[#f7e7ea] rounded-lg transition-all duration-200"
+            >
+              Category
+            </Link>
+
+            <Link
+              href="/shop"
+              className="px-4 py-2 text-sm font-medium text-[#4a2c2a] hover:text-[#7a1f2b] hover:bg-[#f7e7ea] rounded-lg transition-all duration-200"
+            >
+              Shop All
+            </Link>
+
+            <Link
+              href="/services"
+              className="px-4 py-2 text-sm font-medium text-[#4a2c2a] hover:text-[#7a1f2b] hover:bg-[#f7e7ea] rounded-lg transition-all duration-200"
+            >
+              Services
+            </Link>
+
+            {isAdmin && (
+              <Link
+                href="/admin"
+                className="px-4 py-2 text-sm font-bold text-white bg-gradient-to-r from-[#7a1f2b] to-[#5c1721] hover:shadow-md rounded-lg transition-all duration-200"
+              >
+                Admin Panel
+              </Link>
+            )}
+
+            <Link
+              href="/offers"
+              className="ml-2 flex items-center gap-2 px-4 py-2 text-sm font-bold text-white bg-gradient-to-r from-[#7a1f2b] via-[#d4a373] to-[#7a1f2b] hover:shadow-lg rounded-lg transition-all duration-200 hover:scale-105"
+            >
+              <Sparkles size={16} />
+              Offers
+              <Sparkles size={16} />
+            </Link>
+          </div>
+        </div>
+      </header>
+
+      {/* MOBILE MENU DRAWER */}
+      {isMenuOpen && (
+        <div className="fixed inset-0 z-50 md:hidden">
+          {/* OVERLAY */}
+          <div
+            className="absolute inset-0 bg-black/40 backdrop-blur-sm"
+            onClick={() => setIsMenuOpen(false)}
+          />
+
+          {/* DRAWER */}
+          <div className="absolute left-0 top-0 h-full w-full max-w-xs bg-white shadow-2xl flex flex-col">
+            {/* HEADER */}
+            <div className="flex items-center justify-between border-b border-[#ead2d8] px-6 py-5">
+              <h2 className="text-lg font-bold text-[#4a2c2a]">Menu</h2>
+              <button
+                onClick={() => setIsMenuOpen(false)}
+                className="p-2 hover:bg-[#f7e7ea] rounded-lg transition-colors duration-200"
+              >
+                <X className="h-5 w-5 text-[#4a2c2a]" />
+              </button>
             </div>
 
-            {/* 🛍 BAG */}
-            <ShoppingBag
-              size={20}
-              className="cursor-pointer text-black transition duration-300 hover:text-blue-500 hover:scale-110"
-              onClick={() => setBagOpen(true)}
-            />
-            <div className="md:hidden">
-              <div
-                onClick={() => setIsMenuOpen(true)}
-                className="text-2xl cursor-pointer"
-              >
-                ☰
+            {/* CONTENT */}
+            <div className="flex-1 overflow-y-auto px-6 py-6 space-y-2">
+              {/* Search on Mobile */}
+              <div className="mb-6 flex items-center bg-[#fdf8f6] rounded-lg border border-[#ead2d8] px-3 py-2">
+                <Search size={16} className="text-[#9c8b87]" />
+                <input
+                  type="text"
+                  placeholder="Search..."
+                  className="bg-transparent outline-none px-2 w-full text-sm text-[#4a2c2a]"
+                />
               </div>
+
+              {/* Menu Items */}
+              <Link
+                href="/shop"
+                onClick={() => setIsMenuOpen(false)}
+                className="block px-4 py-3 text-base font-medium text-[#4a2c2a] hover:bg-[#f7e7ea] hover:text-[#7a1f2b] rounded-lg transition-all duration-200"
+              >
+                Shop All
+              </Link>
+
+              <Link
+                href="/new-arrivals"
+                onClick={() => setIsMenuOpen(false)}
+                className="block px-4 py-3 text-base font-medium text-[#4a2c2a] hover:bg-[#f7e7ea] hover:text-[#7a1f2b] rounded-lg transition-all duration-200"
+              >
+                New Arrivals
+              </Link>
+
+              <Link
+                href="/category"
+                onClick={() => setIsMenuOpen(false)}
+                className="block px-4 py-3 text-base font-medium text-[#4a2c2a] hover:bg-[#f7e7ea] hover:text-[#7a1f2b] rounded-lg transition-all duration-200"
+              >
+                Category
+              </Link>
+
+              <Link
+                href="/services"
+                onClick={() => setIsMenuOpen(false)}
+                className="block px-4 py-3 text-base font-medium text-[#4a2c2a] hover:bg-[#f7e7ea] hover:text-[#7a1f2b] rounded-lg transition-all duration-200"
+              >
+                Services
+              </Link>
+
+              <div className="border-t border-[#ead2d8] my-4" />
+
+              <Link
+                href="/profile"
+                onClick={() => setIsMenuOpen(false)}
+                className="block px-4 py-3 text-base font-medium text-[#4a2c2a] hover:bg-[#f7e7ea] hover:text-[#7a1f2b] rounded-lg transition-all duration-200"
+              >
+                My Profile
+              </Link>
+
+              <Link
+                href="/help"
+                onClick={() => setIsMenuOpen(false)}
+                className="block px-4 py-3 text-base font-medium text-[#4a2c2a] hover:bg-[#f7e7ea] hover:text-[#7a1f2b] rounded-lg transition-all duration-200"
+              >
+                Help & Support
+              </Link>
+
+              <div className="border-t border-[#ead2d8] my-4" />
+
+              <Link
+                href="/offers"
+                onClick={() => setIsMenuOpen(false)}
+                className="flex items-center gap-2 px-4 py-3 text-base font-bold text-white bg-gradient-to-r from-[#7a1f2b] via-[#d4a373] to-[#7a1f2b] hover:shadow-lg rounded-lg transition-all duration-200"
+              >
+                <Sparkles size={18} />
+                Offers
+                <Sparkles size={18} />
+              </Link>
+            </div>
+
+            {/* FOOTER */}
+            <div className="border-t border-[#ead2d8] px-6 py-5">
+              <button
+                onClick={() => {
+                  if (!user) {
+                    setIsMenuOpen(false);
+                    router.push("/login");
+                  } else {
+                    handleLogout();
+                    setIsMenuOpen(false);
+                  }
+                }}
+                className="w-full py-3 px-4 rounded-lg text-white font-bold bg-gradient-to-r from-[#7a1f2b] to-[#5c1721] hover:shadow-lg transition-all duration-200"
+              >
+                {user ? "Logout" : "Sign In"}
+              </button>
             </div>
           </div>
         </div>
+      )}
 
-        {/* 🔥 MENU BAR */}
-        <div className=" hidden md:flex justify-center gap-5  md:gap-6 py-3 text-sm text-[#5a4f4d]">
-          {/* NEW ARRIVALS */}
-          <Link
-            href="/new-arrivals"
-            className="px-3 py-1.5 rounded-full transition duration-300 
-             text-[#5a4f4d] 
-             hover:bg-[#5c1721] hover:text-white"
-          >
-            New Arrivals
-          </Link>
-          {/* OTHER LINKS */}
-          <Link
-            href="/category"
-            className="cursor-pointer px-2 py-1 rounded-full 
-                   hover:bg-[#5c1721] hover:text-white 
-                   transition"
-          >
-            Category
-          </Link>
-          <Link
-            href="/shop"
-            className="cursor-pointer px-2 py-1 rounded-full 
-                   hover:bg-[#5c1721] hover:text-white
-                   transition"
-          >
-            Shop
-          </Link>
-          <Link
-            href="/services"
-            className="cursor-pointer px-2 py-1 rounded-full 
-                  hover:bg-[#5c1721] hover:text-white 
-                   transition"
-          >
-            Services
-          </Link>
-          {isAdmin && (
-            <Link
-              href="/admin"
-              className="cursor-pointer px-2 py-1 rounded-full 
-                  hover:bg-[#5c1721] hover:text-white 
-                   transition font-semibold text-[#7a1f2b]"
-            >
-              Admin
-            </Link>
-          )}
-          <Link
-            href="/offers"
-            className="flex items-center gap-2 px-4 py-1.5 rounded-full 
-             bg-gradient-to-r from-blue-500 to-indigo-500 
-             text-white font-medium text-sm 
-             shadow-md hover:shadow-lg 
-             transition duration-300 hover:scale-105"
-          >
-            <Sparkles size={14} className="text-white" />
-            Offers
-            <Sparkles size={14} className="text-white" />
-          </Link>
-        </div>
-      </header>
-      {isMenuOpen && (
-        <div className="fixed inset-0 z-50">
+      <BagDrawer open={bagOpen} setOpen={setBagOpen} />
+    </>
+  );
+}
           {/* OVERLAY */}
           <div
             className="absolute inset-0 bg-black/40"
