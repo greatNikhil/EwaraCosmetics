@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import axios from "axios";
-import { ArrowLeft, ChevronDown, ChevronUp, X, Check } from "lucide-react";
+import { ArrowLeft, ChevronDown, ChevronUp, X, Check, Truck, CreditCard, Lock } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useCartStore } from "@/store/cartStore";
 import { useAuthStore } from "@/store/authStore";
@@ -193,7 +193,7 @@ export default function CheckoutModal({
           contact: user?.phone || '',
         },
         theme: {
-          color: '#4a2c2a',
+          color: '#7a1f2b',
         },
         modal: {
           ondismiss: function () {
@@ -264,6 +264,8 @@ export default function CheckoutModal({
 
   const shipping = selectedPayment === "cod" ? 50 : 0;
   const gst = Math.round((subtotal - discount) * 0.18);
+  const total = subtotal - discount + gst + shipping;
+
   const handlePlaceOrder = async () => {
     if (!user) {
       alert("Please login first");
@@ -328,214 +330,185 @@ export default function CheckoutModal({
 
   if (!isOpen) return null;
 
-  if (authLoading) {
-    return (
-      <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm">
-        <div className="rounded-3xl bg-white px-8 py-10 text-center shadow-2xl">
-          <div className="mb-4 inline-block h-12 w-12 animate-spin rounded-full border-4 border-[#7a1f2b] border-t-transparent" />
-          <p className="font-medium text-[#7a1f2b]">Preparing checkout...</p>
-        </div>
-      </div>
-    );
-  }
-
   return (
     <>
       <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/60 p-4 backdrop-blur-sm sm:items-center">
-        <div className="max-h-[90vh] w-full max-w-md animate-slideUp overflow-hidden rounded-t-3xl bg-white shadow-2xl sm:rounded-3xl">
-          <div className="sticky top-0 z-10 flex items-center justify-between border-b border-gray-100 bg-white px-6 py-4">
+        <div className="max-h-[90vh] w-full max-w-2xl animate-slideUp overflow-hidden rounded-t-3xl bg-white shadow-2xl sm:rounded-3xl">
+          {/* Header */}
+          <div className="sticky top-0 z-10 flex items-center justify-between border-b border-[#ead2d8] bg-white px-6 py-4">
             <button
               onClick={handleClose}
-              className="rounded-full p-2 -ml-2 transition-colors hover:bg-gray-50"
+              className="p-2 -ml-2 hover:bg-[#f7e7ea] rounded-lg transition-colors duration-200"
             >
-              <ArrowLeft size={20} className="text-gray-600" />
+              <ArrowLeft size={20} className="text-[#4a2c2a]" />
             </button>
-            <h1 className="text-lg font-semibold text-[#7a1f2b]">EWARA</h1>
-            <div className="w-10" />
+            <h1 className="text-lg font-bold text-[#4a2c2a]">Order Checkout</h1>
+            <button
+              onClick={handleClose}
+              className="p-2 hover:bg-[#f7e7ea] rounded-lg transition-colors duration-200"
+            >
+              <X size={20} className="text-[#4a2c2a]" />
+            </button>
           </div>
 
           <div className="no-scrollbar max-h-[calc(90vh-140px)] overflow-y-auto">
-            <div className="border-b border-gray-100 px-6 py-4">
-              <div className="mb-3 flex items-center justify-between">
-                <h2 className="text-lg font-semibold text-gray-900">
-                  Order summary ({cart.length} item{cart.length > 1 ? "s" : ""})
-                </h2>
-              </div>
-
-              <div className="space-y-2 text-sm">
-                <div className="flex justify-between">
-                  <span className="text-gray-600">Subtotal</span>
-                  <span className="text-gray-400 line-through">₹{subtotal}</span>
+            {/* Order Items Summary */}
+            <div className="border-b border-[#ead2d8] bg-[#fdf8f6] px-6 py-5">
+              <h2 className="text-sm font-bold text-[#4a2c2a] uppercase tracking-wide mb-3">
+                Order Summary
+              </h2>
+              <div className="space-y-3">
+                <div className="flex justify-between items-center">
+                  <span className="text-sm text-[#6b7280]">Subtotal ({cartItems.length} items)</span>
+                  <span className="font-semibold text-[#4a2c2a]">₹{subtotal}</span>
                 </div>
-                <div className="flex justify-between">
-                  <span className="text-gray-600">Discount</span>
-                  <span className="text-green-600">-₹{discount}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-gray-600">GST (18%)</span>
-                  <span>₹{gst}</span>
-                </div>
-                {shipping > 0 && (
-                  <div className="flex justify-between">
-                    <span className="text-gray-600">COD Charges</span>
-                    <span>₹{shipping}</span>
+                {appliedCoupon && (
+                  <div className="flex justify-between items-center text-green-600">
+                    <span className="text-sm">Discount ({appliedCoupon.code})</span>
+                    <span className="font-semibold">-₹{discount}</span>
                   </div>
                 )}
-                <div className="flex justify-between border-t pt-2 text-lg font-semibold">
-                  <span>Total</span>
-                  <span className="text-[#7a1f2b]">₹{total}</span>
+                <div className="flex justify-between items-center">
+                  <span className="text-sm text-[#6b7280]">GST (18%)</span>
+                  <span className="font-semibold text-[#4a2c2a]">₹{gst}</span>
                 </div>
-              </div>
-
-              <div className="mt-4 flex items-center gap-3 rounded-lg border border-green-200 bg-green-50 p-3">
-                <div className="flex h-5 w-5 items-center justify-center rounded-full bg-green-500">
-                  <Check size={12} className="text-white" />
+                {shipping > 0 && (
+                  <div className="flex justify-between items-center">
+                    <span className="text-sm text-[#6b7280]">COD Charges</span>
+                    <span className="font-semibold text-[#4a2c2a]">₹{shipping}</span>
+                  </div>
+                )}
+                <div className="border-t border-[#ead2d8] pt-3 flex justify-between items-center">
+                  <span className="font-bold text-[#4a2c2a]">Total Amount</span>
+                  <span className="text-2xl font-bold text-[#7a1f2b]">₹{total}</span>
                 </div>
-                <span className="text-sm font-medium text-green-700">
-                  Yay! You&apos;ve saved ₹{discount}.00 so far
-                </span>
               </div>
             </div>
 
-            <div className="border-b border-gray-100 px-6 py-4">
-              <div className="flex gap-3">
+            {/* Coupon Section */}
+            <div className="border-b border-[#ead2d8] px-6 py-5">
+              <h3 className="text-sm font-bold text-[#4a2c2a] uppercase tracking-wide mb-3">
+                Apply Coupon
+              </h3>
+              <div className="flex gap-2">
                 <input
                   type="text"
                   placeholder="Enter coupon code"
                   value={couponCode}
-                  onChange={(e) => setCouponCode(e.target.value)}
-                  className="flex-1 rounded-lg border border-gray-200 px-4 py-3 text-sm focus:border-[#7a1f2b] focus:outline-none"
+                  onChange={(e) => setCouponCode(e.target.value.toUpperCase())}
+                  className="flex-1 rounded-lg border border-[#ead2d8] px-4 py-3 text-sm text-[#4a2c2a] placeholder-[#b5a9a4] focus:border-[#7a1f2b] focus:ring-2 focus:ring-[#7a1f2b]/10 outline-none transition-all duration-200"
                 />
                 <button
-                  className="rounded-lg bg-[#7a1f2b] px-6 py-3 text-sm font-medium text-white transition-colors hover:bg-[#5c1721]"
+                  className="px-6 py-3 bg-gradient-to-r from-[#7a1f2b] to-[#5c1721] text-white font-semibold rounded-lg hover:shadow-lg transition-all duration-200 hover:scale-105 active:scale-95"
                   onClick={handleApplyCoupon}
                 >
                   Apply
                 </button>
               </div>
-              <p className="mt-2 text-xs text-gray-500">Unlock coupons</p>
+              <p className="text-xs text-[#6b7280] mt-2">Try: EWARA10 (10% off) or FLAT50 (₹50 off)</p>
             </div>
 
-            <div className="border-b border-gray-100 px-6 py-4">
-              <div className="mb-3 flex items-center justify-between">
-                <h3 className="text-lg font-semibold text-gray-900">
-                  Delivery details
-                </h3>
+            {/* Delivery Address */}
+            <div className="border-b border-[#ead2d8] px-6 py-5">
+              <div className="flex items-center justify-between mb-4">
+                <div className="flex items-center gap-2">
+                  <Truck className="h-5 w-5 text-[#7a1f2b]" />
+                  <h3 className="text-sm font-bold text-[#4a2c2a] uppercase tracking-wide">
+                    Delivery Address
+                  </h3>
+                </div>
                 <button
                   onClick={() => setShowAddressSelector(true)}
-                  className="text-sm font-medium text-[#7a1f2b] transition hover:font-semibold"
+                  className="text-sm font-semibold text-[#7a1f2b] hover:text-[#5c1721] transition-colors duration-200"
                 >
                   Change
                 </button>
               </div>
 
-              <div className="space-y-2 text-sm">
-                {user?.address ? (
-                  <>
-                    <p className="font-medium text-gray-900">
-                      {user.address.name}
-                    </p>
-                    <p className="text-gray-600">{user.address.address}</p>
-                    <p className="text-gray-600">
-                      {user.address.city}, {user.address.state} -{" "}
-                      {user.address.pincode}
-                    </p>
-                    <p className="text-gray-600">{user.address.phone}</p>
-                  </>
-                ) : (
-                  <p className="italic text-gray-500">No address added</p>
-                )}
-                <p className="text-gray-600">
-                  {user?.email || "customer@example.com"}
-                </p>
-              </div>
-            </div>
+              {userAddress ? (
+                <div className="bg-[#fdf8f6] rounded-lg p-4 border border-[#ead2d8]">
+                  <p className="font-semibold text-[#4a2c2a] mb-1">{userAddress.name}</p>
+                  <p className="text-sm text-[#6b7280] mb-2">{userAddress.address}</p>
+                  <p className="text-sm text-[#6b7280] mb-2">
+                    {userAddress.city}, {userAddress.state} - {userAddress.pincode}
+                  </p>
+                  <p className="text-sm text-[#6b7280]">{userAddress.phone}</p>
+                </div>
+              ) : (
+                <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
+                  <p className="text-sm text-yellow-700">⚠️ No address added. Please select a delivery address.</p>
+                </div>
+              )}
 
-            <div className="border-b border-gray-100 px-6 py-4">
-              <div className="flex items-center justify-between">
+              {/* Delivery Timeline */}
+              <div className="mt-4 bg-green-50 border border-green-200 rounded-lg p-4 flex items-start gap-3">
+                <Check className="h-5 w-5 text-green-600 flex-shrink-0 mt-0.5" />
                 <div>
-                  <p className="text-sm text-gray-600">Express delivery</p>
-                  <p className="font-medium text-gray-900">
-                    {new Date(
-                      Date.now() + 3 * 24 * 60 * 60 * 1000
-                    ).toLocaleDateString("en-IN", {
-                      weekday: "long",
-                      month: "short",
-                      day: "numeric",
-                    })}
-                  </p>
-                </div>
-                <div className="text-right">
-                  <p className="text-sm text-gray-600">Shipping charges</p>
-                  <p className="font-medium text-gray-900">
-                    {shipping === 0 ? "FREE" : `₹${shipping}`}
+                  <p className="font-semibold text-green-900 text-sm">Express Delivery</p>
+                  <p className="text-xs text-green-700 mt-1">
+                    Estimated delivery by {new Date(Date.now() + 3 * 24 * 60 * 60 * 1000).toLocaleDateString("en-IN", { weekday: "short", month: "short", day: "numeric" })}
                   </p>
                 </div>
               </div>
             </div>
 
-            <div className="px-6 py-4">
-              <h3 className="mb-4 text-lg font-semibold text-gray-900">
-                Pay via
-              </h3>
+            {/* Payment Method */}
+            <div className="px-6 py-5">
+              <div className="flex items-center gap-2 mb-4">
+                <CreditCard className="h-5 w-5 text-[#7a1f2b]" />
+                <h3 className="text-sm font-bold text-[#4a2c2a] uppercase tracking-wide">
+                  Payment Method
+                </h3>
+              </div>
 
-              <div className="space-y-3">
+              <div className="space-y-2">
                 {paymentOptions.map((option) => (
-                  <div
-                    key={option.id}
-                    className="overflow-hidden rounded-lg border border-gray-200"
-                  >
+                  <div key={option.id} className="border border-[#ead2d8] rounded-lg overflow-hidden">
                     <button
                       onClick={() => {
                         setSelectedPayment(option.id);
-                        setExpandedPayment(
-                          expandedPayment === option.id ? "" : option.id
-                        );
+                        setExpandedPayment(expandedPayment === option.id ? "" : option.id);
                       }}
-                      className={`w-full px-4 py-3 flex items-center justify-between transition-colors hover:bg-gray-50 ${
+                      className={`w-full px-4 py-3 flex items-center justify-between transition-all duration-200 ${
                         selectedPayment === option.id
-                          ? "border-[#7a1f2b] bg-[#7a1f2b]/5"
-                          : ""
+                          ? "bg-[#f7e7ea] border-[#7a1f2b]"
+                          : "hover:bg-[#fdf8f6]"
                       }`}
                     >
                       <div className="flex items-center gap-3">
-                        <div className="flex h-8 w-8 items-center justify-center rounded-full bg-gray-100 text-lg">
+                        <div className={`flex h-8 w-8 items-center justify-center rounded-full text-lg transition-all duration-200 ${
+                          selectedPayment === option.id ? "bg-[#7a1f2b] text-white" : "bg-[#f7e7ea]"
+                        }`}>
                           {option.icon}
                         </div>
                         <div className="text-left">
-                          <p className="font-medium text-gray-900">
-                            {option.name}
-                          </p>
-                          <p className="text-sm text-gray-600">
-                            {option.description}
-                          </p>
+                          <p className="font-semibold text-[#4a2c2a]">{option.name}</p>
+                          <p className="text-xs text-[#6b7280]">{option.description}</p>
                         </div>
                       </div>
                       <div className="flex items-center gap-2">
                         {selectedPayment === option.id && (
-                          <div className="flex h-4 w-4 items-center justify-center rounded-full bg-[#7a1f2b]">
-                            <Check size={10} className="text-white" />
+                          <div className="flex h-5 w-5 items-center justify-center rounded-full bg-[#7a1f2b]">
+                            <Check size={12} className="text-white" />
                           </div>
                         )}
                         {expandedPayment === option.id ? (
-                          <ChevronUp size={16} className="text-gray-400" />
+                          <ChevronUp size={18} className="text-[#6b7280]" />
                         ) : (
-                          <ChevronDown size={16} className="text-gray-400" />
+                          <ChevronDown size={18} className="text-[#6b7280]" />
                         )}
                       </div>
                     </button>
 
                     {expandedPayment === option.id && (
-                      <div className="border-t border-gray-200 bg-gray-50 px-4 py-3">
+                      <div className="border-t border-[#ead2d8] bg-[#fdf8f6] px-4 py-4">
                         {option.id === "upi" && (
                           <div className="text-center">
-                            <div className="mx-auto mb-3 flex h-32 w-32 items-center justify-center rounded-lg bg-gray-200">
-                              <span className="text-sm text-gray-500">
-                                QR Code
-                              </span>
+                            <div className="mx-auto mb-4 flex h-32 w-32 items-center justify-center rounded-lg bg-gray-200">
+                              <span className="text-sm text-gray-500">QR Code Placeholder</span>
                             </div>
-                            <button className="rounded-lg bg-[#7a1f2b] px-6 py-2 text-sm font-medium text-white transition-colors hover:bg-[#5c1721]">
-                              Show QR
+                            <button className="rounded-lg bg-[#7a1f2b] px-6 py-2 text-sm font-medium text-white hover:bg-[#5c1721] transition-colors duration-200">
+                              Show QR Code
                             </button>
                           </div>
                         )}
@@ -545,18 +518,18 @@ export default function CheckoutModal({
                             <input
                               type="text"
                               placeholder="Card number"
-                              className="w-full rounded border border-gray-200 px-3 py-2 text-sm focus:border-[#7a1f2b] focus:outline-none"
+                              className="w-full rounded-lg border border-[#ead2d8] px-4 py-2.5 text-sm focus:border-[#7a1f2b] focus:ring-2 focus:ring-[#7a1f2b]/10 outline-none"
                             />
                             <div className="grid grid-cols-2 gap-3">
                               <input
                                 type="text"
                                 placeholder="MM/YY"
-                                className="rounded border border-gray-200 px-3 py-2 text-sm focus:border-[#7a1f2b] focus:outline-none"
+                                className="rounded-lg border border-[#ead2d8] px-4 py-2.5 text-sm focus:border-[#7a1f2b] focus:ring-2 focus:ring-[#7a1f2b]/10 outline-none"
                               />
                               <input
                                 type="text"
                                 placeholder="CVV"
-                                className="rounded border border-gray-200 px-3 py-2 text-sm focus:border-[#7a1f2b] focus:outline-none"
+                                className="rounded-lg border border-[#ead2d8] px-4 py-2.5 text-sm focus:border-[#7a1f2b] focus:ring-2 focus:ring-[#7a1f2b]/10 outline-none"
                               />
                             </div>
                           </div>
@@ -564,22 +537,19 @@ export default function CheckoutModal({
 
                         {option.id === "cod" && (
                           <div className="py-2 text-center">
-                            <p className="text-sm text-gray-600">
+                            <p className="text-sm text-[#6b7280]">
                               Pay ₹{total} in cash when your order is delivered
                             </p>
                           </div>
                         )}
 
-                        {option.id !== "upi" &&
-                          option.id !== "card" &&
-                          option.id !== "cod" && (
-                            <div className="py-4 text-center">
-                              <p className="text-sm text-gray-600">
-                                {option.name} payment option will be available
-                                at checkout
-                              </p>
-                            </div>
-                          )}
+                        {option.id !== "upi" && option.id !== "card" && option.id !== "cod" && (
+                          <div className="py-4 text-center">
+                            <p className="text-sm text-[#6b7280]">
+                              {option.name} payment option will be available at checkout
+                            </p>
+                          </div>
+                        )}
                       </div>
                     )}
                   </div>
@@ -588,43 +558,49 @@ export default function CheckoutModal({
             </div>
           </div>
 
-          <div className="sticky bottom-0 border-t border-gray-200 bg-white px-6 py-4">
+          {/* Footer CTA */}
+          <div className="sticky bottom-0 border-t border-[#ead2d8] bg-white px-6 py-5">
             <button
               onClick={handlePlaceOrder}
-              disabled={isProcessing}
-              className="w-full rounded-xl bg-gradient-to-r from-[#7a1f2b] to-[#5c1721] py-4 text-lg font-semibold text-white transition-all duration-300 hover:shadow-lg disabled:cursor-not-allowed disabled:opacity-50"
+              disabled={isProcessing || !userAddress}
+              className="w-full py-4 px-6 bg-gradient-to-r from-[#7a1f2b] to-[#5c1721] text-white font-bold rounded-lg hover:shadow-xl hover:shadow-[#7a1f2b]/20 transition-all duration-300 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
             >
-              {isProcessing ? "Processing..." : `Place Order • ₹${total}`}
+              <Lock size={18} />
+              <span>{isProcessing ? "Processing..." : `Pay ₹${total} Now`}</span>
             </button>
+            <p className="text-center text-xs text-[#6b7280] mt-3">
+              ✓ Secure & encrypted checkout
+            </p>
           </div>
         </div>
       </div>
 
+      {/* Exit Confirmation */}
       {showExitConfirm && (
-        <div className="fixed inset-0 z-[60] flex items-end justify-center bg-black/60 p-4 backdrop-blur-sm">
-          <div className="w-full max-w-md animate-slideUp rounded-t-3xl bg-white p-6">
+        <div className="fixed inset-0 z-[60] flex items-end justify-center bg-black/60 p-4 backdrop-blur-sm sm:items-center">
+          <div className="w-full max-w-md animate-slideUp rounded-t-3xl bg-white p-6 sm:rounded-3xl">
             <div className="text-center">
               <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-red-100">
                 <X size={24} className="text-red-500" />
               </div>
-              <h3 className="mb-2 text-lg font-semibold text-gray-900">
-                Are you sure you want to exit?
+              <h3 className="mb-2 text-lg font-bold text-[#4a2c2a]">
+                Exit Checkout?
               </h3>
-              <p className="mb-6 text-sm text-gray-600">
-                Your cart items and selected preferences will be saved for later.
+              <p className="mb-6 text-sm text-[#6b7280]">
+                Your cart items and preferences will be saved for later.
               </p>
               <div className="flex gap-3">
                 <button
                   onClick={confirmExit}
-                  className="flex-1 rounded-lg bg-red-500 py-3 font-medium text-white transition-colors hover:bg-red-600"
+                  className="flex-1 rounded-lg bg-red-500 py-3 font-semibold text-white hover:bg-red-600 transition-colors duration-200"
                 >
-                  Yes, exit checkout
+                  Yes, Exit
                 </button>
                 <button
                   onClick={cancelExit}
-                  className="flex-1 rounded-lg border border-gray-200 py-3 font-medium text-gray-700 transition-colors hover:bg-gray-50"
+                  className="flex-1 rounded-lg border-2 border-[#ead2d8] py-3 font-semibold text-[#4a2c2a] hover:bg-[#f7e7ea] transition-colors duration-200"
                 >
-                  No, continue checkout
+                  Continue
                 </button>
               </div>
             </div>
@@ -632,15 +608,13 @@ export default function CheckoutModal({
         </div>
       )}
 
+      {/* Address Selector Modal */}
       <AddressSelectorModal
         isOpen={showAddressSelector}
         onClose={() => setShowAddressSelector(false)}
         user={user}
         onAddressChange={(address) => {
-          setUser((prev: any) => ({
-            ...prev,
-            address,
-          }));
+          setUserAddress(address);
         }}
       />
     </>
