@@ -21,9 +21,6 @@ import { logInfo } from "./utils/logger";
 dotenv.config();
 validateEnv();
 
-// Connect database
-connectDB();
-
 const app = express();
 const allowedOrigins = getAllowedOrigins();
 
@@ -93,13 +90,22 @@ app.use(errorHandler);
 
 const PORT = process.env.PORT || 5000;
 
-app.listen(PORT, () => {
-  logInfo("========================================");
-  logInfo("Ewara Cosmetics API Server");
-  logInfo("========================================");
-  logInfo(`Server running on port ${PORT}`);
-  logInfo(`Environment: ${process.env.NODE_ENV || "development"}`);
-  logInfo(`API URL: http://localhost:${PORT}`);
-  logInfo(`Allowed CORS origins: ${allowedOrigins.join(", ")}`);
-  logInfo("========================================");
+const startServer = async () => {
+  await connectDB();
+
+  app.listen(PORT, () => {
+    logInfo("========================================");
+    logInfo("Ewara Cosmetics API Server");
+    logInfo("========================================");
+    logInfo(`Server running on port ${PORT}`);
+    logInfo(`Environment: ${process.env.NODE_ENV || "development"}`);
+    logInfo(`API URL: http://localhost:${PORT}`);
+    logInfo(`Allowed CORS origins: ${allowedOrigins.join(", ")}`);
+    logInfo("========================================");
+  });
+};
+
+startServer().catch((error) => {
+  console.error("SERVER STARTUP FAILED:", error);
+  process.exit(1);
 });
