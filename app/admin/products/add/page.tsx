@@ -1,22 +1,17 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { AdminNav } from "@/components/AdminNav";
 import { createProduct } from "@/utils/productApi";
+import { useProtectedRoute } from "@/hooks/useProtectedRoute";
 
 const categories = ["Skincare", "Hair", "Fragrance", "Makeup", "Body"];
 
 export default function AddProductPage() {
   const router = useRouter();
+  const { token, isAuthorized, isChecking } = useProtectedRoute({ requireAdmin: true });
 
   const [submitting, setSubmitting] = useState(false);
-
-  useEffect(() => {
-    if (localStorage.getItem("isAdmin") !== "true") {
-      router.push("/login");
-    }
-  }, [router]);
 
   const [form, setForm] = useState({
     name: "",
@@ -45,8 +40,6 @@ export default function AddProductPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-
-    const token = localStorage.getItem("token");
 
     if (!token) {
       alert("Please login again.");
@@ -124,9 +117,17 @@ export default function AddProductPage() {
     }
   };
 
+  if (isChecking) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-[#fdf8f6]">
+        <p className="text-[#7a1f2b]">Checking admin access...</p>
+      </div>
+    );
+  }
+
+  if (!isAuthorized) return null;
+
   return (
-    <>
-      <AdminNav />
       <div className="min-h-screen bg-[#fdf8f6] px-4 py-10 md:px-8">
         <div className="mx-auto max-w-3xl rounded-3xl border border-[#ead2d8] bg-white p-8 shadow-sm">
           <div className="mb-8">
@@ -385,6 +386,5 @@ export default function AddProductPage() {
           </form>
         </div>
       </div>
-    </>
   );
 }

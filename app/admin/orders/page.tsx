@@ -1,22 +1,35 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { AdminNav } from "@/components/AdminNav";
+import { useEffect, useMemo, useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
+import { buildApiUrl } from "@/utils/api";
+import { useProtectedRoute } from "@/hooks/useProtectedRoute";
 
 const statusOptions = ["Pending", "Processing", "Shipped", "Delivered", "Cancelled"];
+const paymentStatusOptions = ["Pending", "Completed", "Failed", "Refunded"];
 
-export default function AdminOrdersPage() {
+interface AdminOrdersPageProps {
+  externalSearchTerm?: string;
+  inventoryMode?: boolean;
+}
+
+export default function AdminOrdersPage({
+  externalSearchTerm = "",
+}: AdminOrdersPageProps) {
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const { token, isAuthorized, isChecking } = useProtectedRoute({ requireAdmin: true });
   const [orders, setOrders] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [updatingId, setUpdatingId] = useState<string | null>(null);
+  const selectedUserId = searchParams.get("userId");
+  const selectedUserName = searchParams.get("userName");
 
   const fetchOrders = async () => {
-    const token = localStorage.getItem("token");
-
-    if (!token) return;
+    if (!token || !isAuthorized) return;
 
     try {
-      const res = await fetch("http://localhost:5000/api/orders", {
+      const res = await fetch(buildApiUrl("/api/orders"), {
         headers: {
           Authorization: `Bearer ${token}`,
         },
@@ -37,8 +50,59 @@ export default function AdminOrdersPage() {
   };
 
   useEffect(() => {
+    if (!token || !isAuthorized) {
+      if (!isChecking) {
+        setLoading(false);
+      }
+      return;
+    }
+
     fetchOrders();
-  }, []);
+  }, [isAuthorized, isChecking, token]);
+
+  const filteredOrders = useMemo(() => {
+    const normalizedSearch = externalSearchTerm.toLowerCase().trim();
+
+    return orders.filter((order) => {
+      const matchesSelectedUser = selectedUserId
+        ? String(order.user?._id || "") === selectedUserId
+        : true;
+
+      if (!matchesSelectedUser) {
+        return false;
+      }
+
+      if (!normalizedSearch) {
+        return true;
+      }
+
+      const searchableText = [
+        order._id,
+        order.user?.name,
+        order.user?.email,
+        order.status,
+        order.paymentStatus,
+        order.paymentMethod,
+        String(order.totalAmount ?? ""),
+        ...(Array.isArray(order.items) ? order.items.map((item: any) => item?.name) : []),
+      ]
+        .filter(Boolean)
+        .join(" ")
+        .toLowerCase();
+
+      return searchableText.includes(normalizedSearch);
+    });
+  }, [externalSearchTerm, orders, selectedUserId]);
+
+  if (isChecking) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-[#fdf8f6]">
+        <p className="text-[#7a1f2b]">Checking admin access...</p>
+      </div>
+    );
+  }
+
+  if (!isAuthorized) return null;
 
   const handleStatusChange = async (orderId: string, status: string) => {
     const token = localStorage.getItem("token");
@@ -52,7 +116,7 @@ export default function AdminOrdersPage() {
       setUpdatingId(orderId);
 
       const res = await fetch(
-        `http://localhost:5000/api/orders/${orderId}/status`,
+        buildApiUrl(`/api/orders/${orderId}/status`),
         {
           method: "PUT",
           headers: {
@@ -83,10 +147,53 @@ export default function AdminOrdersPage() {
     }
   };
 
-  return (
-    <>
-      <AdminNav />
+  const handlePaymentStatusChange = async (
+    orderId: string,
+    paymentStatus: string
+  ) => {
+    const token = localStorage.getItem("token");
 
+    if (!token) {
+      alert("Please login again.");
+      return;
+    }
+
+    try {
+      setUpdatingId(orderId);
+
+      const res = await fetch(
+        buildApiUrl(`/api/orders/${orderId}/payment-status`),
+        {
+          method: "PUT",
+          headers: {
+            Authorization: `Bearer ${token}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({ paymentStatus }),
+        }
+      );
+
+      const data = await res.json();
+
+      if (!res.ok || !data.success) {
+        alert(data.message || "Failed to update payment status");
+        return;
+      }
+
+      setOrders((prev) =>
+        prev.map((order) =>
+          order._id === orderId ? { ...order, paymentStatus } : order
+        )
+      );
+    } catch (error) {
+      console.error("UPDATE PAYMENT STATUS ERROR:", error);
+      alert("Failed to update payment status");
+    } finally {
+      setUpdatingId(null);
+    }
+  };
+
+  return (
       <div className="min-h-screen bg-[#fdf8f6] px-4 py-10 md:px-8">
         <div className="mx-auto max-w-7xl">
           <div className="mb-8">
@@ -94,8 +201,19 @@ export default function AdminOrdersPage() {
               Order Management
             </h1>
             <p className="mt-2 text-[#5e3339]">
-              Track and manage customer orders.
+              {selectedUserId
+                ? `Track and manage orders for ${selectedUserName || "this user"}.`
+                : "Track and manage customer orders."}
             </p>
+            {selectedUserId && (
+              <button
+                type="button"
+                onClick={() => router.push("/admin/orders")}
+                className="mt-4 rounded-full border border-[#7a1f2b] px-5 py-2 font-semibold text-[#7a1f2b] transition hover:bg-[#f7e7ea]"
+              >
+                Show All Orders
+              </button>
+            )}
           </div>
 
           {loading ? (
@@ -104,15 +222,15 @@ export default function AdminOrdersPage() {
                 Loading orders...
               </p>
             </div>
-          ) : orders.length === 0 ? (
+          ) : filteredOrders.length === 0 ? (
             <div className="rounded-3xl border border-[#ead2d8] bg-white p-10 text-center shadow-sm">
               <p className="text-xl font-semibold text-[#7a1f2b]">
-                No orders found.
+                {selectedUserId ? "No orders found for this user." : "No orders found."}
               </p>
             </div>
           ) : (
             <div className="space-y-5">
-              {orders.map((order) => (
+              {filteredOrders.map((order) => (
                 <div
                   key={order._id}
                   className="rounded-3xl border border-[#ead2d8] bg-white p-6 shadow-sm"
@@ -174,9 +292,29 @@ export default function AdminOrdersPage() {
                           </option>
                         ))}
                       </select>
+                      <p className="mb-2 mt-4 text-sm font-medium text-[#4a2c2a]">
+                        Payment Status
+                      </p>
+                      <select
+                        value={order.paymentStatus || "Pending"}
+                        onChange={(e) =>
+                          handlePaymentStatusChange(order._id, e.target.value)
+                        }
+                        disabled={updatingId === order._id}
+                        className="w-full rounded-xl border border-[#ead2d8] bg-[#fffaf7] px-4 py-3 text-[#3e2f2b] outline-none focus:border-[#7a1f2b]"
+                      >
+                        {paymentStatusOptions.map((status) => (
+                          <option key={status} value={status}>
+                            {status}
+                          </option>
+                        ))}
+                      </select>
 
                       <p className="mt-4 text-lg font-bold text-[#7a1f2b]">
                         ₹{order.totalAmount}
+                      </p>
+                      <p className="mt-2 text-xs text-[#8a7f7b]">
+                        Order and payment emails depend on backend automation.
                       </p>
                     </div>
                   </div>
@@ -220,6 +358,5 @@ export default function AdminOrdersPage() {
           )}
         </div>
       </div>
-    </>
   );
 }

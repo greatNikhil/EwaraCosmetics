@@ -1,37 +1,21 @@
 "use client";
 
-import { useState, useEffect } from "react";
-import { Heart, Zap } from "lucide-react";
+import { useEffect, useState } from "react";
+import { Heart, Star } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { addToCart } from "@/utils/cart";
 import { toggleWishlist, isInWishlist } from "@/utils/wishlist";
-
-interface Product {
-  _id: string;
-  name: string;
-  slug: string;
-  description: string;
-  shortDescription?: string;
-  brand?: string;
-  category: string;
-  price: number;
-  originalPrice?: number;
-  discountPercent?: number;
-  countInStock: number;
-  images: string[];
-  isFeatured: boolean;
-  isPublished: boolean;
-  rating: number;
-  numReviews: number;
-  createdAt: string;
-  updatedAt: string;
-}
+import { type Product } from "@/utils/productApi";
 
 interface ProductCardProps {
   product: Product;
+  variant?: "default" | "arrival-featured" | "arrival-compact";
 }
 
-export default function ProductCard({ product }: ProductCardProps) {
+export default function ProductCard({
+  product,
+  variant = "default",
+}: ProductCardProps) {
   const safeImages =
     Array.isArray(product.images) && product.images.length > 0
       ? product.images
@@ -45,17 +29,21 @@ export default function ProductCard({ product }: ProductCardProps) {
   useEffect(() => {
     setCurrentImage(safeImages[0]);
 
-    // Optional: keep wishlist state synced if your util supports backend-shaped objects
-    try {
-      setIsLiked(isInWishlist(product as any));
-    } catch {
-      setIsLiked(false);
-    }
+    const checkWishlist = async () => {
+      try {
+        const liked = await isInWishlist(product as any);
+        setIsLiked(liked);
+      } catch {
+        setIsLiked(false);
+      }
+    };
+
+    checkWishlist();
   }, [product._id, product.images]);
 
-  const toggleWishlistHandler = (e: React.MouseEvent) => {
+  const toggleWishlistHandler = async (e: React.MouseEvent) => {
     e.stopPropagation();
-    const isNowLiked = toggleWishlist(product as any);
+    const isNowLiked = await toggleWishlist(product as any);
     setIsLiked(isNowLiked);
   };
 
@@ -77,48 +65,173 @@ export default function ProductCard({ product }: ProductCardProps) {
         )
       : 0);
 
-  const isNewProduct = (() => {
-    const createdDate = new Date(product.createdAt).getTime();
-    const now = Date.now();
-    const diffDays = (now - createdDate) / (1000 * 60 * 60 * 24);
-    return diffDays <= 14;
-  })();
+  if (variant === "arrival-featured") {
+    return (
+      <div
+        className="group relative h-full cursor-pointer overflow-hidden rounded-[14px] border border-[#e7ddd6] bg-white"
+        onClick={handleTitleClick}
+        onMouseEnter={() => setIsHovering(true)}
+        onMouseLeave={() => setIsHovering(false)}
+      >
+        <div className="relative overflow-hidden bg-[#f5f0eb]">
+          <button
+            onClick={toggleWishlistHandler}
+            className="absolute right-4 top-4 z-10 flex h-9 w-9 items-center justify-center rounded-full border border-white/70 bg-white/90 text-[#7f6b5f] transition hover:bg-white"
+          >
+            <Heart
+              className={`h-4 w-4 ${
+                isLiked
+                  ? "fill-[#7a3d3d] text-[#7a3d3d]"
+                  : "text-[#8d7a6f] hover:text-[#7a3d3d]"
+              }`}
+            />
+          </button>
+
+          <img
+            src={currentImage}
+            alt={product.name}
+            className={`aspect-[5/6] w-full object-cover transition duration-500 ${
+              isHovering ? "scale-[1.03]" : "scale-100"
+            }`}
+            onMouseEnter={() => {
+              setCurrentImage(safeImages[1] || safeImages[0]);
+            }}
+            onMouseLeave={() => {
+              setCurrentImage(safeImages[0]);
+            }}
+          />
+        </div>
+
+        <div className="space-y-3 p-4 md:p-5">
+          <div className="flex items-start justify-between gap-4">
+            <p className="text-[11px] uppercase tracking-[0.2em] text-[#8e7d72]">
+              {product.category || product.brand || "Collection"}
+            </p>
+            <p className="whitespace-nowrap text-sm font-medium text-[#30231d]">
+              Rs. {product.price.toFixed(2)}
+            </p>
+          </div>
+
+          <h3 className="text-[17px] font-medium leading-7 text-[#2f211d] transition-colors group-hover:text-[#6c5140]">
+            {product.name}
+          </h3>
+
+          <p className="line-clamp-2 text-[13px] leading-6 text-[#7d6d62]">
+            {product.shortDescription || product.description}
+          </p>
+
+          <button
+            onClick={handleAddToBag}
+            className="w-full rounded-full bg-[#7b5b45] px-4 py-2.5 text-[11px] font-medium uppercase tracking-[0.16em] text-white transition hover:bg-[#624735]"
+          >
+            Add to Bag
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  if (variant === "arrival-compact") {
+    return (
+      <div
+        className="group relative flex h-full cursor-pointer gap-4 rounded-[14px] border border-[#e7ddd6] bg-white p-4"
+        onClick={handleTitleClick}
+        onMouseEnter={() => setIsHovering(true)}
+        onMouseLeave={() => setIsHovering(false)}
+      >
+        <div className="relative h-[84px] w-[84px] flex-shrink-0 overflow-hidden rounded-[12px] bg-[#f5f0eb]">
+          <button
+            onClick={toggleWishlistHandler}
+            className="absolute right-2 top-2 z-10 flex h-7 w-7 items-center justify-center rounded-full bg-white/90 text-[#7f6b5f]"
+          >
+            <Heart
+              className={`h-3.5 w-3.5 ${
+                isLiked
+                  ? "fill-[#7a3d3d] text-[#7a3d3d]"
+                  : "text-[#8d7a6f] hover:text-[#7a3d3d]"
+              }`}
+            />
+          </button>
+
+          <img
+            src={currentImage}
+            alt={product.name}
+            className={`h-full w-full object-cover transition duration-500 ${
+              isHovering ? "scale-[1.04]" : "scale-100"
+            }`}
+            onMouseEnter={() => {
+              setCurrentImage(safeImages[1] || safeImages[0]);
+            }}
+            onMouseLeave={() => {
+              setCurrentImage(safeImages[0]);
+            }}
+          />
+        </div>
+
+        <div className="min-w-0 flex-1">
+          <div className="mb-2 flex items-start justify-between gap-3">
+            <div className="flex items-center gap-1 text-[11px] text-[#7f6b5f]">
+              <Star
+                size={12}
+                className={`${
+                  product.rating > 0
+                    ? "fill-[#7b5b45] text-[#7b5b45]"
+                    : "text-[#d6c7bb]"
+                }`}
+              />
+              <span>{product.rating.toFixed(1)}</span>
+            </div>
+          </div>
+
+          <h3 className="truncate text-[14px] font-medium text-[#2f211d]">
+            {product.name}
+          </h3>
+          <p className="mt-1 line-clamp-2 text-[12px] leading-5 text-[#7d6d62]">
+            {product.shortDescription || product.description}
+          </p>
+
+          <div className="mt-3 flex items-center justify-between gap-3">
+            <span className="text-sm font-medium text-[#30231d]">
+              Rs. {product.price.toFixed(2)}
+            </span>
+            <button
+              onClick={handleAddToBag}
+              className="rounded-full border border-[#cbb8aa] px-3 py-1.5 text-[10px] font-medium uppercase tracking-[0.14em] text-[#7b5b45] transition hover:bg-[#fbf7f2]"
+            >
+              Add
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
-    <div 
-      className="group relative bg-white rounded-xl shadow-[0_2px_8px_rgba(0,0,0,0.06)] hover:shadow-[0_12px_24px_rgba(0,0,0,0.12)] transition-all duration-300 overflow-hidden cursor-pointer border border-[#f0e6e3]"
+    <div
+      className="group relative h-full cursor-pointer overflow-hidden rounded-[14px] border border-[#eadfd5] bg-white transition duration-300 hover:-translate-y-0.5 hover:shadow-[0_8px_16px_rgba(53,39,28,0.06)]"
+      onClick={handleTitleClick}
       onMouseEnter={() => setIsHovering(true)}
       onMouseLeave={() => setIsHovering(false)}
     >
-      {/* NEW IN Badge */}
-      {isNewProduct && (
-        <div className="absolute top-4 left-4 bg-gradient-to-r from-[#7a1f2b] to-[#5c1721] text-white text-xs font-bold px-3 py-1.5 rounded-full z-10 shadow-md flex items-center gap-1">
-          <Zap className="w-3 h-3" />
-          NEW IN
-        </div>
-      )}
+      <div className="relative overflow-hidden bg-[#f7f1ea]">
+        <button
+          onClick={toggleWishlistHandler}
+          className="absolute right-2 top-2 z-10 flex h-8 w-8 items-center justify-center rounded-full border border-white/70 bg-white/90 text-[#7a695d] shadow-sm transition hover:scale-105 hover:bg-white"
+        >
+          <Heart
+            className={`h-3.5 w-3.5 transition-colors duration-300 ${
+              isLiked
+                ? "fill-[#7a3d3d] text-[#7a3d3d]"
+                : "text-[#8d7a6f] hover:text-[#7a3d3d]"
+            }`}
+          />
+        </button>
 
-      {/* Wishlist Heart */}
-      <button
-        onClick={toggleWishlistHandler}
-        className="absolute top-4 right-4 z-10 p-2.5 bg-white/90 backdrop-blur-sm rounded-full hover:bg-white shadow-md transition-all duration-200 hover:scale-110"
-      >
-        <Heart
-          className={`w-5 h-5 transition-colors duration-300 ${
-            isLiked 
-              ? "fill-[#7a1f2b] text-[#7a1f2b]" 
-              : "text-[#b5a9a4] hover:text-[#7a1f2b]"
-          }`}
-        />
-      </button>
-
-      {/* Product Image Container */}
-      <div className="relative aspect-square overflow-hidden bg-[#fdf8f6]">
         <img
           src={currentImage}
           alt={product.name}
-          className={`w-full h-full object-cover transition-transform duration-500 ${
-            isHovering ? "scale-110" : "scale-100"
+          className={`aspect-[4/5] w-full object-cover transition duration-500 ${
+            isHovering ? "scale-[1.04]" : "scale-100"
           }`}
           onMouseEnter={() => {
             setCurrentImage(safeImages[1] || safeImages[0]);
@@ -127,64 +240,65 @@ export default function ProductCard({ product }: ProductCardProps) {
             setCurrentImage(safeImages[0]);
           }}
         />
-
-        {/* In Stock Indicator */}
-        {product.countInStock > 0 && (
-          <div className="absolute bottom-3 left-3 bg-green-500/90 text-white text-xs font-semibold px-3 py-1.5 rounded-full backdrop-blur-sm">
-            In Stock
-          </div>
-        )}
       </div>
 
-      {/* Product Info */}
-      <div className="p-4 space-y-3">
-        {/* Brand / Category */}
-        <p className="text-xs font-semibold text-[#9c8b87] uppercase tracking-wide">
-          {product.brand || product.category}
-        </p>
+      <div className="flex h-full flex-col p-3">
+        <div className="space-y-1.5">
+          <div className="flex items-center justify-between gap-2">
+            <p className="text-[9px] uppercase tracking-[0.16em] text-[#8f7a68]">
+              {product.category || product.brand || "Collection"}
+            </p>
 
-        {/* Product Name */}
-        <h3
-          onClick={handleTitleClick}
-          className="text-sm font-semibold text-[#4a2c2a] line-clamp-2 cursor-pointer hover:text-[#7a1f2b] transition-colors duration-200 leading-tight"
-        >
-          {product.name}
-        </h3>
+            <div className="flex items-center gap-0.5 text-[10px] text-[#7a695d]">
+              <Star
+                size={10}
+                className={`${
+                  product.rating > 0
+                    ? "fill-[#7b5b45] text-[#7b5b45]"
+                    : "text-[#d6c7bb]"
+                }`}
+              />
+              <span>{product.rating.toFixed(1)}</span>
+            </div>
+          </div>
 
-        {/* Price Section */}
-        <div className="flex items-baseline gap-2 flex-wrap">
-          <span className="text-base font-bold text-[#7a1f2b]">
-            ₹{product.price}
+          <h3 className="text-[13px] font-medium leading-4 text-[#30231d] transition-colors group-hover:text-[#6a4a36]">
+            {product.name}
+          </h3>
+
+          <p className="line-clamp-1 text-[11px] leading-4 text-[#7a695d]">
+            {product.shortDescription || product.description}
+          </p>
+        </div>
+
+        <div className="mt-3 flex items-end justify-between gap-2">
+          <div className="space-y-0.5">
+            <p className="text-[14px] font-medium text-[#30231d]">
+              Rs. {product.price.toFixed(2)}
+            </p>
+            {product.originalPrice && product.originalPrice > product.price && (
+              <div className="flex items-center gap-1.5 text-[10px] text-[#9b8a7f]">
+                <span className="line-through">Rs. {product.originalPrice}</span>
+                {discount > 0 && <span>{discount}% off</span>}
+              </div>
+            )}
+          </div>
+
+          <button
+            onClick={handleAddToBag}
+            className="rounded-full bg-[#7b5b45] px-2.5 py-1 text-[8px] font-medium uppercase tracking-[0.12em] text-white transition hover:bg-[#624735]"
+          >
+            Add
+          </button>
+        </div>
+
+        <div className="mt-2 flex items-center justify-between border-t border-[#f0e6dd] pt-2 text-[10px] text-[#8f7a68]">
+          <span>
+            {product.numReviews > 0
+              ? `${product.numReviews} review${product.numReviews === 1 ? "" : "s"}`
+              : "No reviews"}
           </span>
-
-          {product.originalPrice && product.originalPrice > product.price && (
-            <>
-              <span className="text-xs text-[#b5a9a4] line-through font-medium">
-                ₹{product.originalPrice}
-              </span>
-              {discount > 0 && (
-                <span className="text-xs font-bold text-white bg-[#7a1f2b] px-2.5 py-1 rounded-full">
-                  {discount}% OFF
-                </span>
-              )}
-            </>
-          )}
         </div>
-
-        {/* Shade Dots - decorative */}
-        <div className="flex gap-1.5 pt-1">
-          <div className="w-3 h-3 bg-[#f7e7ea] rounded-full border border-[#ead2d8] hover:scale-125 transition-transform duration-200" title="Light shade"></div>
-          <div className="w-3 h-3 bg-[#d4a574] rounded-full border border-[#ead2d8] hover:scale-125 transition-transform duration-200" title="Medium shade"></div>
-          <div className="w-3 h-3 bg-[#9b5d6e] rounded-full border border-[#ead2d8] hover:scale-125 transition-transform duration-200" title="Dark shade"></div>
-        </div>
-
-        {/* Add to Bag Button */}
-        <button
-          onClick={handleAddToBag}
-          className="w-full py-2.5 px-4 bg-white border-2 border-[#7a1f2b] text-[#7a1f2b] font-semibold rounded-lg hover:bg-[#7a1f2b] hover:text-white transition-all duration-300 transform hover:scale-105 active:scale-95 shadow-sm hover:shadow-md"
-        >
-          Add to Bag
-        </button>
       </div>
     </div>
   );

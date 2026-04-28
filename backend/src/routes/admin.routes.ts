@@ -1,32 +1,36 @@
 import { Router } from "express";
 import {
-  sendOTP,
-  register,
-  login,
-  getMe,
-  forgotPasswordSendOTP,
-  resetPassword,
-} from "../controllers/auth.controller";
-import { authMiddleware } from "../middleware/authMiddleware";
+  getAllUsers,
+  getDashboardSummary,
+  updateUserRole,
+} from "../controllers/admin.controller";
+import { deleteReview, getAllReviews } from "../controllers/review.controller";
+import authMiddleware from "../middleware/auth";
 import { adminMiddleware } from "../middleware/admin";
+import {
+  validateAdminUserRoleRequest,
+  validateObjectIdParam,
+} from "../middleware/validation";
 
 const router = Router();
 
-router.post("/send-otp", sendOTP);
-router.post("/register", register);
-router.post("/login", login);
-router.get("/me", authMiddleware, getMe);
-
-router.post("/forgot-password/send-otp", forgotPasswordSendOTP);
-router.post("/reset-password", resetPassword);
-
-router.get(
-  "/admin-check",
+router.get("/dashboard", authMiddleware, adminMiddleware, getDashboardSummary);
+router.get("/users", authMiddleware, adminMiddleware, getAllUsers);
+router.get("/reviews", authMiddleware, adminMiddleware, getAllReviews);
+router.put(
+  "/users/:id/role",
   authMiddleware,
   adminMiddleware,
-  (req, res) => {
-    res.json({ message: "Welcome Admin" });
-  }
+  validateObjectIdParam(),
+  validateAdminUserRoleRequest,
+  updateUserRole
+);
+router.delete(
+  "/reviews/:id",
+  authMiddleware,
+  adminMiddleware,
+  validateObjectIdParam(),
+  deleteReview
 );
 
 export default router;

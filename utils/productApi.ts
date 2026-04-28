@@ -1,6 +1,7 @@
 import axios from "axios";
+import { buildApiUrl } from "@/utils/api";
 
-const API_BASE_URL = "http://localhost:5000/api/products";
+const API_BASE_URL = buildApiUrl("/api/products");
 
 export interface Product {
   _id: string;
@@ -23,6 +24,16 @@ export interface Product {
   updatedAt: string;
 }
 
+export interface ProductReview {
+  _id: string;
+  user: string;
+  name: string;
+  rating: number;
+  comment: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
 export interface GetProductsResponse {
   success: boolean;
   count: number;
@@ -35,6 +46,7 @@ export interface GetProductsResponse {
 export interface GetSingleProductResponse {
   success: boolean;
   product: Product;
+  reviews?: ProductReview[];
 }
 
 export interface CreateProductResponse {
@@ -48,16 +60,39 @@ export interface DeleteProductResponse {
   message: string;
 }
 
+const FALLBACK_PRODUCT_IMAGE = "/favicon/product.jpeg";
+
+const normalizeProduct = (product: any): Product => {
+  const images = Array.isArray(product?.images)
+    ? product.images.map((image: unknown) => String(image).trim()).filter(Boolean)
+    : typeof product?.image === "string" && product.image.trim()
+      ? [product.image.trim()]
+      : [];
+
+  return {
+    ...product,
+    images: images.length > 0 ? images : [FALLBACK_PRODUCT_IMAGE],
+  };
+};
+
 export const getAllProducts = async (): Promise<GetProductsResponse> => {
   const response = await axios.get(API_BASE_URL);
-  return response.data;
+  return {
+    ...response.data,
+    products: Array.isArray(response.data?.products)
+      ? response.data.products.map(normalizeProduct)
+      : [],
+  };
 };
 
 export const getProductById = async (
   id: string
 ): Promise<GetSingleProductResponse> => {
   const response = await axios.get(`${API_BASE_URL}/${id}`);
-  return response.data;
+  return {
+    ...response.data,
+    product: normalizeProduct(response.data?.product),
+  };
 };
 
 export const createProduct = async (
@@ -74,7 +109,10 @@ export const createProduct = async (
     },
   });
 
-  return response.data;
+  return {
+    ...response.data,
+    product: normalizeProduct(response.data?.product),
+  };
 };
 
 export const updateProduct = async (
@@ -89,7 +127,10 @@ export const updateProduct = async (
     },
   });
 
-  return response.data;
+  return {
+    ...response.data,
+    product: response.data?.product ? normalizeProduct(response.data.product) : undefined,
+  };
 };
 
 export const deleteProduct = async (

@@ -3,8 +3,11 @@
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { X } from "lucide-react";
+import { useAuthStore } from "@/store/authStore";
+import { buildApiUrl } from "@/utils/api";
 
 interface Address {
+  _id?: string;
   name: string;
   lastname?: string;
   address: string;
@@ -30,78 +33,119 @@ export default function AddressSelectorModal({
   onAddressChange,
 }: AddressSelectorModalProps) {
   const router = useRouter();
+  const { addresses: savedAddresses, setAddresses } = useAuthStore();
 
-  const [addresses, setAddresses] = useState<Address[]>([]);
+  const [addresses, setLocalAddresses] = useState<Address[]>([]);
   const [selectedAddress, setSelectedAddress] = useState<Address | null>(null);
   const [isSaving, setIsSaving] = useState(false);
 
   useEffect(() => {
-    if (isOpen && user) {
-      const userKey = user.email || user.phone;
+    const loadAddresses = async () => {
+      if (!isOpen || !user) return;
 
-      if (userKey) {
-        const stored = localStorage.getItem(`addresses_${userKey}`);
-
-        if (stored) {
-          try {
-            const parsedAddresses = JSON.parse(stored);
-            setAddresses(parsedAddresses);
-
-            const defaultAddr = parsedAddresses.find(
-              (addr: Address) => addr.default
-            );
-
-            setSelectedAddress(defaultAddr || parsedAddresses[0] || null);
-          } catch (error) {
-            console.error("Failed to parse saved addresses:", error);
-            setAddresses([]);
-            setSelectedAddress(null);
-          }
-        } else {
-          setAddresses([]);
-          setSelectedAddress(null);
-        }
+      if (savedAddresses.length > 0) {
+        setLocalAddresses(savedAddresses);
+        setSelectedAddress(
+          savedAddresses.find((addr: Address) => addr.default) ||
+            savedAddresses[0] ||
+            null
+        );
       }
-    }
-  }, [isOpen, user]);
 
-  const handleSaveChanges = () => {
+      const token = localStorage.getItem("token");
+
+      if (!token) {
+        return;
+      }
+
+      try {
+        const res = await fetch(buildApiUrl("/api/addresses"), {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        });
+
+        const data = await res.json();
+
+        if (!res.ok || !data.success) {
+          return;
+        }
+
+        const nextAddresses = data.addresses || [];
+        setLocalAddresses(nextAddresses);
+        setAddresses(nextAddresses);
+
+        const defaultAddr = nextAddresses.find(
+          (addr: Address) => addr.default
+        );
+
+        setSelectedAddress(defaultAddr || nextAddresses[0] || null);
+      } catch (error) {
+        console.error("Failed to load saved addresses:", error);
+      }
+    };
+
+    loadAddresses();
+  }, [isOpen, savedAddresses, setAddresses, user]);
+
+  const handleSaveChanges = async () => {
     if (!selectedAddress || !user) return;
 
     setIsSaving(true);
 
-    const userKey = user.email || user.phone;
+    const token = localStorage.getItem("token");
 
-    if (!userKey) {
+    if (!token) {
       alert("User information missing.");
       setIsSaving(false);
       return;
     }
 
-    const updatedAddresses = addresses.map((addr) => ({
-      ...addr,
-      default:
-        addr.address === selectedAddress.address &&
-        addr.phone === selectedAddress.phone &&
-        addr.pincode === selectedAddress.pincode,
-    }));
+    try {
+      const res = await fetch(
+        buildApiUrl(`/api/addresses/${selectedAddress._id}`),
+        {
+          method: "PUT",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify({
+            ...selectedAddress,
+            default: true,
+          }),
+        }
+      );
 
-    localStorage.setItem(
-      `addresses_${userKey}`,
-      JSON.stringify(updatedAddresses)
-    );
+      const data = await res.json();
 
-    const updatedUser = {
-      ...user,
-      address: selectedAddress,
-    };
+      if (!res.ok || !data.success || !data.address) {
+        alert(data.message || "Failed to select address");
+        setIsSaving(false);
+        return;
+      }
 
-    localStorage.setItem("userData", JSON.stringify(updatedUser));
+      const updatedUser = {
+        ...user,
+        address: data.address,
+      };
 
-    onAddressChange(selectedAddress);
-
-    setIsSaving(false);
-    onClose();
+      // ✅ Sync to authStore instead of localStorage
+      const updatedAddresses = addresses.map(addr => ({
+        ...addr,
+        default: addr._id === data.address._id
+      }));
+      setLocalAddresses(updatedAddresses);
+      setAddresses(updatedAddresses);
+      onAddressChange(data.address);
+      window.dispatchEvent(new Event("userChanged"));
+      setIsSaving(false);
+      onClose();
+    } catch (error) {
+      console.error("ADDRESS SELECT ERROR:", error);
+      alert("Failed to select address");
+      setIsSaving(false);
+    }
   };
 
   const handleAddAddress = () => {
@@ -138,7 +182,7 @@ export default function AddressSelectorModal({
             </button>
           </div>
 
-          <div className="flex-1 overflow-y-auto p-6">
+          <div className="checkout-scroll-area no-scrollbar flex-1 overflow-y-auto p-6">
             {addresses.length === 0 ? (
               <div className="py-12 text-center">
                 <p className="mb-4 text-gray-500">No saved address found</p>

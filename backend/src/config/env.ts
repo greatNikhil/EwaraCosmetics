@@ -1,0 +1,72 @@
+const requiredEnvVars = ["MONGO_URI", "JWT_SECRET"];
+const recommendedEnvVars = [
+  "EMAIL_USER",
+  "EMAIL_PASS",
+  "NEXT_PUBLIC_APP_URL",
+  "RAZORPAY_KEY_SECRET",
+];
+
+const normalizeOrigin = (value: string) => value.trim().replace(/\/+$/, "");
+
+export const getAllowedOrigins = () => {
+  const configuredOrigins = [
+    process.env.NEXT_PUBLIC_APP_URL,
+    process.env.CORS_ORIGINS,
+    process.env.FRONTEND_URL,
+  ]
+    .filter(Boolean)
+    .flatMap((value) => String(value).split(","))
+    .map(normalizeOrigin)
+    .filter(Boolean);
+
+  if (configuredOrigins.length > 0) {
+    return Array.from(new Set(configuredOrigins));
+  }
+
+  // ✅ Allow common development ports for localhost
+  return [
+    "http://localhost:3000",
+    "http://localhost:3001",
+    "http://localhost:3002",
+    "http://localhost:3003",
+    "http://127.0.0.1:3000",
+    "http://127.0.0.1:3001",
+    "http://127.0.0.1:3002",
+    "http://127.0.0.1:3003",
+  ];
+};
+
+export const validateEnv = () => {
+  const missingRequired = requiredEnvVars.filter(
+    (name) => !process.env[name] || !String(process.env[name]).trim()
+  );
+
+  if (missingRequired.length > 0) {
+    throw new Error(
+      `Missing required environment variables: ${missingRequired.join(", ")}`
+    );
+  }
+
+  const missingRecommended = recommendedEnvVars.filter(
+    (name) => !process.env[name] || !String(process.env[name]).trim()
+  );
+
+  if (missingRecommended.length > 0) {
+    console.warn(
+      `Recommended environment variables missing: ${missingRecommended.join(", ")}`
+    );
+  }
+
+  if (String(process.env.JWT_SECRET).trim().length < 16) {
+    console.warn(
+      "JWT_SECRET looks short. Use a longer secret before production launch."
+    );
+  }
+
+  const allowedOrigins = getAllowedOrigins();
+  if (allowedOrigins.length === 0) {
+    console.warn(
+      "No frontend origins detected for CORS. Falling back to localhost defaults."
+    );
+  }
+};

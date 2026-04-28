@@ -2,8 +2,8 @@
 
 import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
-import { AdminNav } from "@/components/AdminNav";
 import { getProductById, updateProduct } from "@/utils/productApi";
+import { useProtectedRoute } from "@/hooks/useProtectedRoute";
 
 const categories = ["Skincare", "Hair", "Fragrance", "Makeup", "Body"];
 
@@ -11,6 +11,7 @@ export default function EditProductPage() {
   const router = useRouter();
   const params = useParams();
   const productId = params.id as string;
+  const { token, isAuthorized, isChecking } = useProtectedRoute({ requireAdmin: true });
 
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
@@ -31,6 +32,11 @@ export default function EditProductPage() {
     isPublished: true,
   });
 
+  const parsedImageList = form.images
+    .split("\n")
+    .map((url) => url.trim())
+    .filter(Boolean);
+
   const generateSlug = (value: string) => {
     return value
       .toLowerCase()
@@ -42,11 +48,10 @@ export default function EditProductPage() {
 
   useEffect(() => {
     const verifyAndLoad = async () => {
-      const token = localStorage.getItem("token");
-      const isAdmin = localStorage.getItem("isAdmin");
-
-      if (!token || isAdmin !== "true") {
-        router.push("/login");
+      if (!token || !isAuthorized) {
+        if (!isChecking) {
+          setLoading(false);
+        }
         return;
       }
 
@@ -81,12 +86,10 @@ export default function EditProductPage() {
     if (productId) {
       verifyAndLoad();
     }
-  }, [productId, router]);
+  }, [isAuthorized, isChecking, productId, router, token]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-
-    const token = localStorage.getItem("token");
 
     if (!token) {
       alert("Please login again.");
@@ -163,10 +166,18 @@ export default function EditProductPage() {
     }
   };
 
+  if (isChecking) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-[#fdf8f6]">
+        <p className="text-[#7a1f2b]">Checking admin access...</p>
+      </div>
+    );
+  }
+
+  if (!isAuthorized) return null;
+
   if (loading) {
     return (
-      <>
-        <AdminNav />
         <div className="min-h-screen bg-[#fdf8f6] px-4 py-10 md:px-8">
           <div className="mx-auto max-w-3xl rounded-3xl border border-[#ead2d8] bg-white p-8 shadow-sm">
             <p className="text-[#7a1f2b] text-lg font-semibold">
@@ -174,13 +185,10 @@ export default function EditProductPage() {
             </p>
           </div>
         </div>
-      </>
     );
   }
 
   return (
-    <>
-      <AdminNav />
       <div className="min-h-screen bg-[#fdf8f6] px-4 py-10 md:px-8">
         <div className="mx-auto max-w-3xl rounded-3xl border border-[#ead2d8] bg-white p-8 shadow-sm">
           <div className="mb-8">
@@ -369,9 +377,40 @@ export default function EditProductPage() {
                 value={form.images}
                 onChange={(e) => setForm({ ...form, images: e.target.value })}
                 rows={4}
+                placeholder="/Product/rose-glow-serum-1.jpg&#10;/Product/rose-glow-serum-2.jpg"
                 className="mt-2 w-full rounded-2xl border border-[#ead2d8] bg-[#fdf8f6] px-4 py-3 outline-none focus:border-[#7a1f2b]"
               />
+              <p className="mt-1 text-xs text-[#6b7280]">
+                Enter one image path per line. The first image becomes the main product image.
+              </p>
             </label>
+
+            {parsedImageList.length > 0 && (
+              <div className="block">
+                <span className="mb-2 block text-sm font-medium text-[#4a2c2a]">
+                  Image Preview
+                </span>
+                <div className="flex flex-wrap gap-2">
+                  {parsedImageList.map((url, index) => (
+                    <div key={`${url}-${index}`} className="relative">
+                      <img
+                        src={url}
+                        alt={`Preview ${index + 1}`}
+                        className="h-16 w-16 rounded-lg border border-[#ead2d8] object-cover"
+                        onError={(e) => {
+                          e.currentTarget.src = "/favicon/product.jpeg";
+                        }}
+                      />
+                      {index === 0 && (
+                        <span className="absolute -top-2 -right-2 rounded bg-[#7a1f2b] px-1 text-xs text-white">
+                          Main
+                        </span>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
 
             <div className="flex flex-wrap gap-4 pt-4">
               <button
@@ -393,6 +432,5 @@ export default function EditProductPage() {
           </form>
         </div>
       </div>
-    </>
   );
 }

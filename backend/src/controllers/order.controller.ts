@@ -3,10 +3,15 @@ import mongoose from "mongoose";
 import crypto from "crypto";
 import Order from "../models/order.model";
 import Product from "../models/Product";
+import User from "../models/user";
 import {
   sendOrderConfirmationEmail,
+  sendOrderDeliveredEmail,
+  sendOrderShippedEmail,
+  sendPaymentFailedEmail,
   sendPaymentSuccessEmail,
 } from "../utils/emailService";
+import { incrementCouponUsage, resolveCouponDiscount } from "../utils/coupon";
 
 // VERIFY RAZORPAY SIGNATURE
 const verifyRazorpaySignature = (
@@ -37,6 +42,7 @@ export const createOrder = async (req: any, res: Response) => {
       items,
       totalAmount,
       paymentMethod,
+      couponCode,
       razorpayPaymentId,
       razorpayOrderId,
       razorpaySignature,
@@ -73,7 +79,10 @@ export const createOrder = async (req: any, res: Response) => {
       }
     }
 
-    // 1. Validate products and stock
+    const sanitizedItems = [];
+    let subtotalAmount = 0;
+
+    // 1. Validate products, stock, and compute authoritative subtotal
     for (const item of items) {
       if (!item.productId || !mongoose.isValidObjectId(item.productId)) {
         return res.status(400).json({
@@ -111,10 +120,45 @@ export const createOrder = async (req: any, res: Response) => {
           message: `Insufficient stock for ${product.name}. Only ${product.countInStock} left.`,
         });
       }
+
+      sanitizedItems.push({
+        productId: product._id,
+        name: product.name,
+        price: product.price,
+        quantity: item.quantity,
+        image: product.images?.[0] || item.image || "/favicon/product.jpeg",
+      });
+
+      subtotalAmount += product.price * item.quantity;
+    }
+
+    const { coupon, discountAmount } = await resolveCouponDiscount({
+      code: couponCode,
+      subtotal: subtotalAmount,
+    });
+
+    const shippingAmount =
+      paymentMethod && paymentMethod.toLowerCase().includes("cash") ? 50 : 0;
+    const gstAmount = Math.round((subtotalAmount - discountAmount) * 0.18);
+    const finalTotalAmount =
+      subtotalAmount - discountAmount + gstAmount + shippingAmount;
+
+    if (Math.abs(Number(totalAmount) - finalTotalAmount) > 1) {
+      return res.status(400).json({
+        success: false,
+        message: "Order total mismatch. Please refresh and try again.",
+        totals: {
+          subtotalAmount,
+          discountAmount,
+          gstAmount,
+          shippingAmount,
+          totalAmount: finalTotalAmount,
+        },
+      });
     }
 
     // 2. Reduce stock
-    for (const item of items) {
+    for (const item of sanitizedItems) {
       const product = await Product.findById(item.productId);
 
       if (!product) {
@@ -128,11 +172,18 @@ export const createOrder = async (req: any, res: Response) => {
       await product.save();
     }
 
+    const currentUser = req.user?.id ? await User.findById(req.user.id) : null;
+
     // 3. Create order
     const order = await Order.create({
       user: req.user?.id || undefined,
-      items,
-      totalAmount,
+      items: sanitizedItems,
+      subtotalAmount,
+      couponCode: coupon?.code || undefined,
+      discountAmount,
+      gstAmount,
+      shippingAmount,
+      totalAmount: finalTotalAmount,
       paymentMethod: paymentMethod || "COD",
       shippingAddress: shippingAddress || undefined,
       status: razorpayPaymentId ? "Processing" : "Pending", // Paid orders go to Processing
@@ -141,19 +192,27 @@ export const createOrder = async (req: any, res: Response) => {
       razorpayOrderId: razorpayOrderId || undefined,
     });
 
+    if (coupon?.code) {
+      await incrementCouponUsage(coupon.code);
+    }
+
     // Send Order Confirmation Email
-    const customerEmail = req.user?.email || "customer@email.com";
-    sendOrderConfirmationEmail(customerEmail, {
-      ...order.toObject(),
-      customerName: req.user?.name || "Valued Customer",
-    });
+    const customerEmail = currentUser?.email;
+    const customerName = currentUser?.name || "Valued Customer";
+
+    if (customerEmail) {
+      await sendOrderConfirmationEmail(customerEmail, {
+        ...order.toObject(),
+        customerName,
+      });
+    }
 
     // Send Payment Success Email (if paid)
-    if (razorpayPaymentId) {
-      sendPaymentSuccessEmail(customerEmail, {
-        customerName: req.user?.name || "Valued Customer",
+    if (razorpayPaymentId && customerEmail) {
+      await sendPaymentSuccessEmail(customerEmail, {
+        customerName,
         orderId: order._id.toString(),
-        amount: totalAmount,
+        amount: finalTotalAmount,
         paymentMethod: "Razorpay",
         transactionId: razorpayPaymentId,
       });
@@ -299,6 +358,128 @@ export const getOrderById = async (req: any, res: Response) => {
   }
 };
 
+// NOTIFY PAYMENT FAILURE
+export const notifyPaymentFailure = async (req: any, res: Response) => {
+  try {
+    const { amount, reason, razorpayOrderId } = req.body;
+
+    if (!req.user?.id) {
+      return res.status(401).json({
+        success: false,
+        message: "Unauthorized",
+      });
+    }
+
+    if (!amount || amount <= 0) {
+      return res.status(400).json({
+        success: false,
+        message: "Valid amount is required",
+      });
+    }
+
+    const appUrl =
+      process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
+    const currentUser = await User.findById(req.user.id).select("name email");
+
+    if (!currentUser?.email) {
+      return res.status(404).json({
+        success: false,
+        message: "User email not found",
+      });
+    }
+
+    await sendPaymentFailedEmail(currentUser.email, {
+      customerName: currentUser.name || "Valued Customer",
+      orderId: razorpayOrderId || "PAYMENT-ATTEMPT",
+      amount: Number(amount),
+      reason: reason || "Payment could not be processed",
+      retryLink: `${appUrl}/cart`,
+    });
+
+    return res.status(200).json({
+      success: true,
+      message: "Payment failure email sent",
+    });
+  } catch (error: any) {
+    console.error("NOTIFY PAYMENT FAILURE ERROR:", error);
+
+    return res.status(500).json({
+      success: false,
+      message: error.message || "Failed to process payment failure",
+    });
+  }
+};
+
+// UPDATE PAYMENT STATUS (ADMIN)
+export const updatePaymentStatus = async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+    const { paymentStatus, reason } = req.body;
+
+    if (!mongoose.isValidObjectId(id)) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid order ID",
+      });
+    }
+
+    const allowedStatuses = ["Pending", "Completed", "Failed", "Refunded"];
+
+    if (!paymentStatus || !allowedStatuses.includes(paymentStatus)) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid payment status",
+      });
+    }
+
+    const order = await Order.findById(id).populate("user", "name email");
+
+    if (!order) {
+      return res.status(404).json({
+        success: false,
+        message: "Order not found",
+      });
+    }
+
+    const oldPaymentStatus = order.paymentStatus;
+    order.paymentStatus = paymentStatus;
+    await order.save();
+
+    const customer = order.user as any;
+    const customerEmail = customer?.email;
+    const customerName = customer?.name || "Valued Customer";
+    const appUrl =
+      process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
+
+    if (
+      customerEmail &&
+      oldPaymentStatus !== paymentStatus &&
+      paymentStatus === "Failed"
+    ) {
+      await sendPaymentFailedEmail(customerEmail, {
+        customerName,
+        orderId: order._id.toString(),
+        amount: order.totalAmount,
+        reason: reason || "Payment verification failed",
+        retryLink: `${appUrl}/orders/${order._id}`,
+      });
+    }
+
+    return res.status(200).json({
+      success: true,
+      message: "Payment status updated successfully",
+      order,
+    });
+  } catch (error: any) {
+    console.error("UPDATE PAYMENT STATUS ERROR:", error);
+
+    return res.status(500).json({
+      success: false,
+      message: error.message || "Failed to update payment status",
+    });
+  }
+};
+
 // UPDATE ORDER STATUS (ADMIN)
 export const updateOrderStatus = async (req: Request, res: Response) => {
   try {
@@ -363,6 +544,48 @@ export const updateOrderStatus = async (req: Request, res: Response) => {
 
     order.status = status;
     await order.save();
+
+    const populatedOrder = await order.populate("user", "name email");
+    const customer = populatedOrder.user as any;
+    const customerEmail = customer?.email;
+    const customerName = customer?.name || "Valued Customer";
+    const appUrl =
+      process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
+
+    if (customerEmail && oldStatus !== status) {
+      if (status === "Shipped") {
+        const trackingNumber =
+          order.razorpayOrderId || `EW${order._id.toString().slice(-8).toUpperCase()}`;
+
+        await sendOrderShippedEmail(customerEmail, {
+          customerName,
+          orderId: order._id.toString(),
+          trackingNumber,
+          trackingUrl: `${appUrl}/orders/${order._id}`,
+          estimatedDelivery: new Date(
+            Date.now() + 3 * 24 * 60 * 60 * 1000
+          ).toLocaleDateString("en-IN", {
+            year: "numeric",
+            month: "long",
+            day: "numeric",
+          }),
+          carrier: "Ewara Delivery",
+        });
+      }
+
+      if (status === "Delivered") {
+        await sendOrderDeliveredEmail(customerEmail, {
+          customerName,
+          orderId: order._id.toString(),
+          deliveryDate: new Date().toLocaleDateString("en-IN", {
+            year: "numeric",
+            month: "long",
+            day: "numeric",
+          }),
+          feedbackLink: `${appUrl}/services`,
+        });
+      }
+    }
 
     return res.status(200).json({
       success: true,

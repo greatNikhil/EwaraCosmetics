@@ -1,6 +1,8 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useAuthStore } from "@/store/authStore";
+import { buildApiUrl } from "@/utils/api";
 
 export interface BackendOrderItem {
   productId: string;
@@ -29,13 +31,15 @@ export function useOrders() {
   const [orders, setOrders] = useState<BackendOrder[]>([]);
   const [user, setUser] = useState<any>(null);
   const [loading, setLoading] = useState(true);
+  
+  // ✅ Get user from authStore instead of localStorage
+  const authUser = useAuthStore((state) => state.user);
+  const token = useAuthStore((state) => state.token);
 
   useEffect(() => {
     const loadOrders = async () => {
-      const storedData = localStorage.getItem("userData");
-      const token = localStorage.getItem("token");
-
-      if (!storedData || !token) {
+      // ✅ Use authStore user instead of localStorage
+      if (!authUser || !token) {
         setUser(null);
         setOrders([]);
         setLoading(false);
@@ -43,13 +47,12 @@ export function useOrders() {
       }
 
       try {
-        const parsed = JSON.parse(storedData);
-        setUser(parsed);
+        setUser(authUser);
 
         const endpoint =
-          parsed.role === "admin"
-            ? "http://localhost:5000/api/orders"
-            : "http://localhost:5000/api/orders/my";
+          authUser.role === "admin"
+            ? buildApiUrl("/api/orders")
+            : buildApiUrl("/api/orders/my");
 
         const res = await fetch(endpoint, {
           method: "GET",
@@ -89,7 +92,7 @@ export function useOrders() {
       window.removeEventListener("storage", handleRefresh);
       window.removeEventListener("userChanged", handleRefresh);
     };
-  }, []);
+  }, [authUser, token]);
 
   return { orders, user, loading };
 }

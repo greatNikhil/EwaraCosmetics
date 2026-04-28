@@ -1,22 +1,25 @@
+import { useCartStore } from "@/store/cartStore";
+import { getAllProducts } from "@/utils/productApi";
+
 export interface CartProduct {
   _id: string;
   name: string;
-  slug: string;
-  description: string;
+  slug?: string;
+  description?: string;
   shortDescription?: string;
   brand?: string;
-  category: string;
+  category?: string;
   price: number;
   originalPrice?: number;
   discountPercent?: number;
-  countInStock: number;
-  images: string[];
-  isFeatured: boolean;
-  isPublished: boolean;
-  rating: number;
-  numReviews: number;
-  createdAt: string;
-  updatedAt: string;
+  countInStock?: number;
+  images?: string[];
+  isFeatured?: boolean;
+  isPublished?: boolean;
+  rating?: number;
+  numReviews?: number;
+  createdAt?: string;
+  updatedAt?: string;
 }
 
 export interface CartItem {
@@ -29,72 +32,145 @@ export interface CartItem {
   countInStock: number;
 }
 
-const CART_KEY = "cartItems";
+const mapStoreItemToCartItem = (
+  item: ReturnType<typeof useCartStore.getState>["items"][number]
+): CartItem => ({
+  _id: item.id,
+  name: item.name,
+  price: item.price,
+  image: item.image,
+  quantity: item.quantity,
+  countInStock: Number.MAX_SAFE_INTEGER,
+});
+
+// ✅ Helper function to get token for backend sync
+const getToken = (): string | null => {
+  if (typeof window === "undefined") return null;
+  return localStorage.getItem("token");
+};
 
 export const getCartItems = (): CartItem[] => {
-  if (typeof window === "undefined") return [];
-
-  const data = localStorage.getItem(CART_KEY);
-  if (!data) return [];
-
-  try {
-    return JSON.parse(data);
-  } catch {
-    return [];
-  }
+  return useCartStore.getState().items.map(mapStoreItemToCartItem);
 };
 
 export const saveCartItems = (items: CartItem[]) => {
-  if (typeof window === "undefined") return;
-  localStorage.setItem(CART_KEY, JSON.stringify(items));
+  const normalizedItems = items.map((item) => ({
+    id: item._id,
+    name: item.name,
+    price: item.price,
+    quantity: item.quantity,
+    image: item.image,
+  }));
+
+  useCartStore.setState({ items: normalizedItems });
 };
 
-export const addToCart = (product: CartProduct) => {
-  const cartItems = getCartItems();
+export const addToCart = async (product: CartProduct) => {
+  const store = useCartStore.getState();
+  const existingItem = store.items.find((item) => item.id === product._id);
+  const maxStock = product.countInStock ?? Number.MAX_SAFE_INTEGER;
 
-  const existingItem = cartItems.find((item) => item._id === product._id);
-
-  if (existingItem) {
-    if (existingItem.quantity < product.countInStock) {
-      existingItem.quantity += 1;
-    }
-  } else {
-    cartItems.push({
-      _id: product._id,
-      name: product.name,
-      price: product.price,
-      originalPrice: product.originalPrice,
-      image: product.images?.[0] || "/favicon/product.jpeg",
-      quantity: 1,
-      countInStock: product.countInStock,
-    });
+  if (existingItem && existingItem.quantity >= maxStock) {
+    return;
   }
 
-  saveCartItems(cartItems);
-};
-
-export const removeFromCart = (_id: string) => {
-  const cartItems = getCartItems().filter((item) => item._id !== _id);
-  saveCartItems(cartItems);
-};
-
-export const updateCartQuantity = (_id: string, quantity: number) => {
-  const cartItems = getCartItems().map((item) => {
-    if (item._id === _id) {
-      return {
-        ...item,
-        quantity: Math.max(1, Math.min(quantity, item.countInStock)),
-      };
-    }
-    return item;
+  store.addItem({
+    id: product._id,
+    name: product.name,
+    price: product.price,
+    quantity: 1,
+    image: product.images?.[0] || "/favicon/product.jpeg",
+    category: product.category || product.brand || "General",
   });
 
-  saveCartItems(cartItems);
+  // ✅ NEW: Sync to backend if logged in
+  const token = getToken();
+  if (token) {
+    try {
+      await store.syncToBackend(token);
+    } catch (error) {
+      console.error("Failed to sync cart to backend:", error);
+    }
+  }
 };
 
-export const clearCart = () => {
-  if (typeof window === "undefined") return;
-  localStorage.removeItem(CART_KEY);
+export const removeFromCart = async (_id: string) => {
+  const store = useCartStore.getState();
+  store.removeItem(_id);
+
+  // ✅ NEW: Sync to backend if logged in
+  const token = getToken();
+  if (token) {
+    try {
+      await store.syncToBackend(token);
+    } catch (error) {
+      console.error("Failed to sync cart to backend:", error);
+    }
+  }
+};
+
+export const updateCartQuantity = async (_id: string, quantity: number) => {
+  const item = getCartItems().find((cartItem) => cartItem._id === _id);
+  if (!item) return;
+
+  const store = useCartStore.getState();
+  store.updateQuantity(_id, Math.max(1, Math.min(quantity, item.countInStock)));
+
+  // ✅ NEW: Sync to backend if logged in
+  const token = getToken();
+  if (token) {
+    try {
+      await store.syncToBackend(token);
+    } catch (error) {
+      console.error("Failed to sync cart to backend:", error);
+    }
+  }
+};
+
+export const clearCart = async () => {
+  const store = useCartStore.getState();
+  store.clearCart();
+
+  // ✅ NEW: Sync to backend if logged in
+  const token = getToken();
+  if (token) {
+    try {
+      await store.syncToBackend(token);
+    } catch (error) {
+      console.error("Failed to sync cart to backend:", error);
+    }
+  }
+};
+
+export const removeUnavailableCartItems = async (): Promise<number> => {
+  try {
+    const data = await getAllProducts();
+    const validProductIds = new Set(
+      (data.products || []).map((product) => product._id)
+    );
+
+    const store = useCartStore.getState();
+    const validItems = store.items.filter((item) => validProductIds.has(item.id));
+    const removedCount = store.items.length - validItems.length;
+
+    if (removedCount > 0) {
+      useCartStore.setState({ items: validItems });
+
+      const token = getToken();
+      if (token) {
+        try {
+          await store.syncToBackend(token);
+        } catch (error) {
+          console.error("Failed to sync cleaned cart to backend:", error);
+        }
+      }
+    }
+
+    return removedCount;
+  } catch (error) {
+    console.error("Failed to remove unavailable cart items:", error);
+    return 0;
+  }
 };
 
 export const getCartCount = (): number => {

@@ -11,7 +11,9 @@
     "format": "prettier --write .",
     "type-check": "tsc --noEmit",
     "test": "vitest",
-    "test:ui": "vitest --ui"
+    "test:ui": "vitest --ui",
+    "audit:deploy": "node scripts/audit-deployment-readiness.js",
+    "test:phase9": "npm run audit:deploy && npm run type-check && npm run build"
   },
   "dependencies": {
     "@stripe/react-stripe-js": "^6.2.0",

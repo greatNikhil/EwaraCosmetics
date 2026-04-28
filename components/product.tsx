@@ -16,9 +16,7 @@ export default function Products() {
   useEffect(() => {
     const fetchProducts = async () => {
       try {
-        console.log("Fetching products...");
         const data = await getAllProducts();
-        console.log("Products API response:", data);
         setProducts(data.products);
       } catch (error) {
         console.error("Error fetching products:", error);

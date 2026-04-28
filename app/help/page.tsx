@@ -98,21 +98,21 @@ export default function HelpPage() {
 
           <div className="flex flex-col gap-4 sm:flex-row sm:justify-center">
             <a
-              href="mailto:support@ewara.com"
+              href="mailto:info@ewaraofficial.com"
               className="inline-flex items-center justify-center gap-2 rounded-full bg-[#7a1f2b] px-6 py-3 text-sm font-semibold text-white shadow-[0_18px_48px_rgba(122,31,43,0.18)] transition duration-300 hover:bg-[#5a1920]"
             >
               <Mail size={16} />
               Email Us
             </a>
             <a
-              href="tel:+919876543210"
+              href="tel:+918545055656"
               className="inline-flex items-center justify-center gap-2 rounded-full border border-[#7a1f2b] bg-white px-6 py-3 text-sm font-semibold text-[#7a1f2b] shadow-[0_18px_48px_rgba(122,31,43,0.18)] transition duration-300 hover:bg-[#7a1f2b] hover:text-white"
             >
               <Phone size={16} />
               Call Support
             </a>
             <a
-              href="https://wa.me/919876543210"
+              href="https://wa.me/918545055656"
               className="inline-flex items-center justify-center gap-2 rounded-full border border-[#7a1f2b] bg-white px-6 py-3 text-sm font-semibold text-[#7a1f2b] shadow-[0_18px_48px_rgba(122,31,43,0.18)] transition duration-300 hover:bg-[#7a1f2b] hover:text-white"
             >
               <MessageCircle size={16} />

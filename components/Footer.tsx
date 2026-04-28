@@ -1,129 +1,230 @@
 import Link from "next/link";
+import {
+  Clock3,
+  CreditCard,
+  Heart,
+  Mail,
+  Phone,
+  Share2,
+  ShieldCheck,
+  Truck,
+} from "lucide-react";
+
+const quickLinks = [
+  { label: "About Us", href: "/about" },
+  { label: "Contact Us", href: "/help" },
+  { label: "Track Order", href: "/orders" },
+  { label: "Privacy Policy", href: "/policies/privacy" },
+  { label: "Terms & Conditions", href: "/policies/terms&condtions" },
+  { label: "Refund Policy", href: "#" },
+];
+
+const categories = [
+  { label: "Skin", href: "/category/skincare" },
+  { label: "Hair", href: "/category/hair" },
+  { label: "Fragrance", href: "/category/fragrance" },
+  { label: "New Arrivals", href: "/new-arrivals" },
+];
+
+const trustItems = [
+  {
+    title: "100% Authentic",
+    subtitle: "Our Guarantee",
+    icon: ShieldCheck,
+  },
+  {
+    title: "Free Shipping",
+    subtitle: "Above Rs. 699",
+    icon: Truck,
+  },
+  {
+    title: "Secure Payment",
+    subtitle: "100% Protection",
+    icon: CreditCard,
+  },
+];
+
+const helpDeskItems = [
+  {
+    label: "Phone",
+    value: "+91 8545055656",
+    href: "tel:+918545055656",
+    icon: Phone,
+  },
+  {
+    label: "Email",
+    value: "info@ewaraofficial.com",
+    href: "mailto:info@ewaraofficial.com",
+    icon: Mail,
+  },
+  {
+    label: "Hours",
+    value: "24 * 7",
+    icon: Clock3,
+  },
+];
+
 export default function Footer() {
   return (
-    <footer className="relative mt-16 text-white overflow-hidden">
-      {/* 🔥 BACKGROUND GRADIENT + GLASS */}
-      <div className="absolute inset-0 bg-gradient-to-br from-[#1f2230] via-[#2a1f2b] to-[#1f2230] opacity-95"></div>
+    <footer className="mt-16 bg-[#2a1520] text-white">
+      <div className="grid grid-cols-1 md:grid-cols-3">
+        {trustItems.map((item, index) => {
+          const Icon = item.icon;
+          const isLast = index === trustItems.length - 1;
 
-      {/* 🔥 GLASS LAYER */}
-      <div className="relative backdrop-blur-xl bg-white/5 border-t border-white/10">
-        {/* ✨ FLOATING LIGHT EFFECT */}
-        <div className="absolute w-72 h-72 bg-[#7a1f2b]/30 rounded-full blur-3xl top-0 left-0 animate-pulse"></div>
-        <div className="absolute w-72 h-72 bg-[#d4a373]/20 rounded-full blur-3xl bottom-0 right-0 animate-pulse"></div>
+          return (
+            <div
+              key={item.title}
+              className={`flex flex-col items-center px-4 py-7 text-center ${
+                !isLast ? "md:border-r-[0.5px] md:border-white/[0.08]" : ""
+              } border-b-[0.5px] border-white/[0.08]`}
+            >
+              <div className="flex h-11 w-11 items-center justify-center rounded-full bg-white/[0.07]">
+                <Icon
+                  size={20}
+                  strokeWidth={1.5}
+                  className="text-[#c49a6c]"
+                />
+              </div>
+              <p className="mt-4 text-[14px] font-medium text-[#f5e8eb]">
+                {item.title}
+              </p>
+              <p className="mt-1 text-[11px] text-white/[0.45]">
+                {item.subtitle}
+              </p>
+            </div>
+          );
+        })}
+      </div>
 
-        {/* 🔥 FEATURES */}
-        <div className="grid grid-cols-1 md:grid-cols-3 text-center py-10 border-b border-white/10">
-          {/* 🔹 AUTHENTIC */}
-          <div className="flex flex-col items-center gap-3 animate-fadeUp">
-            <img
-              src="/favicon/secure.svg"
-              className="w-10 h-10 animate-float"
-            />
+      <div className="grid grid-cols-1 gap-8 px-6 py-10 md:grid-cols-2 lg:grid-cols-[1.4fr_1fr_1fr_1.2fr] lg:gap-8 lg:px-10 lg:py-10 lg:pb-8">
+        <div>
+          <h2 className="text-[20px] font-medium tracking-[0.06em] text-[#f5e8eb]">
+            EWAR<span className="text-[#c49a6c]">A</span>
+          </h2>
+          <p className="mt-4 max-w-[200px] text-[12px] leading-[1.7] text-white/[0.45]">
+            Premium beauty and skincare products for glowing skin.
+          </p>
 
-            <p className="text-lg font-bold tracking-wide">100% Authentic</p>
-
-            <p className="text-sm text-gray-300">Our Guarantee</p>
-          </div>
-
-          {/* 🔹 SHIPPING */}
-          <div className="flex flex-col items-center gap-3 animate-fadeUp delay-150">
-            <img
-              src="/favicon/safe-delivery.svg"
-              className="w-10 h-10 animate-float delay-150"
-            />
-
-            <p className="text-lg font-bold tracking-wide">Free Shipping</p>
-            <p className="text-sm text-gray-300">Above ₹699</p>
-          </div>
-
-          {/* 🔹 PAYMENT */}
-          <div className="flex flex-col items-center gap-3 animate-fadeUp delay-300">
-            <img
-              src="/favicon/credit-card.svg"
-              className="w-10 h-10 animate-float drop-shadow-[0_0_10px_rgba(255,255,255,0.2)]"
-            />
-
-            <p className="text-lg font-bold tracking-wide">Secure Payment</p>
-            <p className="text-sm text-gray-300">100% Protection</p>
-          </div>
-        </div>
-
-        {/* 🔥 MAIN */}
-        <div className="max-w-7xl mx-auto px-6 py-10 grid grid-cols-1 md:grid-cols-4 gap-8">
-          {/* 🧴 BRAND */}
-          <div className="animate-fadeUp delay-100">
-            <h2 className="text-xl font-bold mb-3 tracking-wide">Ewara</h2>
-            <p className="text-sm text-gray-300 mb-4">
-              Premium beauty & skincare products for glowing skin ✨
-            </p>
-
-            {/* SOCIAL ICONS (AUTO ANIMATION 😏) */}
-            <div className="flex gap-4">
-              <img src="/favicon/insta.svg" className="w-6 h-6 animate-float" />
-
-              <img
-                src="/favicon/facebook.svg"
-                className="w-6 h-6 animate-float delay-150"
-              />
-
+          <div className="mt-5 flex gap-3">
+            <button
+              type="button"
+              aria-label="Instagram"
+              className="flex h-8 w-8 items-center justify-center rounded-[8px] border-[0.5px] border-white/[0.1] bg-white/[0.07] text-white/[0.6] transition hover:border-[#c49a6c] hover:bg-[rgba(196,154,108,0.2)]"
+            >
+              <Heart size={16} strokeWidth={1.8} />
+            </button>
+            <button
+              type="button"
+              aria-label="Facebook"
+              className="flex h-8 w-8 items-center justify-center rounded-[8px] border-[0.5px] border-white/[0.1] bg-white/[0.07] text-white/[0.6] transition hover:border-[#c49a6c] hover:bg-[rgba(196,154,108,0.2)]"
+            >
+              <Share2 size={16} strokeWidth={1.8} />
+            </button>
+            <button
+              type="button"
+              aria-label="WhatsApp"
+              className="flex h-8 w-8 items-center justify-center rounded-[8px] border-[0.5px] border-white/[0.1] bg-white/[0.07] text-white/[0.6] transition hover:border-[#c49a6c] hover:bg-[rgba(196,154,108,0.2)]"
+            >
               <img
                 src="/favicon/whatsapp.svg"
-                className="w-6 h-6 animate-float delay-300"
+                alt="WhatsApp"
+                className="h-4 w-4 opacity-70"
               />
-            </div>
+            </button>
           </div>
 
-          {/* 🔗 LINKS */}
-          <div className="animate-fadeUp delay-200">
-            <h3 className="font-semibold mb-3">Quick Links</h3>
-            <ul className="space-y-2 text-sm text-gray-300">
-              <li>
-                <Link href="/about">About Us</Link>
-              </li>
-              <li>
-                <Link href="/help">Contact Us</Link>
-              </li>
-              <li>
-                <Link href="/orders">Track Order</Link>
-              </li>
-              <li>
-                <Link href="/policies/privacy">Privacy Policy</Link>
-              </li>
-              <li>
-                <Link href="/policies/terms&condtions">Terms & Conditions</Link>
-              </li>
-            </ul>
-          </div>
-
-          {/* 🛍️ CATEGORIES */}
-          <div className="animate-fadeUp delay-300">
-            <h3 className="font-semibold mb-3">Categories</h3>
-            <ul className="space-y-2 text-sm text-gray-300">
-              <li>
-                <Link href="/category/skincare">Skin</Link>
-              </li>
-              <li>
-                <Link href="/category/hair">Hair</Link>
-              </li>
-              <li>
-                <Link href="/category/fragrance">Fragrance</Link>
-              </li>
-            </ul>
-          </div>
-
-          {/* 📞 HELP */}
-          <div className="animate-fadeUp delay-400">
-            <h3 className="font-semibold mb-3">Help Desk</h3>
-            <p className="text-sm text-gray-300">📞 +91 9876543210</p>
-            <p className="text-sm text-gray-300 mt-2">✉ support@ewara.com</p>
-            <p className="text-sm text-gray-300 mt-2">Mon–Sat: 10AM–6PM</p>
-          </div>
         </div>
 
-        {/* 🔥 BOTTOM */}
-        <div className="text-center text-sm text-gray-400 py-4 border-t border-white/10 animate-fadeUp">
-          © 2026 Ewara. All rights reserved.
+        <div>
+          <h3 className="mb-4 border-b-[0.5px] border-white/[0.08] pb-2 text-[12px] font-medium uppercase tracking-[0.08em] text-[#f5e8eb]">
+            Quick Links
+          </h3>
+          <ul>
+            {quickLinks.map((link) => (
+              <li key={link.label} className="mb-[10px]">
+                <Link
+                  href={link.href}
+                  className="group flex items-center gap-[6px] text-[12px] text-white/[0.45] transition hover:text-[#c49a6c]"
+                >
+                  <span className="h-1 w-1 rounded-full bg-[#c49a6c] opacity-0 transition group-hover:opacity-100" />
+                  <span>{link.label}</span>
+                </Link>
+              </li>
+            ))}
+          </ul>
         </div>
+
+        <div>
+          <h3 className="mb-4 border-b-[0.5px] border-white/[0.08] pb-2 text-[12px] font-medium uppercase tracking-[0.08em] text-[#f5e8eb]">
+            Categories
+          </h3>
+          <ul>
+            {categories.map((link) => (
+              <li key={link.label} className="mb-[10px]">
+                <Link
+                  href={link.href}
+                  className="group flex items-center gap-[6px] text-[12px] text-white/[0.45] transition hover:text-[#c49a6c]"
+                >
+                  <span className="h-1 w-1 rounded-full bg-[#c49a6c] opacity-0 transition group-hover:opacity-100" />
+                  <span>{link.label}</span>
+                </Link>
+              </li>
+            ))}
+          </ul>
+        </div>
+
+        <div>
+          <h3 className="mb-4 border-b-[0.5px] border-white/[0.08] pb-2 text-[12px] font-medium uppercase tracking-[0.08em] text-[#f5e8eb]">
+            Help Desk
+          </h3>
+
+          <div>
+            {helpDeskItems.map((item) => {
+              const Icon = item.icon;
+
+              return (
+                <div
+                  key={item.label}
+                  className="mb-3 flex items-start gap-[10px]"
+                >
+                  <div className="flex h-7 w-7 items-center justify-center rounded-[8px] bg-[rgba(196,154,108,0.12)]">
+                    <Icon
+                      size={13}
+                      strokeWidth={1.8}
+                      className="text-[#c49a6c]"
+                    />
+                  </div>
+                  <div>
+                    <p className="mb-[2px] text-[10px] uppercase tracking-[0.04em] text-white/[0.3]">
+                      {item.label}
+                    </p>
+                    {item.href ? (
+                      <a
+                        href={item.href}
+                        className="text-[12px] text-white/[0.65] transition hover:text-[#c49a6c]"
+                      >
+                        {item.value}
+                      </a>
+                    ) : (
+                      <p className="text-[12px] text-white/[0.65]">{item.value}</p>
+                    )}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      </div>
+
+      <div className="flex flex-col gap-4 border-t-[0.5px] border-white/[0.08] px-6 py-4 text-center md:flex-row md:items-center md:justify-between md:text-left lg:px-10">
+        <p className="text-[11px] text-white/[0.3]">
+          Copyright 2026 Ewara. All rights reserved.
+        </p>
+
+        <p className="text-[11px] text-white/[0.2]">
+          Developed by OAN DEVELOPERS
+        </p>
       </div>
     </footer>
   );

@@ -1,6 +1,7 @@
 import "./globals.css";
 import type { Metadata } from "next";
 import type { ReactNode } from "react";
+import Script from "next/script";
 import { Providers } from "./providers";
 import { Navbar } from "@/components/Navbar";
 import Footer from "@/components/Footer";
@@ -20,6 +21,14 @@ export const metadata: Metadata = {
 export default function RootLayout({ children }: { children: ReactNode }) {
   return (
     <html lang="en">
+      <head>
+        <Script
+          src="https://accounts.google.com/gsi/client"
+          async
+          defer
+          strategy="beforeInteractive"
+        />
+      </head>
       <body className={montage.className}>
         <Providers>
           <div className="min-h-screen bg-[#f3ede7] text-[#4a2c2a]">

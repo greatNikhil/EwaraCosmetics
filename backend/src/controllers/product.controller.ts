@@ -1,6 +1,24 @@
 import { Request, Response } from 'express';
 import mongoose from 'mongoose';
 import Product from '../models/Product';
+import Review from '../models/review';
+
+const normalizeProductImages = (images: unknown): string[] => {
+  if (Array.isArray(images)) {
+    return images
+      .map((image) => String(image).trim())
+      .filter(Boolean);
+  }
+
+  if (typeof images === 'string') {
+    return images
+      .split(/\r?\n|,/)
+      .map((image) => image.trim())
+      .filter(Boolean);
+  }
+
+  return [];
+};
 
 // @desc    Create product
 // @route   POST /api/products
@@ -22,6 +40,7 @@ export const createProduct = async (req: Request, res: Response) => {
       isFeatured,
       isPublished,
     } = req.body;
+    const normalizedImages = normalizeProductImages(images);
 
     // Basic required field validation
     if (!name || !slug || !description || !category || price === undefined || countInStock === undefined) {
@@ -31,7 +50,7 @@ export const createProduct = async (req: Request, res: Response) => {
       });
     }
 
-    if (!images || !Array.isArray(images) || images.length === 0) {
+    if (normalizedImages.length === 0) {
       return res.status(400).json({
         success: false,
         message: 'At least one product image is required',
@@ -59,7 +78,7 @@ export const createProduct = async (req: Request, res: Response) => {
       originalPrice: originalPrice || 0,
       discountPercent: discountPercent || 0,
       countInStock,
-      images,
+      images: normalizedImages,
       isFeatured: isFeatured || false,
       isPublished: isPublished !== undefined ? isPublished : true,
     });
@@ -168,9 +187,14 @@ export const getProductById = async (req: Request, res: Response) => {
       });
     }
 
+    const reviews = await Review.find({ product: id })
+      .sort({ createdAt: -1 })
+      .select("name rating comment user createdAt updatedAt");
+
     return res.status(200).json({
       success: true,
       product,
+      reviews,
     });
   } catch (error: any) {
     return res.status(500).json({
@@ -220,6 +244,9 @@ export const updateProduct = async (req: Request, res: Response) => {
 
     const updatedData = {
       ...req.body,
+      ...(req.body.images !== undefined && {
+        images: normalizeProductImages(req.body.images),
+      }),
       ...(req.body.name && { name: req.body.name.trim() }),
       ...(req.body.slug && { slug: req.body.slug.toLowerCase().trim() }),
       ...(req.body.description && { description: req.body.description.trim() }),
@@ -231,6 +258,13 @@ export const updateProduct = async (req: Request, res: Response) => {
       }),
       ...(req.body.category && { category: req.body.category.trim() }),
     };
+
+    if (updatedData.images && updatedData.images.length === 0) {
+      return res.status(400).json({
+        success: false,
+        message: 'At least one product image is required',
+      });
+    }
 
     const updatedProduct = await Product.findByIdAndUpdate(id, updatedData, {
       new: true,

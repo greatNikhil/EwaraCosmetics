@@ -46,10 +46,11 @@ export function addTestUser() {
     phone: "9876543210",
   };
 
-  localStorage.setItem("userData", JSON.stringify(testUser));
+  // ✅ Use authStore in components, localStorage only for token
   localStorage.setItem("isLoggedIn", "true");
   console.log("✅ Test user added");
   console.log("User:", testUser);
+  console.log("Note: Use persistClientAuth() from utils/clientAuth.ts in components");
 
   window.dispatchEvent(new Event("userChanged"));
 }

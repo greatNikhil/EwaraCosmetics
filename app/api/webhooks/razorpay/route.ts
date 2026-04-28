@@ -1,92 +1,95 @@
-import { NextRequest, NextResponse } from 'next/server';
-import crypto from 'crypto';
-import axios from 'axios';
-
-const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000';
+import { NextRequest } from "next/server";
+import crypto from "crypto";
+import { errorResponse, successResponse } from "../../_lib/response";
 
 export async function POST(request: NextRequest) {
   try {
     const body = await request.text();
-    const signature = request.headers.get('x-razorpay-signature');
+    const signature = request.headers.get("x-razorpay-signature");
 
     if (!signature) {
-      return NextResponse.json({ error: 'Missing signature' }, { status: 400 });
+      return errorResponse("Missing signature", 400);
     }
 
-    // Verify signature
     const hash = crypto
-      .createHmac('sha256', process.env.RAZORPAY_KEY_SECRET || '')
+      .createHmac("sha256", process.env.RAZORPAY_KEY_SECRET || "")
       .update(body)
-      .digest('hex');
+      .digest("hex");
 
     if (hash !== signature) {
-      console.error('❌ Invalid webhook signature');
-      return NextResponse.json({ error: 'Invalid signature' }, { status: 400 });
+      console.error("Invalid Razorpay webhook signature");
+      return errorResponse("Invalid signature", 400);
     }
 
     const event = JSON.parse(body);
-    console.log(`📨 Razorpay Webhook Event: ${event.event}`);
+    console.info(`Razorpay webhook event: ${event.event}`);
 
     switch (event.event) {
-      case 'payment.authorized':
+      case "payment.authorized": {
         const authorizedPayment = event.payload.payment.entity;
-        console.log('✅ Payment authorized:', {
+        console.info("Payment authorized:", {
           paymentId: authorizedPayment.id,
           amount: authorizedPayment.amount,
           status: authorizedPayment.status,
         });
         break;
+      }
 
-      case 'payment.failed':
+      case "payment.failed": {
         const failedPayment = event.payload.payment.entity;
-        console.error('❌ Payment failed:', {
+        console.error("Payment failed:", {
           paymentId: failedPayment.id,
           amount: failedPayment.amount,
           errorCode: failedPayment.error_code,
           errorDescription: failedPayment.error_description,
         });
-        // Note: Frontend order controller will handle payment failure emails
         break;
+      }
 
-      case 'payment.captured':
+      case "payment.captured": {
         const capturedPayment = event.payload.payment.entity;
-        console.log('✅ Payment captured:', {
+        console.info("Payment captured:", {
           paymentId: capturedPayment.id,
-          amount: capturedPayment.amount / 100 + ' INR',
+          amount: `${capturedPayment.amount / 100} INR`,
           status: capturedPayment.status,
         });
-        // Note: Email already sent from order creation
         break;
+      }
 
-      case 'order.paid':
+      case "order.paid": {
         const paidOrder = event.payload.order.entity;
-        console.log('✅ Order marked as paid:', {
+        console.info("Order marked as paid:", {
           orderId: paidOrder.id,
-          amount: paidOrder.amount / 100 + ' INR',
+          amount: `${paidOrder.amount / 100} INR`,
           status: paidOrder.status,
         });
         break;
+      }
 
-      case 'payment.method.issued':
-        console.log('💳 Payment method issued:', event.payload.payment_method.entity);
+      case "payment.method.issued":
+        console.info(
+          "Payment method issued:",
+          event.payload.payment_method.entity
+        );
         break;
 
       default:
-        console.log(`ℹ️ Unhandled event: ${event.event}`);
+        console.info(`Unhandled event: ${event.event}`);
     }
 
-    // Log webhook event for tracking
-    console.log('📊 Webhook processed successfully:', {
+    console.info("Razorpay webhook processed successfully:", {
       event: event.event,
       timestamp: new Date().toISOString(),
     });
 
-    return NextResponse.json({ received: true, status: 'success' }, { status: 200 });
+    return successResponse("Razorpay webhook processed", {
+      received: true,
+      event: event.event,
+    });
   } catch (error: any) {
-    console.error('❌ Webhook processing error:', error.message);
-    return NextResponse.json(
-      { error: 'Webhook processing failed', details: error.message },
-      { status: 500 }
-    );
+    console.error("Webhook processing error:", error.message);
+    return errorResponse("Webhook processing failed", 500, {
+      details: error.message,
+    });
   }
 }

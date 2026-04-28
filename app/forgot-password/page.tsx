@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { buildApiUrl } from "@/utils/api";
 
 export default function ForgotPasswordPage() {
   const [email, setEmail] = useState("");
@@ -9,7 +10,7 @@ export default function ForgotPasswordPage() {
   const [step, setStep] = useState(1);
 
   const sendOTP = async () => {
-    const res = await fetch("http://localhost:5000/api/auth/forgot-password/send-otp", {
+    const res = await fetch(buildApiUrl("/api/auth/forgot-password/send-otp"), {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -29,7 +30,7 @@ export default function ForgotPasswordPage() {
   };
 
   const resetPassword = async () => {
-    const res = await fetch("http://localhost:5000/api/auth/reset-password", {
+    const res = await fetch(buildApiUrl("/api/auth/reset-password"), {
       method: "POST",
       headers: {
         "Content-Type": "application/json",

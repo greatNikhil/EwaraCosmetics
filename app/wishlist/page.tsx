@@ -1,110 +1,200 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
+import { Heart, ShoppingBag, X } from "lucide-react";
 import {
   getWishlistItems,
   removeFromWishlist,
+  wishlistChangedEvent,
   type WishlistItem,
 } from "@/utils/wishlist";
+import { addToCart } from "@/utils/cart";
+
+const imageHeightClasses = [
+  "h-[250px]",
+  "h-[195px]",
+  "h-[230px]",
+  "h-[185px]",
+];
 
 export default function WishlistPage() {
   const [wishlist, setWishlist] = useState<WishlistItem[]>([]);
 
   useEffect(() => {
-    setWishlist(getWishlistItems());
+    const syncWishlist = async () => {
+      const items = await getWishlistItems();
+      setWishlist(items);
+    };
+
+    const handleWishlistChanged = () => {
+      syncWishlist();
+    };
+
+    syncWishlist();
+    window.addEventListener(wishlistChangedEvent, handleWishlistChanged);
+    window.addEventListener("storage", handleWishlistChanged);
+
+    return () => {
+      window.removeEventListener(wishlistChangedEvent, handleWishlistChanged);
+      window.removeEventListener("storage", handleWishlistChanged);
+    };
   }, []);
 
-  const handleRemove = (_id: string) => {
-    removeFromWishlist(_id);
-    setWishlist(getWishlistItems());
+  const totalValue = useMemo(
+    () => wishlist.reduce((sum, item) => sum + Number(item.price || 0), 0),
+    [wishlist]
+  );
+
+  const handleRemove = async (_id: string) => {
+    await removeFromWishlist(_id);
+    const items = await getWishlistItems();
+    setWishlist(items);
+  };
+
+  const handleAddToBag = (item: WishlistItem) => {
+    addToCart({
+      _id: item._id,
+      name: item.name,
+      price: item.price,
+      images: [item.image || "/favicon/product.jpeg"],
+      category: item.category,
+      brand: item.brand,
+    });
+  };
+
+  const handleAddAllToBag = () => {
+    wishlist.forEach((item) => {
+      addToCart({
+        _id: item._id,
+        name: item.name,
+        price: item.price,
+        images: [item.image || "/favicon/product.jpeg"],
+        category: item.category,
+        brand: item.brand,
+      });
+    });
   };
 
   return (
-    <div className="min-h-screen bg-[#fdf8f6] px-4 py-10 md:px-8">
-      <div className="mx-auto max-w-7xl">
-        <div className="mb-10">
-          <h1 className="text-4xl font-bold text-[#4a2c2a]">Wishlist</h1>
-          <p className="mt-2 text-[#6b7280]">
-            Your saved favorites, because apparently indecision needed a UI.
+    <div className="min-h-screen bg-[#f7f4f0] px-4 py-10 md:px-8 md:py-14">
+      <div className="mx-auto max-w-[1280px]">
+        <div className="mx-auto max-w-2xl text-center">
+          <h1 className="font-serif text-4xl text-[#3d2b2a] md:text-[3.35rem]">
+            Your Curated Collection
+          </h1>
+          <p className="mx-auto mt-4 max-w-xl text-sm leading-7 text-[#91827b] md:text-[15px]">
+            A personalized selection of your favorite Ewara formulations, ready
+            to be added to your ritual.
           </p>
         </div>
 
         {wishlist.length === 0 ? (
-          <div className="rounded-3xl border border-[#ead2d8] bg-white p-10 text-center shadow-sm">
-            <p className="text-xl font-semibold text-[#7a1f2b]">
-              Your wishlist is empty.
+          <div className="mx-auto mt-14 max-w-3xl rounded-[32px] border border-[#eee5df] bg-white px-8 py-16 text-center">
+            <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-[#f2e3df] text-[#d2a298]">
+              <Heart size={26} strokeWidth={1.8} />
+            </div>
+            <h2 className="mt-6 font-serif text-3xl text-[#3d2b2a]">
+              Your wishlist is empty
+            </h2>
+            <p className="mx-auto mt-3 max-w-md text-sm leading-7 text-[#91827b]">
+              Explore the collection and save the pieces you want to come back
+              to later.
             </p>
-            <p className="mt-3 text-[#6b7280]">
-              Browse products and save the ones you like.
-            </p>
-
             <Link
               href="/shop"
-              className="mt-6 inline-block rounded-full bg-[#7a1f2b] px-6 py-3 font-semibold text-white transition hover:bg-[#8d2742]"
+              className="mt-8 inline-flex rounded-full bg-[#d9a59d] px-7 py-3 text-sm font-semibold uppercase tracking-[0.08em] text-white transition hover:bg-[#cc958c]"
             >
-              Go to Shop
+              Explore Shop
             </Link>
           </div>
         ) : (
-          <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-            {wishlist.map((item) => (
-              <div
+          <div className="mt-14 columns-1 gap-6 md:columns-2 xl:columns-3">
+            {wishlist.map((item, index) => (
+              <article
                 key={item._id}
-                className="rounded-3xl border border-[#ead2d8] bg-white p-4 shadow-sm transition hover:shadow-lg"
+                className="mb-6 break-inside-avoid rounded-[28px] border border-[#eee5df] bg-white p-3 shadow-[0_6px_24px_rgba(84,63,57,0.03)]"
               >
-                <div className="overflow-hidden rounded-2xl bg-[#f7e9e7]">
+                <div
+                  className={`relative overflow-hidden rounded-[22px] bg-[#efe7e1] ${
+                    imageHeightClasses[index % imageHeightClasses.length]
+                  }`}
+                >
                   <img
                     src={item.image || "/favicon/product.jpeg"}
                     alt={item.name}
-                    className="h-64 w-full object-cover"
+                    className="h-full w-full object-cover"
                   />
+
+                  <button
+                    type="button"
+                    onClick={() => handleRemove(item._id)}
+                    className="absolute right-3 top-3 flex h-8 w-8 items-center justify-center rounded-full bg-white/90 text-[#b69e97] shadow-sm transition hover:bg-white hover:text-[#8f6b69]"
+                    aria-label={`Remove ${item.name} from wishlist`}
+                  >
+                    <X size={14} strokeWidth={2} />
+                  </button>
                 </div>
 
-                <div className="mt-4">
-                  <p className="text-xs uppercase tracking-[0.25em] text-[#7a1f2b]/70">
-                    {item.category}
+                <div className="px-2 pb-2 pt-4">
+                  <p className="text-[11px] uppercase tracking-[0.22em] text-[#c6aba5]">
+                    {item.category || item.brand || "Ewara"}
                   </p>
 
-                  <h2 className="mt-2 text-lg font-semibold text-[#4a2c2a]">
-                    {item.name}
-                  </h2>
-
-                  <p className="mt-1 text-sm text-[#6b7280]">
-                    {item.brand || "Ewara Cosmetics"}
-                  </p>
-
-                  <div className="mt-3 flex items-center gap-2">
-                    <p className="text-lg font-bold text-[#7a1f2b]">
-                      ₹{item.price}
-                    </p>
-
-                    {item.originalPrice &&
-                      item.originalPrice > item.price && (
-                        <p className="text-sm text-gray-400 line-through">
-                          ₹{item.originalPrice}
-                        </p>
-                      )}
+                  <div className="mt-2 flex items-start justify-between gap-4">
+                    <div className="min-w-0">
+                      <h2 className="font-serif text-[1.75rem] leading-none text-[#3d2b2a] md:text-[1.9rem] xl:text-[1.75rem]">
+                        {item.name}
+                      </h2>
+                      <p className="mt-2 text-sm text-[#9d8d86]">
+                        {item.brand || "Ewara signature formula"}
+                      </p>
+                    </div>
                   </div>
 
-                  <div className="mt-5 flex gap-3">
-                    <Link
-                      href="/shop"
-                      className="flex-1 rounded-full border border-[#7a1f2b] px-4 py-2 text-center font-semibold text-[#7a1f2b] transition hover:bg-[#f7e7ea]"
-                    >
-                      Shop More
-                    </Link>
+                  <div className="mt-5 flex items-end justify-between gap-4">
+                    <div>
+                      <p className="text-xl font-medium text-[#3d2b2a]">
+                        ${Number(item.price || 0).toFixed(2)}
+                      </p>
+                      {item.originalPrice && item.originalPrice > item.price ? (
+                        <p className="mt-1 text-sm text-[#c2b3ad] line-through">
+                          ${Number(item.originalPrice).toFixed(2)}
+                        </p>
+                      ) : null}
+                    </div>
 
                     <button
-                      onClick={() => handleRemove(item._id)}
-                      className="flex-1 rounded-full bg-red-500 px-4 py-2 font-semibold text-white transition hover:bg-red-600"
+                      type="button"
+                      onClick={() => handleAddToBag(item)}
+                      className="rounded-full bg-[#d9a59d] px-4 py-2 text-[10px] font-semibold uppercase tracking-[0.08em] text-white transition hover:bg-[#cc958c]"
                     >
-                      Remove
+                      Add to Bag
                     </button>
                   </div>
                 </div>
-              </div>
+              </article>
             ))}
+
+            <aside className="mb-6 break-inside-avoid rounded-[28px] border border-[#eee5df] bg-[#efe3dd] px-7 py-10 text-center shadow-[0_6px_24px_rgba(84,63,57,0.03)]">
+              <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full border border-[#e1c8c2] bg-white text-[#d9a59d]">
+                <ShoppingBag size={22} strokeWidth={1.8} />
+              </div>
+              <h2 className="mt-7 font-serif text-[2rem] text-[#4b3633]">
+                Add All to Bag
+              </h2>
+              <p className="mx-auto mt-3 max-w-xs text-sm leading-6 text-[#988780]">
+                Experience the complete Ewara ritual with your saved selection.
+              </p>
+              <button
+                type="button"
+                onClick={handleAddAllToBag}
+                className="mt-8 inline-flex min-w-[220px] items-center justify-center rounded-full bg-[#d9a59d] px-6 py-3 text-[11px] font-semibold uppercase tracking-[0.08em] text-white transition hover:bg-[#cc958c]"
+              >
+                Add {wishlist.length} {wishlist.length === 1 ? "Item" : "Items"} - $
+                {totalValue.toFixed(2)}
+              </button>
+            </aside>
           </div>
         )}
       </div>

@@ -3,7 +3,8 @@
 import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import axios from "axios";
-import { CheckCircle2, Package, Truck, ArrowRight, Home } from "lucide-react";
+import { Package, Truck, ArrowRight, Home } from "lucide-react";
+import { buildApiUrl } from "@/utils/api";
 
 export default function OrderSuccessPage() {
   const params = useParams();
@@ -25,14 +26,11 @@ export default function OrderSuccessPage() {
           return;
         }
 
-        const res = await axios.get(
-          `http://localhost:5000/api/orders/${orderId}`,
-          {
-            headers: {
-              Authorization: `Bearer ${token}`,
-            },
-          }
-        );
+        const res = await axios.get(buildApiUrl(`/api/orders/${orderId}`), {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        });
 
         if (res.data.success) {
           setOrder(res.data.order);
@@ -42,7 +40,8 @@ export default function OrderSuccessPage() {
       } catch (err: any) {
         console.error("Error fetching order:", err);
         setError(
-          err?.response?.data?.message || "Something went wrong while loading your order."
+          err?.response?.data?.message ||
+            "Something went wrong while loading your order."
         );
       } finally {
         setLoading(false);
@@ -56,12 +55,14 @@ export default function OrderSuccessPage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-[#fdf8f6] to-[#f7e7ea] px-4 py-10">
-        <div className="bg-white shadow-2xl rounded-3xl p-8 w-full max-w-md text-center">
-          <div className="inline-flex items-center justify-center h-16 w-16 rounded-full bg-[#f7e7ea] mb-6">
-            <div className="h-12 w-12 animate-spin rounded-full border-4 border-[#7a1f2b] border-t-transparent" />
+      <div className="flex min-h-screen items-center justify-center bg-[var(--blush-bg)] px-4 py-10">
+        <div className="w-full max-w-md rounded-[14px] border border-[var(--blush-border)] bg-[var(--blush-bg)] p-8 text-center">
+          <div className="mb-6 inline-flex h-16 w-16 items-center justify-center rounded-full bg-[var(--blush-light)]">
+            <div className="h-12 w-12 animate-spin rounded-full border-4 border-[var(--blush-brand)] border-t-transparent" />
           </div>
-          <p className="text-lg font-semibold text-[#4a2c2a]">Loading your order...</p>
+          <p className="text-[16px] font-medium text-[var(--blush-dark)]">
+            Loading your order...
+          </p>
         </div>
       </div>
     );
@@ -69,16 +70,20 @@ export default function OrderSuccessPage() {
 
   if (error || !order) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-[#fdf8f6] to-[#f7e7ea] px-4 py-10">
-        <div className="bg-white shadow-2xl rounded-3xl p-8 w-full max-w-md text-center">
-          <div className="inline-flex items-center justify-center h-16 w-16 rounded-full bg-red-100 mb-6">
-            <span className="text-2xl">⚠️</span>
+      <div className="flex min-h-screen items-center justify-center bg-[var(--blush-bg)] px-4 py-10">
+        <div className="w-full max-w-md rounded-[14px] border border-[var(--blush-border)] bg-[var(--blush-bg)] p-8 text-center">
+          <div className="mb-6 inline-flex h-16 w-16 items-center justify-center rounded-full bg-[#fdf0f0]">
+            <span className="text-2xl font-bold text-red-600">!</span>
           </div>
-          <h1 className="text-2xl font-bold text-[#4a2c2a] mb-3">Order page unavailable</h1>
-          <p className="text-[#6b7280] mb-8">{error || "Order not found."}</p>
+          <h1 className="mb-3 text-[20px] font-medium text-[var(--blush-dark)]">
+            Order page unavailable
+          </h1>
+          <p className="mb-8 text-[11px] leading-[1.6] text-[var(--blush-muted)]">
+            {error || "Order not found."}
+          </p>
           <button
             onClick={() => router.push("/orders")}
-            className="w-full bg-gradient-to-r from-[#7a1f2b] to-[#5c1721] text-white px-6 py-3 rounded-lg font-semibold hover:shadow-lg transition-all duration-200"
+            className="w-full rounded-[9px] bg-[var(--blush-brand)] px-6 py-3 text-[11px] font-medium text-white transition-colors duration-200"
           >
             Go to My Orders
           </button>
@@ -91,120 +96,213 @@ export default function OrderSuccessPage() {
     (sum: number, item: any) => sum + item.quantity,
     0
   );
+  const itemsTotal = order.items.reduce(
+    (sum: number, item: any) => sum + item.price * item.quantity,
+    0
+  );
+  const normalizedStatus = String(order.status || "").toLowerCase();
+  const statusPillClass =
+    normalizedStatus === "cancelled" || normalizedStatus === "failed"
+      ? "border-[#f0c8c8] bg-[#fdf0f0] text-[#a32d2d]"
+      : normalizedStatus === "pending"
+        ? "border-[#f5d060] bg-[#fff8e1] text-[#b8860b]"
+        : "border-[var(--green-border)] bg-[var(--green-bg)] text-[var(--green-text)]";
+  const deliveryDateSource =
+    order.deliveryDate || order.updatedAt || order.createdAt;
+  const deliveryDateLabel = deliveryDateSource
+    ? new Date(deliveryDateSource).toLocaleDateString("en-IN", {
+        weekday: "short",
+        day: "numeric",
+        month: "short",
+      })
+    : "";
+  const shippingValue =
+    Number(order.shippingAmount || 0) === 0
+      ? "Free"
+      : `Rs. ${Number(order.shippingAmount || 0)}`;
+  const gstValue =
+    typeof order.gstAmount === "number"
+      ? order.gstAmount
+      : Math.max(
+          0,
+          Number(order.totalAmount || 0) -
+            Number(itemsTotal || 0) -
+            Number(order.shippingAmount || 0)
+        );
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-[#fdf8f6] to-[#f7e7ea] px-4 py-8 md:py-12">
-      <div className="max-w-3xl mx-auto">
-        {/* Success Header */}
-        <div className="text-center mb-12">
-          <div className="flex justify-center mb-6">
-            <div className="relative inline-flex">
-              <div className="absolute inset-0 bg-green-400 rounded-full blur-xl opacity-30 animate-pulse" />
-              <div className="relative flex items-center justify-center h-24 w-24 rounded-full bg-gradient-to-br from-green-400 to-green-500">
-                <CheckCircle2 size={56} className="text-white" />
+    <div className="min-h-screen bg-[var(--blush-bg)] px-4 py-8 md:py-12">
+      <div className="mx-auto max-w-[520px] overflow-hidden rounded-[14px] border border-[var(--blush-border)] bg-[var(--blush-bg)]">
+        <div className="border-b border-[var(--blush-border)] px-5 pb-4 pt-6 text-center">
+          <div className="mb-3 flex justify-center">
+            <div className="flex h-14 w-14 items-center justify-center rounded-full border-[3px] border-[var(--green-border)] bg-[var(--green-bg)]">
+              <div className="flex h-7 w-7 items-center justify-center rounded-full bg-[var(--green-text)] text-[13px] text-white">
+                {"\u2713"}
               </div>
             </div>
           </div>
-          
-          <h1 className="text-4xl md:text-5xl font-bold text-[#4a2c2a] mb-3">
-            Order Confirmed!
+
+          <h1 className="mb-1.5 text-[20px] font-medium text-[var(--blush-dark)]">
+            Order confirmed!
           </h1>
-          <p className="text-lg text-[#6b7280] max-w-xl mx-auto">
-            Thank you for your purchase. Your order has been successfully placed and is being prepared for shipment.
+          <p className="mx-auto max-w-[240px] text-[11px] leading-[1.6] text-[var(--blush-muted)]">
+            Thank you for your purchase. Your order has been successfully placed
+            and is being prepared for shipment.
           </p>
         </div>
 
-        {/* Main Card */}
-        <div className="bg-white rounded-3xl shadow-2xl overflow-hidden mb-8">
-          {/* Order Info Grid */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-1 border-b border-[#ead2d8]">
-            <div className="px-6 md:px-8 py-8 border-r border-[#ead2d8] md:border-r-1 last:border-r-0">
-              <div className="flex items-center gap-3 mb-3">
-                <Package className="h-5 w-5 text-[#7a1f2b]" />
-                <p className="text-sm font-semibold text-[#6b7280] uppercase tracking-wide">Order ID</p>
-              </div>
-              <p className="text-[#4a2c2a] font-bold text-lg break-all">{order._id}</p>
+        <div className="grid grid-cols-3 border-b border-[var(--blush-border)]">
+          <div className="border-r border-[var(--blush-border)] px-3 py-3">
+            <div className="mb-[5px] flex items-center gap-1">
+              <Package className="h-3 w-3 text-[var(--blush-muted)]" />
+              <p className="text-[9px] font-medium uppercase tracking-[0.06em] text-[var(--blush-muted)]">
+                Order ID
+              </p>
             </div>
-
-            <div className="px-6 md:px-8 py-8 border-r border-[#ead2d8] md:border-r-1 last:border-r-0">
-              <div className="flex items-center gap-3 mb-3">
-                <div className="h-5 w-5 text-[#7a1f2b]">💳</div>
-                <p className="text-sm font-semibold text-[#6b7280] uppercase tracking-wide">Payment</p>
-              </div>
-              <p className="text-[#4a2c2a] font-bold text-lg">{order.paymentMethod}</p>
-            </div>
-
-            <div className="px-6 md:px-8 py-8">
-              <div className="flex items-center gap-3 mb-3">
-                <Truck className="h-5 w-5 text-[#7a1f2b]" />
-                <p className="text-sm font-semibold text-[#6b7280] uppercase tracking-wide">Status</p>
-              </div>
-              <div className="inline-flex items-center px-3 py-1 rounded-full bg-blue-100">
-                <p className="font-bold text-lg text-blue-700">{order.status}</p>
-              </div>
-            </div>
+            <p className="break-all text-[11px] font-medium leading-[1.4] text-[var(--blush-dark)]">
+              {order._id}
+            </p>
           </div>
 
-          {/* Order Summary Section */}
-          <div className="px-6 md:px-8 py-8">
-            <h2 className="text-xl font-bold text-[#4a2c2a] mb-2 uppercase tracking-wide">Order Summary</h2>
-            <p className="text-sm text-[#6b7280] mb-6">You ordered {totalItems} item{totalItems > 1 ? 's' : ''}</p>
+          <div className="border-r border-[var(--blush-border)] px-3 py-3">
+            <div className="mb-[5px] flex items-center gap-1">
+              <span className="text-[10px] font-medium text-[var(--blush-muted)]">
+                {"\u20B9"}
+              </span>
+              <p className="text-[9px] font-medium uppercase tracking-[0.06em] text-[var(--blush-muted)]">
+                Payment
+              </p>
+            </div>
+            <p className="break-all text-[11px] font-medium leading-[1.4] text-[var(--blush-dark)]">
+              {order.paymentMethod}
+            </p>
+          </div>
 
-            {/* Items List */}
-            <div className="space-y-4 mb-6 max-h-64 overflow-y-auto">
+          <div className="px-3 py-3">
+            <div className="mb-[5px] flex items-center gap-1">
+              <Truck className="h-3 w-3 text-[var(--blush-muted)]" />
+              <p className="text-[9px] font-medium uppercase tracking-[0.06em] text-[var(--blush-muted)]">
+                Status
+              </p>
+            </div>
+            <span
+              className={`inline-flex rounded-[10px] border px-[9px] py-[3px] text-[10px] font-medium ${statusPillClass}`}
+            >
+              {order.status}
+            </span>
+          </div>
+        </div>
+
+        <div className="px-[15px] py-[13px]">
+          <section className="mb-3">
+            <h2 className="mb-[9px] text-[10px] font-medium uppercase tracking-[0.06em] text-[var(--blush-brand)]">
+              Order summary
+            </h2>
+
+            <div className="mb-3 space-y-0">
               {order.items.map((item: any, index: number) => (
-                <div key={index} className="flex items-center justify-between pb-4 border-b border-[#ead2d8] last:border-b-0 last:pb-0">
-                  <div className="flex-1">
-                    <p className="font-semibold text-[#4a2c2a]">{item.name}</p>
-                    <p className="text-sm text-[#6b7280]">Qty: {item.quantity} × ₹{item.price}</p>
+                <div
+                  key={index}
+                  className="mb-[10px] flex items-start justify-between last:mb-0"
+                >
+                  <div className="min-w-0 flex-1 pr-3">
+                    <p className="text-[12px] font-medium text-[var(--blush-dark)]">
+                      {item.name}
+                    </p>
+                    <p className="text-[10px] text-[var(--blush-muted)]">
+                      Qty: {item.quantity} {"\u00D7"} {"\u20B9"}
+                      {item.price}
+                    </p>
                   </div>
-                  <p className="font-bold text-[#7a1f2b] text-lg ml-4">₹{item.price * item.quantity}</p>
+                  <p className="text-[12px] font-medium text-[var(--blush-brand)]">
+                    Rs. {item.price * item.quantity}
+                  </p>
                 </div>
               ))}
             </div>
 
-            {/* Price Breakdown */}
-            <div className="bg-gradient-to-r from-[#fdf8f6] to-[#f7e7ea] rounded-2xl p-6 border border-[#ead2d8]">
-              <div className="flex justify-between items-center mb-3">
-                <span className="text-[#6b7280] font-medium">Items ({totalItems})</span>
-                <span className="text-[#4a2c2a] font-semibold">₹{order.items.reduce((sum: number, item: any) => sum + item.price * item.quantity, 0)}</span>
+            <div className="mb-3 rounded-[10px] border border-[var(--blush-border)] bg-white px-3 py-[10px]">
+              <div className="flex items-center justify-between py-[3px]">
+                <span className="text-[11px] text-[var(--blush-muted)]">
+                  Items ({totalItems})
+                </span>
+                <span className="text-[11px] text-[var(--blush-dark)]">
+                  Rs. {itemsTotal}
+                </span>
               </div>
-              <div className="flex justify-between items-center pt-3 border-t border-[#ead2d8]">
-                <span className="text-lg font-bold text-[#4a2c2a]">Total</span>
-                <span className="text-3xl font-bold text-[#7a1f2b]">₹{order.totalAmount}</span>
+              <div className="flex items-center justify-between py-[3px]">
+                <span className="text-[11px] text-[var(--blush-muted)]">
+                  GST
+                </span>
+                <span className="text-[11px] text-[var(--blush-dark)]">
+                  Rs. {gstValue}
+                </span>
+              </div>
+              <div className="flex items-center justify-between py-[3px]">
+                <span className="text-[11px] text-[var(--blush-muted)]">
+                  Shipping
+                </span>
+                <span
+                  className={`text-[11px] ${
+                    shippingValue === "Free"
+                      ? "font-medium text-[var(--green-text)]"
+                      : "text-[var(--blush-dark)]"
+                  }`}
+                >
+                  {shippingValue}
+                </span>
+              </div>
+              <div className="my-[6px] h-px bg-[var(--blush-border)]" />
+              <div className="flex items-center justify-between">
+                <span className="text-[13px] font-medium text-[var(--blush-dark)]">
+                  Grand total
+                </span>
+                <span className="text-[16px] font-medium text-[var(--blush-brand)]">
+                  Rs. {order.totalAmount}
+                </span>
               </div>
             </div>
+
+            <div className="mb-[10px] flex items-center gap-2 rounded-[9px] border border-[var(--blush-border)] bg-[#fdf0f3] px-3 py-[9px]">
+              <span className="h-2 w-2 rounded-full bg-[var(--blush-brand)]" />
+              <span className="text-[11px] font-medium text-[var(--blush-dark)]">
+                Express delivery
+              </span>
+              <span className="ml-auto text-[10px] text-[var(--blush-muted)]">
+                {deliveryDateLabel ? `by ${deliveryDateLabel}` : ""}
+              </span>
+            </div>
+          </section>
+
+          <div className="flex gap-[7px]">
+            <button
+              onClick={() => router.push(`/orders/${order._id}`)}
+              className="flex-1 rounded-[9px] bg-[var(--blush-brand)] px-2 py-[11px] text-center text-[11px] font-medium text-white transition-colors duration-200"
+            >
+              <span className="inline-flex items-center justify-center gap-1.5">
+                <span>View order tracking</span>
+                <ArrowRight size={14} />
+              </span>
+            </button>
+
+            <button
+              onClick={() => router.push("/")}
+              className="flex-1 rounded-[9px] border border-[var(--blush-brand)] bg-transparent px-2 py-[11px] text-center text-[11px] font-medium text-[var(--blush-brand)] transition-colors duration-200"
+            >
+              <span className="inline-flex items-center justify-center gap-1.5">
+                <Home size={14} />
+                <span>Continue shopping</span>
+              </span>
+            </button>
           </div>
-        </div>
 
-        {/* Action Buttons */}
-        <div className="space-y-3 sm:space-y-0 sm:grid sm:grid-cols-2 gap-4 mb-6">
-          {/* Primary CTA */}
           <button
-            onClick={() => router.push(`/orders/${order._id}`)}
-            className="relative group overflow-hidden rounded-xl bg-gradient-to-r from-[#7a1f2b] to-[#5c1721] text-white py-4 font-bold text-lg hover:shadow-xl hover:shadow-[#7a1f2b]/30 transition-all duration-300 active:scale-95 flex items-center justify-center gap-2"
+            onClick={() => router.push("/orders")}
+            className="mt-4 w-full py-2 text-center text-[11px] font-medium text-[var(--blush-muted)] transition-colors hover:text-[var(--blush-brand)]"
           >
-            <span>View Order Tracking</span>
-            <ArrowRight size={20} className="group-hover:translate-x-1 transition-transform" />
-          </button>
-
-          {/* Secondary CTA */}
-          <button
-            onClick={() => router.push("/")}
-            className="rounded-xl border-2 border-[#7a1f2b] text-[#7a1f2b] py-4 font-bold text-lg hover:bg-[#f7e7ea] transition-all duration-200 active:scale-95 flex items-center justify-center gap-2"
-          >
-            <Home size={20} />
-            <span>Continue Shopping</span>
+            View All My Orders {"->"}
           </button>
         </div>
-
-        {/* Secondary Button */}
-        <button
-          onClick={() => router.push("/orders")}
-          className="w-full text-center text-[#6b7280] font-medium py-3 hover:text-[#7a1f2b] transition-colors"
-        >
-          View All My Orders →
-        </button>
       </div>
     </div>
   );

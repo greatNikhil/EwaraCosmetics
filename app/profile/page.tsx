@@ -2,18 +2,41 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { User, Mail, Phone } from "lucide-react";
-import { useOrders } from "@/hooks/useOrders";
-import OrderCard from "@/components/orders/OrderCard";
 import Link from "next/link";
+import {
+  Bell,
+  ChevronRight,
+  Heart,
+  Lock,
+  LogOut,
+  Mail,
+  MapPin,
+  MessageCircle,
+  Package,
+  Phone,
+  Star,
+  User,
+} from "lucide-react";
+import { useOrders } from "@/hooks/useOrders";
+import { useAuthStore } from "@/store/authStore";
+import { buildApiUrl } from "@/utils/api";
+import { clearClientAuth } from "@/utils/clientAuth";
+import {
+  getWishlistItems,
+  removeFromWishlist,
+  wishlistChangedEvent,
+  type WishlistItem,
+} from "@/utils/wishlist";
+import { addToCart } from "@/utils/cart";
 
 export default function ProfilePage() {
   const [user, setUser] = useState<any>(null);
   const [pageLoading, setPageLoading] = useState(true);
   const { orders } = useOrders();
   const router = useRouter();
+  const [wishlistItems, setWishlistItems] = useState<WishlistItem[]>([]);
 
-  const [activeTab, setActiveTab] = useState("profile");
+  const [activeTab, setActiveTab] = useState("overview");
   const [showForm, setShowForm] = useState(false);
   const [addresses, setAddresses] = useState<any[]>([]);
   const [isEditing, setIsEditing] = useState(false);
@@ -40,6 +63,12 @@ export default function ProfilePage() {
   const [editIndex, setEditIndex] = useState<number | null>(null);
   const [openMenu, setOpenMenu] = useState<number | null>(null);
   const [errors, setErrors] = useState<any>({});
+  const {
+    setUser: setAuthUser,
+    setToken: setAuthToken,
+    setAddresses: setAuthAddresses,
+    addresses: authAddresses,
+  } = useAuthStore();
 
   const userKey = user?.email || user?.phone;
   const defaultAddress = addresses.find((addr) => addr.default) || addresses[0];
@@ -47,17 +76,55 @@ export default function ProfilePage() {
     (a, b) => Number(b.default) - Number(a.default)
   );
 
+  const fetchAddresses = async (token: string) => {
+    const res = await fetch(buildApiUrl("/api/addresses"), {
+      method: "GET",
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+    });
+
+    const data = await res.json();
+
+    if (!res.ok || !data.success) {
+      throw new Error(data.message || "Failed to fetch addresses");
+    }
+
+    return data.addresses || [];
+  };
+
+  const syncUserData = (nextUser: any, nextAddresses: any[] = []) => {
+    const selectedAddress =
+      nextAddresses.find((addr: any) => addr.default) || nextAddresses[0] || null;
+
+    const mergedUser = {
+      ...nextUser,
+      id: nextUser?._id || nextUser?.id,
+      address: selectedAddress,
+    };
+
+    setUser(mergedUser);
+    setAuthUser(mergedUser);
+    setAddresses(nextAddresses);
+    
+    // ✅ Sync to authStore (no localStorage needed)
+    setAuthAddresses(nextAddresses);
+
+    return mergedUser;
+  };
+
   useEffect(() => {
     const loadUser = async () => {
       const token = localStorage.getItem("token");
 
       if (!token) {
+        clearClientAuth();
         router.push("/login");
         return;
       }
 
       try {
-        const res = await fetch("http://localhost:5000/api/auth/me", {
+        const res = await fetch(buildApiUrl("/api/auth/me"), {
           method: "GET",
           headers: {
             Authorization: `Bearer ${token}`,
@@ -67,18 +134,20 @@ export default function ProfilePage() {
         const data = await res.json();
 
         if (!res.ok || !data.success || !data.user) {
-          localStorage.removeItem("token");
-          localStorage.removeItem("userData");
-          localStorage.removeItem("isLoggedIn");
-          localStorage.removeItem("isAdmin");
+          clearClientAuth();
           router.push("/login");
           return;
         }
 
-        setUser(data.user);
-        localStorage.setItem("userData", JSON.stringify(data.user));
+        const nextAddresses = await fetchAddresses(token).catch((error) => {
+          console.error("PROFILE ADDRESS LOAD ERROR:", error);
+          return authAddresses;
+        });
+        syncUserData(data.user, nextAddresses);
+        setAuthToken(token);
       } catch (error) {
         console.error("PROFILE LOAD ERROR:", error);
+        clearClientAuth();
         router.push("/login");
       } finally {
         setPageLoading(false);
@@ -93,7 +162,6 @@ export default function ProfilePage() {
       if (
         event.key === "userData" ||
         event.key === "token" ||
-        event.key?.startsWith("addresses_") ||
         event.key === null
       ) {
         loadUser();
@@ -110,24 +178,6 @@ export default function ProfilePage() {
       window.removeEventListener("storage", handleStorage);
     };
   }, [router]);
-
-  useEffect(() => {
-    if (!user || !userKey) {
-      setAddresses([]);
-      return;
-    }
-
-    const stored = localStorage.getItem(`addresses_${userKey}`);
-    if (stored) {
-      try {
-        setAddresses(JSON.parse(stored));
-      } catch {
-        setAddresses([]);
-      }
-    } else {
-      setAddresses([]);
-    }
-  }, [user, userKey]);
 
   useEffect(() => {
     if (user) {
@@ -158,6 +208,26 @@ export default function ProfilePage() {
     return () => window.clearTimeout(timer);
   }, [guestMessage]);
 
+  useEffect(() => {
+    const syncWishlist = async () => {
+      const items = await getWishlistItems();
+      setWishlistItems(items);
+    };
+
+    const handleWishlistChanged = () => {
+      syncWishlist();
+    };
+
+    syncWishlist();
+    window.addEventListener(wishlistChangedEvent, handleWishlistChanged);
+    window.addEventListener("storage", handleWishlistChanged);
+
+    return () => {
+      window.removeEventListener(wishlistChangedEvent, handleWishlistChanged);
+      window.removeEventListener("storage", handleWishlistChanged);
+    };
+  }, []);
+
   const scrollToProfile = () => {
     const section = document.getElementById("profile-section");
     section?.scrollIntoView({ behavior: "smooth" });
@@ -167,21 +237,41 @@ export default function ProfilePage() {
     setGuestMessage(message);
   };
 
-  const saveProfile = () => {
+  const saveProfile = async () => {
     if (!user) return;
 
-    const updatedUser = {
-      ...user,
-      name: profileForm.name,
-      lastname: profileForm.lastname,
-      email: profileForm.email,
-      phone: profileForm.phone,
-    };
+    const token = localStorage.getItem("token");
 
-    setUser(updatedUser);
-    localStorage.setItem("userData", JSON.stringify(updatedUser));
-    window.dispatchEvent(new Event("userChanged"));
-    setIsEditing(false);
+    if (!token) {
+      alert("Please login again.");
+      router.push("/login");
+      return;
+    }
+
+    try {
+      const res = await fetch(buildApiUrl("/api/auth/profile"), {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify(profileForm),
+      });
+
+      const data = await res.json();
+
+      if (!res.ok || !data.success || !data.user) {
+        alert(data.message || "Failed to update profile");
+        return;
+      }
+
+      syncUserData(data.user, addresses);
+      window.dispatchEvent(new Event("userChanged"));
+      setIsEditing(false);
+    } catch (error) {
+      console.error("SAVE PROFILE ERROR:", error);
+      alert("Failed to update profile");
+    }
   };
 
   const validateForm = () => {
@@ -200,88 +290,139 @@ export default function ProfilePage() {
     return Object.keys(newErrors).length === 0;
   };
 
-  const saveAddress = () => {
+  const saveAddress = async () => {
     if (!validateForm()) return;
-    if (!userKey) {
-      alert("User not loaded properly. Please refresh and try again.");
+    const token = localStorage.getItem("token");
+
+    if (!token || !user) {
+      alert("Please login again.");
+      router.push("/login");
       return;
     }
 
-    let updated;
+    try {
+      const targetAddress = editIndex !== null ? addresses[editIndex] : null;
+      const endpoint = targetAddress?._id
+        ? buildApiUrl(`/api/addresses/${targetAddress._id}`)
+        : buildApiUrl("/api/addresses");
+      const method = targetAddress?._id ? "PUT" : "POST";
 
-    if (editIndex !== null) {
-      updated = addresses.map((item, i) => (i === editIndex ? form : item));
-    } else {
-      updated = [...addresses, form];
+      const res = await fetch(endpoint, {
+        method,
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify(form),
+      });
+
+      const data = await res.json();
+
+      if (!res.ok || !data.success) {
+        alert(data.message || "Failed to save address");
+        return;
+      }
+
+      const fallbackAddresses = targetAddress
+        ? addresses.map((address, index) => {
+            const shouldReplace = index === editIndex;
+            const nextDefault = Boolean(data.address?.default);
+
+            if (shouldReplace) {
+              return data.address;
+            }
+
+            return nextDefault ? { ...address, default: false } : address;
+          })
+        : [
+            ...(data.address?.default
+              ? addresses.map((address) => ({ ...address, default: false }))
+              : addresses),
+            data.address,
+          ];
+
+      const nextAddresses = await fetchAddresses(token).catch((error) => {
+        console.error("POST-SAVE ADDRESS REFRESH ERROR:", error);
+        return fallbackAddresses;
+      });
+      syncUserData(user, nextAddresses);
+      window.dispatchEvent(new Event("userChanged"));
+
+      setShowForm(false);
+      setEditIndex(null);
+      setOpenMenu(null);
+      setErrors({});
+
+      setForm({
+        name: "",
+        lastname: "",
+        address: "",
+        phone: "",
+        pincode: "",
+        flat: "",
+        city: "",
+        state: "",
+        default: false,
+      });
+    } catch (error) {
+      console.error("SAVE ADDRESS ERROR:", error);
+      alert("Failed to save address");
     }
-
-    if (form.default) {
-      updated = updated.map((addr, i) => ({
-        ...addr,
-        default: i === (editIndex !== null ? editIndex : updated.length - 1),
-      }));
-    }
-
-    if (!updated.some((addr: any) => addr.default) && updated.length > 0) {
-      updated[0].default = true;
-    }
-
-    setAddresses(updated);
-    localStorage.setItem(`addresses_${userKey}`, JSON.stringify(updated));
-
-    const selectedAddress =
-      updated.find((addr: any) => addr.default) || updated[0] || null;
-
-    if (selectedAddress) {
-      const updatedUser = {
-        ...user,
-        address: selectedAddress,
-      };
-      setUser(updatedUser);
-      localStorage.setItem("userData", JSON.stringify(updatedUser));
-    }
-
-    setShowForm(false);
-    setEditIndex(null);
-    setOpenMenu(null);
-    setErrors({});
-
-    setForm({
-      name: "",
-      lastname: "",
-      address: "",
-      phone: "",
-      pincode: "",
-      flat: "",
-      city: "",
-      state: "",
-      default: false,
-    });
   };
 
-  const deleteAddress = (index: number) => {
-    if (!userKey) return;
+  const deleteAddress = async (index: number) => {
+    const token = localStorage.getItem("token");
+    const targetAddress = addresses[index];
 
-    const updated = addresses.filter((_, i) => i !== index);
+    if (!token || !targetAddress?._id || !user) return;
 
-    if (updated.length > 0 && !updated.some((addr) => addr.default)) {
-      updated[0].default = true;
+    try {
+      const res = await fetch(buildApiUrl(`/api/addresses/${targetAddress._id}`), {
+        method: "DELETE",
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
+
+      const data = await res.json();
+
+      if (!res.ok || !data.success) {
+        alert(data.message || "Failed to delete address");
+        return;
+      }
+
+      const fallbackAddresses = addresses
+        .filter((_, currentIndex) => currentIndex !== index)
+        .map((address, currentIndex, remaining) => {
+          if (remaining.length === 0) {
+            return address;
+          }
+
+          const hadDefaultAddress = Boolean(targetAddress.default);
+          const hasAnyDefault = remaining.some((item) => item.default);
+
+          if (hadDefaultAddress && !hasAnyDefault && currentIndex === 0) {
+            return { ...address, default: true };
+          }
+
+          return address;
+        });
+
+      const nextAddresses = await fetchAddresses(token).catch((error) => {
+        console.error("POST-DELETE ADDRESS REFRESH ERROR:", error);
+        return fallbackAddresses;
+      });
+      syncUserData(user, nextAddresses);
+      window.dispatchEvent(new Event("userChanged"));
+    } catch (error) {
+      console.error("DELETE ADDRESS ERROR:", error);
+      alert("Failed to delete address");
     }
-
-    setAddresses(updated);
-    localStorage.setItem(`addresses_${userKey}`, JSON.stringify(updated));
-
-    const updatedUser = {
-      ...user,
-      address: updated.find((addr) => addr.default) || updated[0] || null,
-    };
-    setUser(updatedUser);
-    localStorage.setItem("userData", JSON.stringify(updatedUser));
   };
 
   if (pageLoading) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-[#fdf8f6]">
+      <div className="flex min-h-screen items-center justify-center bg-[#fdf6f7]">
         <p className="text-lg text-[#5a4f4d]">Loading profile...</p>
       </div>
     );
@@ -289,162 +430,446 @@ export default function ProfilePage() {
 
   if (!user) return null;
 
+  const getInitials = () => {
+    const initials = [user?.name, user?.lastname]
+      .filter(Boolean)
+      .map((value: string) => value.trim().charAt(0).toUpperCase())
+      .filter(Boolean);
+
+    if (initials.length) return initials.slice(0, 2).join("");
+
+    return String(user?.email || userKey || "U").slice(0, 2).toUpperCase();
+  };
+
+  const formatDate = (value?: string) => {
+    if (!value) return "Not available";
+    const parsed = new Date(value);
+    if (Number.isNaN(parsed.getTime())) return "Not available";
+    return parsed.toLocaleDateString("en-IN", {
+      day: "numeric",
+      month: "short",
+      year: "numeric",
+    });
+  };
+
+  const profileFields = [
+    {
+      key: "name",
+      label: "First Name",
+      value: user?.name,
+      icon: User,
+      input: (
+        <input
+          value={profileForm.name}
+          className="mt-2 w-full rounded-lg border border-[#f0dde2] bg-white px-3 py-2 text-[13px] font-medium text-[#3f2b33] outline-none transition focus:border-[#7B2D42]"
+          onChange={(e) =>
+            setProfileForm({
+              ...profileForm,
+              name: e.target.value,
+            })
+          }
+        />
+      ),
+    },
+    {
+      key: "lastname",
+      label: "Last Name",
+      value: user?.lastname,
+      icon: User,
+      input: (
+        <input
+          value={profileForm.lastname}
+          className="mt-2 w-full rounded-lg border border-[#f0dde2] bg-white px-3 py-2 text-[13px] font-medium text-[#3f2b33] outline-none transition focus:border-[#7B2D42]"
+          onChange={(e) =>
+            setProfileForm({
+              ...profileForm,
+              lastname: e.target.value,
+            })
+          }
+        />
+      ),
+    },
+    {
+      key: "phone",
+      label: "Phone Number",
+      value: user?.phone,
+      icon: Phone,
+      input: (
+        <input
+          value={profileForm.phone}
+          className="mt-2 w-full rounded-lg border border-[#f0dde2] bg-white px-3 py-2 text-[13px] font-medium text-[#3f2b33] outline-none transition focus:border-[#7B2D42]"
+          onChange={(e) =>
+            setProfileForm({
+              ...profileForm,
+              phone: e.target.value.replace(/\D/g, ""),
+            })
+          }
+          maxLength={10}
+        />
+      ),
+    },
+    {
+      key: "email",
+      label: "Email ID",
+      value: user?.email,
+      icon: Mail,
+      input: (
+        <input
+          value={profileForm.email}
+          className="mt-2 w-full rounded-lg border border-[#f0dde2] bg-white px-3 py-2 text-[13px] font-medium text-[#3f2b33] outline-none transition focus:border-[#7B2D42]"
+          onChange={(e) =>
+            setProfileForm({
+              ...profileForm,
+              email: e.target.value,
+            })
+          }
+        />
+      ),
+    },
+  ];
+
+  const recentProducts = orders
+    .flatMap((order: any) =>
+      (order.items || []).map((item: any, index: number) => ({
+        id: `${order._id || order.id || "order"}-${item.productId || index}`,
+        name: item.productName || item.name || "Product",
+        price: item.price ?? order.totalAmount ?? 0,
+        image: item.imageUrl || item.image || "",
+      }))
+    )
+    .filter(
+      (item: any, index: number, list: any[]) =>
+        index === list.findIndex((entry) => entry.name === item.name)
+    );
+
+  const reviewCards: any[] = [];
+  const reviewsGivenCount = 0;
+
+  const notificationItems = [
+    {
+      id: 1,
+      title: "Your latest order is on the move",
+      subtitle: orders[0]
+        ? `Order placed on ${formatDate(orders[0].createdAt)} is now being processed.`
+        : "Place your first order to start receiving order updates here.",
+      unread: true,
+    },
+    {
+      id: 2,
+      title: "Profile details up to date",
+      subtitle: "Review your saved phone number and email to keep checkout smooth.",
+      unread: false,
+    },
+    {
+      id: 3,
+      title: "Address book ready",
+      subtitle:
+        addresses.length > 0
+          ? `${addresses.length} saved ${addresses.length === 1 ? "address is" : "addresses are"} available for faster delivery.`
+          : "Add an address to speed up checkout on your next order.",
+      unread: addresses.length === 0,
+    },
+  ];
+
+  const supportCards = [
+    {
+      title: "Chat with us",
+      subtitle: "Get quick help with orders, delivery, and account questions.",
+      href: "https://wa.me/918545055656",
+      external: true,
+      icon: MessageCircle,
+    },
+    {
+      title: "Email support",
+      subtitle: "Share details and our team can follow up with you directly.",
+      href: "mailto:info@ewaraofficial.com",
+      external: true,
+      icon: Mail,
+    },
+    {
+      title: "FAQs",
+      subtitle: "Browse common answers about returns, orders, and payments.",
+      href: "/help",
+      external: false,
+      icon: ChevronRight,
+    },
+  ];
+
+  const navItems = [
+    { key: "overview", label: "Overview", icon: User },
+    { key: "address", label: "My Address", icon: MapPin },
+    { key: "orders", label: "My Orders", icon: Package },
+    { key: "wishlist", label: "My Wishlist", icon: Heart },
+    { key: "reviews", label: "My Reviews", icon: Star },
+    { key: "notifications", label: "Notifications", icon: Bell },
+    { key: "support", label: "Help & Support", icon: MessageCircle },
+  ];
+
+  const getStatusBadgeClass = (status?: string) => {
+    const normalized = String(status || "").toLowerCase();
+    if (normalized === "delivered") return "bg-[#eaf3de] text-[#3B6D11]";
+    if (normalized === "shipped") return "bg-[#e6f1fb] text-[#185FA5]";
+    if (normalized === "processing" || normalized === "pending")
+      return "bg-[#faeeda] text-[#854F0B]";
+    if (normalized === "cancelled") return "bg-[#fcebeb] text-[#a32d2d]";
+    return "bg-[#f5e8eb] text-[#7B2D42]";
+  };
+
+  const handleWishlistRemove = async (_id: string) => {
+    await removeFromWishlist(_id);
+    const items = await getWishlistItems();
+    setWishlistItems(items);
+  };
+
+  const handleWishlistMoveToCart = (item: WishlistItem) => {
+    addToCart({
+      _id: item._id,
+      name: item.name,
+      price: item.price,
+      images: [item.image || "/favicon/product.jpeg"],
+      category: item.category,
+      brand: item.brand,
+    });
+  };
+
   return (
-    <div className="overflow-x-hidden rounded-2xl border border-[#ead2d8] bg-[#fdf8f6] p-6">
-      <div className="mx-auto w-full max-w-xl px-3 md:max-w-none md:px-0">
+    <div className="overflow-x-hidden bg-[#fdf6f7] px-4 py-6 md:px-6">
+      <div className="mx-auto w-full max-w-7xl">
         {guestMessage && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50">
-            <div className="scale-105 transform rounded-lg bg-[#7a1f2b] px-6 py-4 text-white shadow-2xl rotate-1">
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+            <div className="rotate-1 scale-105 transform rounded-lg bg-[#7B2D42] px-6 py-4 text-white shadow-2xl">
               <p className="text-sm font-medium">{guestMessage}</p>
             </div>
           </div>
         )}
 
-        <div className="flex flex-col gap-4 md:grid md:grid-cols-3 md:gap-6">
-          <div className="flex min-h-fit w-full flex-col space-y-3 rounded-2xl border border-[#ead2d8] bg-white p-4 text-sm shadow-sm md:p-5">
+        <div className="grid grid-cols-1 gap-6 lg:grid-cols-[300px_minmax(0,1fr)]">
+          <aside className="flex min-h-full flex-col rounded-[14px] border border-[#f0dde2] bg-white p-6">
             <div
               onClick={() => {
                 setActiveTab("profile");
                 scrollToProfile();
               }}
-              className="flex w-full cursor-pointer items-center justify-between gap-3 rounded-xl p-2 transition hover:bg-[#f7e7ea]"
+              className="flex cursor-pointer items-center justify-between gap-4 rounded-xl"
             >
-              <div className="min-w-0 flex-1">
-                <h2 className="text-lg font-semibold text-[#3e2f2b]">
-                  Hey, User 👋
-                </h2>
-                <p className="mt-1 text-sm text-[#8a7f7b]">
-                  Logged with {user ? user.email || user.phone : "Guest"}
-                </p>
-              </div>
-
-              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[#7a1f2b] text-lg font-semibold text-white">
-                U
+              <div className="flex min-w-0 items-center gap-4">
+                <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-full bg-[#7B2D42] text-base font-semibold text-white">
+                  {getInitials()}
+                </div>
+                <div className="min-w-0">
+                  <h2 className="truncate text-lg font-semibold text-[#2f1f25]">
+                    Hey, User 👋
+                  </h2>
+                  <p className="mt-1 truncate text-sm text-[#8a7780]">
+                    {user?.email || user?.phone}
+                  </p>
+                </div>
               </div>
             </div>
 
-            <hr />
+            <div className="mt-6">
+              <span className="inline-flex rounded-[20px] bg-[#f5e8eb] px-3 py-1 text-xs font-medium text-[#7B2D42]">
+                {orders.length} {orders.length === 1 ? "Order" : "Orders"}
+              </span>
+            </div>
 
-            <p className="mt-4 text-sm text-[#5a4f4d]">
-              <span className="text-base font-semibold text-[#3e2f2b]">
-                {orders.length}
-              </span>{" "}
-              Total Orders
-            </p>
+            <div className="mt-5 border-t border-[#f0dde2] pt-5">
+              <p className="text-[11px] uppercase tracking-[0.06em] text-[#9a8a91]">
+                Account
+              </p>
 
-            <hr />
-
-            <div className="space-y-6 rounded-2xl border border-[#ead2d8] bg-white p-6 shadow-sm">
-              <h3 className="text-xl font-semibold text-[#3e2f2b]">Account</h3>
-
-              <div
-                onClick={() => setActiveTab("overview")}
-                className={`flex cursor-pointer items-center justify-between rounded-xl border border-[#f1e5df] p-4 transition
-                ${
-                  activeTab === "overview"
-                    ? "border-[#e4cfc8] bg-[#f7e7ea]"
-                    : "hover:bg-[#f7e7ea]"
-                }
-                `}
-              >
-                <div className="flex items-center gap-3">
-                  <img src="/favicon/overview.svg" className="h-6 w-6" />
-                  <span className="text-base font-semibold text-[#3e2f2b]">
-                    Overview
-                  </span>
-                </div>
-                →
+              <div className="mt-4 space-y-1">
+                {navItems.map((item) => {
+                  const Icon = item.icon;
+                  return (
+                    <button
+                      key={item.key}
+                      type="button"
+                      onClick={() => {
+                        if (item.key === "address" && !user) {
+                          showGuestPopup();
+                          return;
+                        }
+                        setActiveTab(item.key);
+                      }}
+                      className={`flex w-full items-center justify-between px-3 py-[11px] text-left text-[13px] transition ${
+                        activeTab === item.key
+                          ? "rounded-r-[8px] border-l-[3px] border-[#7B2D42] bg-[#f5e8eb] pl-[9px] text-[#2f1f25]"
+                          : "rounded-[8px] text-[#56444b] hover:bg-[#f5e8eb]"
+                      }`}
+                    >
+                      <span className="flex items-center gap-3">
+                        <Icon size={16} className="text-[#7B2D42]" strokeWidth={1.8} />
+                        <span>{item.label}</span>
+                      </span>
+                      <ChevronRight
+                        size={16}
+                        className="shrink-0 text-[#8f6d78]"
+                        strokeWidth={1.8}
+                      />
+                    </button>
+                  );
+                })}
               </div>
+            </div>
 
-              <div
+            <div className="mt-auto border-t border-[#f0dde2] pt-3">
+              <button
+                type="button"
+                className="flex items-center gap-2 text-xs font-medium text-[#b04040]"
                 onClick={() => {
-                  if (!user) {
-                    showGuestPopup();
-                    return;
-                  }
-                  setActiveTab("address");
+                  clearClientAuth({ dispatchEvent: true });
+                  window.location.href = "/login";
                 }}
-                className={`flex cursor-pointer items-center justify-between rounded-xl border border-[#f1e5df] p-4 transition
-                ${
-                  activeTab === "address"
-                    ? "border-[#e4cfc8] bg-[#f7e7ea]"
-                    : "hover:bg-[#f7e7ea]"
-                }
-                `}
               >
-                <div className="flex items-center gap-3">
-                  <img src="/favicon/address.svg" className="h-6 w-6" />
-                  <span className="text-base font-semibold text-[#3e2f2b]">
-                    My Address
-                  </span>
-                </div>
-                →
-              </div>
-
-              <div
-                onClick={() => setActiveTab("orders")}
-                className={`flex cursor-pointer items-center justify-between rounded-xl border border-[#f1e5df] p-4 transition
-                ${
-                  activeTab === "orders"
-                    ? "border-[#e4cfc8] bg-[#f7e7ea]"
-                    : "hover:bg-[#f7e7ea]"
-                }
-                `}
-              >
-                <div className="flex items-center gap-3">
-                  <img src="/favicon/orders.svg" className="h-6 w-6" />
-                  <span className="text-base font-semibold text-[#3e2f2b]">
-                    My Orders
-                  </span>
-                </div>
-                →
-              </div>
+                <LogOut size={15} strokeWidth={1.8} />
+                Logout
+              </button>
             </div>
+          </aside>
 
-            <div className="flex w-fit items-center gap-2 text-red-500 transition hover:text-red-500">
-              <img
-                src="/favicon/logout.png"
-                alt="logout"
-                className="h-5 w-5 object-contain"
-              />
-
-              {user ? (
-                <span
-                  className="text-sm font-medium"
-                  onClick={() => {
-                    localStorage.removeItem("token");
-                    localStorage.removeItem("userData");
-                    localStorage.removeItem("isLoggedIn");
-                    localStorage.removeItem("isAdmin");
-                    window.dispatchEvent(new Event("userChanged"));
-                    window.location.href = "/login";
-                  }}
-                >
-                  Logout→
-                </span>
-              ) : (
-                <span
-                  className="text-sm font-medium"
-                  onClick={() => (window.location.href = "/login")}
-                >
-                  Login→
-                </span>
-              )}
-            </div>
-          </div>
-
-          <div
+          <section
             id="profile-section"
-            className="mx-auto min-h-fit w-full max-w-xl rounded-2xl border border-[#ead2d8] bg-white p-8 shadow-sm md:col-span-2 md:mx-0 md:max-w-none"
+            className="min-h-fit rounded-[14px] border border-[#f0dde2] bg-white p-6"
           >
+            {activeTab === "overview" && (
+              <div className="space-y-6">
+                <div className="rounded-[12px] border border-[#f0dde2] bg-[#fdf6f7] p-4">
+                  <div className="flex flex-col gap-4 sm:flex-row sm:items-center">
+                    <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-full bg-[#7B2D42] text-base font-semibold text-white">
+                      {getInitials()}
+                    </div>
+                    <div className="min-w-0">
+                      <p className="text-base font-semibold text-[#2f1f25]">
+                        {`${user?.name || "User"} ${user?.lastname || ""}`.trim()}
+                      </p>
+                      <p className="truncate text-sm text-[#7f6b73]">
+                        {user?.email || user?.phone || "Not available"}
+                      </p>
+                      <p className="mt-1 text-xs text-[#9a8a91]">
+                        Member since {formatDate(user?.createdAt)}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
+                  {[
+                    { label: "Total Orders", value: orders.length },
+                    { label: "Wishlist Items", value: wishlistItems.length },
+                    { label: "Reviews Given", value: reviewsGivenCount },
+                  ].map((stat) => (
+                    <div
+                      key={stat.label}
+                      className="rounded-[10px] border border-[#f0dde2] bg-[#fdf6f7] p-[14px] text-center"
+                    >
+                      <p className="text-[22px] font-medium text-[#7B2D42]">
+                        {stat.value}
+                      </p>
+                      <p className="mt-1 text-[11px] uppercase tracking-[0.06em] text-[#9a8a91]">
+                        {stat.label}
+                      </p>
+                    </div>
+                  ))}
+                </div>
+
+                <div className="grid grid-cols-1 gap-4 xl:grid-cols-[minmax(0,1.2fr)_minmax(0,0.8fr)]">
+                  <div className="rounded-[12px] border border-[#f0dde2] bg-white p-4">
+                    <div className="mb-4 flex items-center justify-between">
+                      <h2 className="text-base font-medium text-[#2f1f25]">
+                        Recent Orders
+                      </h2>
+                      {orders.length > 0 && (
+                        <button
+                          type="button"
+                          onClick={() => setActiveTab("orders")}
+                          className="text-sm text-[#7B2D42]"
+                        >
+                          View all
+                        </button>
+                      )}
+                    </div>
+
+                    {orders.length === 0 ? (
+                      <div className="rounded-[10px] border border-[#f0dde2] bg-[#fdf6f7] p-4 text-sm text-[#7f6b73]">
+                        No orders yet. Your latest purchases will show up here.
+                      </div>
+                    ) : (
+                      <div className="space-y-3">
+                        {orders.slice(0, 2).map((order: any) => (
+                          <Link key={order._id || order.id} href={`/orders/${order._id || order.id}`}>
+                            <div className="rounded-[10px] border border-[#f0dde2] bg-[#fdf6f7] px-4 py-3 transition hover:border-[#e4c4cc]">
+                              <div className="flex items-start justify-between gap-4">
+                                <div className="min-w-0">
+                                  <p className="truncate text-sm font-medium text-[#2f1f25]">
+                                    {order.items?.[0]?.productName ||
+                                      order.items?.[0]?.name ||
+                                      "Order"}
+                                  </p>
+                                  <p className="mt-1 text-xs text-[#8b7680]">
+                                    {formatDate(order.createdAt)} • ₹
+                                    {Number(order.totalAmount || 0).toFixed(2)}
+                                  </p>
+                                </div>
+                                <span
+                                  className={`rounded-full px-2.5 py-1 text-[11px] font-medium ${getStatusBadgeClass(
+                                    order.status
+                                  )}`}
+                                >
+                                  {order.status}
+                                </span>
+                              </div>
+                            </div>
+                          </Link>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="rounded-[12px] border border-[#f0dde2] bg-white p-4">
+                    <div className="mb-4 flex items-center justify-between">
+                      <h2 className="text-base font-medium text-[#2f1f25]">
+                        Default Address
+                      </h2>
+                      <button
+                        type="button"
+                        onClick={() => setActiveTab("address")}
+                        className="text-sm text-[#7B2D42]"
+                      >
+                        Manage
+                      </button>
+                    </div>
+
+                    {defaultAddress ? (
+                      <div className="rounded-[10px] border border-[#f0dde2] bg-[#fdf6f7] p-4 text-sm text-[#6f5b63]">
+                        <p className="font-medium text-[#2f1f25]">
+                          {defaultAddress.name}
+                        </p>
+                        <p className="mt-2">{defaultAddress.address}</p>
+                        <p>
+                          {defaultAddress.city}, {defaultAddress.state}
+                        </p>
+                        <p>{defaultAddress.pincode}</p>
+                        <p className="mt-2">{defaultAddress.phone}</p>
+                      </div>
+                    ) : (
+                      <div className="rounded-[10px] border border-[#f0dde2] bg-[#fdf6f7] p-4 text-sm text-[#7f6b73]">
+                        No address added yet.
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+            )}
+
             {activeTab === "profile" && (
               <div>
-                <div className="mb-6 flex items-center justify-between">
-                  <h1 className="text-xl font-semibold text-[#3e2f2b]">
+                <div className="mb-6 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                  <h1 className="text-[20px] font-medium text-[#2f1f25]">
                     Profile
                   </h1>
                   <button
-                    className="text-sm text-[#7a1f2b] hover:underline"
+                    className="inline-flex w-fit items-center justify-center rounded-[8px] border border-[#7B2D42] px-[18px] py-1.5 text-sm text-[#7B2D42] transition hover:bg-[#7B2D42] hover:text-white"
                     onClick={() => {
                       if (!user) {
                         showGuestPopup();
@@ -462,247 +887,48 @@ export default function ProfilePage() {
                   </button>
                 </div>
 
-                <div className="space-y-6">
-                  <div className="flex items-start gap-3">
-                    <User size={18} />
-                    <div className="w-full">
-                      <p className="text-sm text-[#8a7f7b]">First Name</p>
-                      {isEditing ? (
-                        <input
-                          value={profileForm.name}
-                          className="mt-1 w-full rounded-lg border border-[#ead2d8] bg-[#fffaf7] p-3 text-[#3e2f2b] outline-none focus:ring-2 focus:ring-[#d4a373]"
-                          onChange={(e) =>
-                            setProfileForm({
-                              ...profileForm,
-                              name: e.target.value,
-                            })
-                          }
-                        />
-                      ) : (
-                        <p className="text-[#3e2f2b]">
-                          {user?.name || "Not provided"}
-                        </p>
-                      )}
-                    </div>
-                  </div>
-
-                  <div className="flex items-start gap-3">
-                    <User size={18} />
-                    <div className="w-full">
-                      <p className="text-sm text-[#8a7f7b]">Last Name</p>
-                      {isEditing ? (
-                        <input
-                          value={profileForm.lastname}
-                          className="mt-1 w-full rounded-lg border border-[#ead2d8] bg-[#fffaf7] p-3 text-[#3e2f2b] outline-none focus:ring-2 focus:ring-[#d4a373]"
-                          onChange={(e) =>
-                            setProfileForm({
-                              ...profileForm,
-                              lastname: e.target.value,
-                            })
-                          }
-                        />
-                      ) : (
-                        <p className="text-[#3e2f2b]">
-                          {user?.lastname || "Not provided"}
-                        </p>
-                      )}
-                    </div>
-                  </div>
-
-                  <div className="flex items-start gap-3">
-                    <Phone size={18} />
-                    <div className="w-full">
-                      <p className="text-sm text-[#8a7f7b]">Phone Number</p>
-                      {isEditing ? (
-                        <input
-                          value={profileForm.phone}
-                          className="mt-1 w-full rounded-lg border border-[#ead2d8] bg-[#fffaf7] p-3 text-[#3e2f2b] outline-none focus:ring-2 focus:ring-[#d4a373]"
-                          onChange={(e) =>
-                            setProfileForm({
-                              ...profileForm,
-                              phone: e.target.value.replace(/\D/g, ""),
-                            })
-                          }
-                          maxLength={10}
-                        />
-                      ) : (
-                        <p className="text-[#3e2f2b]">
-                          {user?.phone || "Not provided"}
-                        </p>
-                      )}
-                    </div>
-                  </div>
-
-                  <div className="flex items-start gap-3">
-                    <Mail size={18} />
-                    <div className="w-full">
-                      <p className="text-sm text-[#8a7f7b]">Email ID</p>
-                      {isEditing ? (
-                        <input
-                          value={profileForm.email}
-                          className="mt-1 w-full rounded-lg border border-[#ead2d8] bg-[#fffaf7] p-3 text-[#3e2f2b] outline-none focus:ring-2 focus:ring-[#d4a373]"
-                          onChange={(e) =>
-                            setProfileForm({
-                              ...profileForm,
-                              email: e.target.value,
-                            })
-                          }
-                        />
-                      ) : (
-                        <p className="text-[#3e2f2b]">
-                          {user?.email || "Not provided"}
-                        </p>
-                      )}
-                    </div>
-                  </div>
-                </div>
-              </div>
-            )}
-
-            {activeTab === "overview" && (
-              <div>
-                <h2 className="mb-6 text-2xl font-semibold text-[#3e2f2b]">
-                  Overview
-                </h2>
-
-                <h3 className="mb-3 text-base font-semibold text-[#5a4f4d]">
-                  My Orders
-                </h3>
-
-                {orders.length === 0 ? (
-                  <div className="mb-6 flex items-center gap-5 rounded-2xl border border-[#ead2d8] bg-gradient-to-r from-[#fffaf7] to-[#f7e7ea] p-5 transition hover:shadow-md">
-                    <div className="h-16 w-16 overflow-hidden rounded-xl bg-white object-contain shadow-sm">
-                      <img
-                        src="/favicon/order.png"
-                        alt="orders"
-                        className="h-full w-full object-cover"
-                      />
-                    </div>
-
-                    <div>
-                      <p className="font-semibold text-[#3e2f2b]">
-                        No Orders Yet
-                      </p>
-
-                      <p className="mt-1 text-sm text-[#7a6f6b]">
-                        Start your first order to explore our products.
-                      </p>
-
-                      <Link
-                        href="/shop"
-                        className="mt-2 inline-block cursor-pointer text-sm font-medium text-[#7a1f2b] hover:underline"
+                <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                  {profileFields.map((field) => {
+                    const Icon = field.icon;
+                    const isMissing = !field.value;
+                    return (
+                      <div
+                        key={field.key}
+                        className="rounded-[10px] border border-[#f0dde2] bg-[#fdf6f7] px-4 py-3"
                       >
-                        Shop Now →
-                      </Link>
-                    </div>
-                  </div>
-                ) : (
-                  <div className="mb-6 space-y-3">
-                    {orders.slice(0, 2).map((order: any) => (
-                      <Link key={order.id} href={`/orders/${order.id}`}>
-                        <div className="flex cursor-pointer items-center gap-4 rounded-2xl border border-[#ead2d8] bg-gradient-to-r from-[#fffaf7] to-[#f7e7ea] p-4 transition hover:shadow-md">
-                          <div className="h-14 w-14 flex-shrink-0 overflow-hidden rounded-lg bg-white shadow-sm">
-                            {order.items[0]?.imageUrl ? (
-                              <img
-                                src={order.items[0].imageUrl}
-                                alt={order.items[0].productName}
-                                className="h-full w-full object-cover"
-                              />
+                        <div className="flex items-start gap-3">
+                          <Icon size={16} className="mt-0.5 text-[#7B2D42]" strokeWidth={1.8} />
+                          <div className="min-w-0 flex-1">
+                            <p className="text-[11px] text-[#a0a0a0]">
+                              {field.label}
+                            </p>
+                            {isEditing ? (
+                              field.input
                             ) : (
-                              <div className="flex h-full w-full items-center justify-center text-2xl">
-                                🛍️
-                              </div>
+                              <p
+                                className={`mt-1 text-[13px] font-medium ${
+                                  isMissing
+                                    ? "italic text-[#c0a8b0]"
+                                    : "text-[#2f1f25]"
+                                }`}
+                              >
+                                {field.value || "Not provided"}
+                              </p>
                             )}
                           </div>
-                          <div className="min-w-0 flex-1">
-                            <p className="truncate font-semibold text-[#3e2f2b]">
-                              {order.items[0]?.productName}
-                            </p>
-                            <p className="text-xs text-[#7a6f6b]">
-                              ₹{order.totalAmount.toFixed(2)} • {order.status}
-                            </p>
-                          </div>
-                          <div className="text-sm font-semibold text-[#7a1f2b]">
-                            →
-                          </div>
                         </div>
-                      </Link>
-                    ))}
-                    {orders.length > 2 && (
-                      <Link
-                        href="/orders"
-                        className="text-sm font-medium text-[#7a1f2b] hover:underline"
-                      >
-                        See All Orders →
-                      </Link>
-                    )}
-                  </div>
-                )}
-
-                <div className="mb-3 flex items-center justify-between">
-                  <h3 className="mb-3 text-base font-semibold text-[#5a4f4d]">
-                    Saved Addresses
-                  </h3>
-                  <span
-                    onClick={() => {
-                      if (!user) {
-                        showGuestPopup();
-                        return;
-                      }
-                      setActiveTab("address");
-                    }}
-                    className="cursor-pointer whitespace-nowrap text-sm text-blue-500 text-semibold hover:underline"
-                  >
-                    See All →
-                  </span>
+                      </div>
+                    );
+                  })}
                 </div>
 
-                {addresses.length > 0 ? (
-                  <div className="rounded-2xl border border-[#ead2d8] bg-gradient-to-r from-[#fffaf7] to-[#f7e7ea] p-5">
-                    <p className="font-semibold text-[#3e2f2b]">
-                      {defaultAddress.name}
-                    </p>
-
-                    <p className="text-sm text-[#7a6f6b]">
-                      {defaultAddress.address}
-                    </p>
-
-                    <p className="text-sm text-[#7a6f6b]">
-                      {defaultAddress.phone}
-                    </p>
-
-                    <p className="text-sm text-[#7a6f6b]">
-                      {defaultAddress.city}, {defaultAddress.state}
-                    </p>
-                  </div>
-                ) : (
-                  <div className="flex items-center gap-5 rounded-2xl border border-[#ead2d8] bg-gradient-to-r from-[#fffaf7] to-[#f7e7ea] p-5 transition hover:shadow-md">
-                    <div className="flex h-16 w-16 items-center justify-center rounded-xl bg-white object-contain p-2 shadow-sm">
-                      <img
-                        src="/favicon/location.png"
-                        alt="address"
-                        className="h-full w-full scale-125 object-cover"
-                      />
-                    </div>
-
-                    <div>
-                      <p className="font-semibold text-[#3e2f2b]">
-                        No Address Added
-                      </p>
-
-                      <p className="mt-1 text-sm text-[#7a6f6b]">
-                        Add your address for faster checkout.
-                      </p>
-
-                      <span
-                        onClick={() => setActiveTab("address")}
-                        className="mt-2 inline-block cursor-pointer text-sm font-medium text-[#7a1f2b] hover:underline"
-                      >
-                        Add Address →
-                      </span>
-                    </div>
-                  </div>
-                )}
+                <button
+                  type="button"
+                  className="mt-5 flex w-full items-center justify-center gap-2 rounded-[8px] border border-[#f0dde2] bg-white px-4 py-2.5 text-sm font-medium text-[#7B2D42]"
+                >
+                  <Lock size={16} strokeWidth={1.8} />
+                  Change Password
+                </button>
               </div>
             )}
 
@@ -710,9 +936,9 @@ export default function ProfilePage() {
               <div>
                 <div className="mb-6 flex items-center gap-3">
                   {showForm && (
-                    <img
-                      src="/favicon/back.svg"
-                      className="h-5 w-5 cursor-pointer"
+                    <button
+                      type="button"
+                      className="rounded-full border border-[#f0dde2] p-1 text-[#7B2D42]"
                       onClick={() => {
                         setShowForm(false);
                         setEditIndex(null);
@@ -729,18 +955,21 @@ export default function ProfilePage() {
                           default: false,
                         });
                       }}
-                    />
+                    >
+                      <ChevronRight className="h-4 w-4 rotate-180" />
+                    </button>
                   )}
 
-                  <h2 className="text-xl font-semibold text-[#3e2f2b]">
-                    {showForm ? "Add New Address" : "My Addresses"}
+                  <h2 className="text-[20px] font-medium text-[#2f1f25]">
+                    {showForm ? "Add New Address" : "My Address"}
                   </h2>
                 </div>
 
                 {addresses.length === 0 && !showForm && (
-                  <div className="mt-10 text-center">
-                    <p className="text-lg font-medium">No Addresses Found</p>
-
+                  <div className="rounded-[10px] border border-[#f0dde2] bg-[#fdf6f7] p-5 text-center">
+                    <p className="text-base font-medium text-[#2f1f25]">
+                      No addresses found
+                    </p>
                     <button
                       onClick={() => {
                         if (!user) {
@@ -749,9 +978,9 @@ export default function ProfilePage() {
                         }
                         setShowForm(true);
                       }}
-                      className="mt-4 rounded-lg bg-blue-600 px-6 py-2 text-white"
+                      className="mt-4 inline-flex rounded-[10px] border border-dashed border-[#c0a8b0] px-5 py-3 text-sm text-[#7B2D42]"
                     >
-                      Add New Address
+                      + Add New Address
                     </button>
                   </div>
                 )}
@@ -761,103 +990,104 @@ export default function ProfilePage() {
                     {sortedAddresses.map((item, index) => (
                       <div
                         key={index}
-                        className="flex items-center justify-between rounded-xl border p-4"
+                        className="rounded-[10px] border border-[#f0dde2] bg-[#fdf6f7] px-4 py-4"
                       >
-                        <div>
-                          <div className="flex items-center gap-2">
-                            <p className="font-semibold text-[#3e2f2b]">
-                              {item.name}
+                        <div className="flex items-start justify-between gap-4">
+                          <div className="text-sm text-[#6f5b63]">
+                            <div className="flex items-center gap-2">
+                              <p className="font-medium text-[#2f1f25]">
+                                {item.name} {item.lastname || ""}
+                              </p>
+                              {item.default && (
+                                <span className="rounded-full bg-[#f5e8eb] px-2.5 py-1 text-[11px] text-[#7B2D42]">
+                                  Default
+                                </span>
+                              )}
+                            </div>
+                            {item.flat && <p className="mt-2">{item.flat}</p>}
+                            <p className={item.flat ? "" : "mt-2"}>{item.address}</p>
+                            <p>
+                              {item.city}, {item.state} {item.pincode}
                             </p>
-                            {item.default && (
-                              <span className="rounded-md bg-green-100 px-2 py-1 text-xs text-green-600">
-                                Default
-                              </span>
+                            <p className="mt-2">{item.phone}</p>
+                          </div>
+                          <div className="relative">
+                            <img
+                              src="/favicon/dots.svg"
+                              className="h-5 w-5 cursor-pointer"
+                              onClick={() =>
+                                setOpenMenu(openMenu === index ? null : index)
+                              }
+                            />
+
+                            {openMenu === index && (
+                              <div className="absolute right-0 z-10 mt-2 w-32 overflow-hidden rounded-lg border border-[#f0dde2] bg-white shadow-md">
+                                <div
+                                  onClick={() => {
+                                    const selected = sortedAddresses[index];
+
+                                    setForm({
+                                      name: selected.name || "",
+                                      lastname: selected.lastname || "",
+                                      address: selected.address || "",
+                                      phone: selected.phone || "",
+                                      pincode: selected.pincode || "",
+                                      flat: selected.flat || "",
+                                      city: selected.city || "",
+                                      state: selected.state || "",
+                                      default: selected.default || false,
+                                    });
+
+                                    const actualIndex = addresses.findIndex(
+                                      (addr) =>
+                                        (selected._id && addr._id === selected._id) ||
+                                        (!selected._id &&
+                                          addr.address === selected.address &&
+                                          addr.phone === selected.phone &&
+                                          addr.pincode === selected.pincode)
+                                    );
+
+                                    setEditIndex(actualIndex);
+                                    setShowForm(true);
+                                    setOpenMenu(null);
+                                  }}
+                                  className="flex cursor-pointer items-center gap-2 px-3 py-2 text-sm text-[#56444b] hover:bg-[#fdf6f7]"
+                                >
+                                  <img src="/favicon/edit.svg" className="h-5 w-5" />
+                                  <span>Edit</span>
+                                </div>
+
+                                <div
+                                  onClick={() => {
+                                    const selected = sortedAddresses[index];
+                                    const actualIndex = addresses.findIndex(
+                                      (addr) =>
+                                        (selected._id && addr._id === selected._id) ||
+                                        (!selected._id &&
+                                          addr.address === selected.address &&
+                                          addr.phone === selected.phone &&
+                                          addr.pincode === selected.pincode)
+                                    );
+                                    deleteAddress(actualIndex);
+                                    setOpenMenu(null);
+                                  }}
+                                  className="flex cursor-pointer items-center gap-2 px-3 py-2 text-sm text-[#b04040] hover:bg-[#fff6f6]"
+                                >
+                                  <img
+                                    src="/favicon/delete.svg"
+                                    className="h-5 w-5 scale-110"
+                                  />
+                                  <span>Delete</span>
+                                </div>
+                              </div>
                             )}
                           </div>
-                          <p className="text-sm text-gray-600">
-                            {item.address}
-                          </p>
-                          <p className="text-sm text-gray-600">
-                            {item.pincode}
-                          </p>
-                          <p className="text-sm text-gray-600">{item.phone}</p>
-                        </div>
-                        <div className="relative">
-                          <img
-                            src="/favicon/dots.svg"
-                            className="h-5 w-5 cursor-pointer"
-                            onClick={() =>
-                              setOpenMenu(openMenu === index ? null : index)
-                            }
-                          />
-
-                          {openMenu === index && (
-                            <div className="absolute right-0 z-10 mt-2 min-w-[120px] w-32 overflow-hidden rounded-lg border bg-white shadow-md">
-                              <div
-                                onClick={() => {
-                                  const selected = sortedAddresses[index];
-
-                                  setForm({
-                                    name: selected.name || "",
-                                    lastname: selected.lastname || "",
-                                    address: selected.address || "",
-                                    phone: selected.phone || "",
-                                    pincode: selected.pincode || "",
-                                    flat: selected.flat || "",
-                                    city: selected.city || "",
-                                    state: selected.state || "",
-                                    default: selected.default || false,
-                                  });
-
-                                  const actualIndex = addresses.findIndex(
-                                    (addr) =>
-                                      addr.address === selected.address &&
-                                      addr.phone === selected.phone &&
-                                      addr.pincode === selected.pincode
-                                  );
-
-                                  setEditIndex(actualIndex);
-                                  setShowForm(true);
-                                  setOpenMenu(null);
-                                }}
-                                className="flex cursor-pointer item-center gap-2 whitespace-nowrap px-3 py-2 text-sm hover:bg-gray-100 hover:text-blue-500"
-                              >
-                                <img
-                                  src="/favicon/edit.svg"
-                                  className="h-5 w-5"
-                                />
-                                <span className="text-sm">Edit</span>
-                              </div>
-
-                              <div
-                                onClick={() => {
-                                  const selected = sortedAddresses[index];
-                                  const actualIndex = addresses.findIndex(
-                                    (addr) =>
-                                      addr.address === selected.address &&
-                                      addr.phone === selected.phone &&
-                                      addr.pincode === selected.pincode
-                                  );
-                                  deleteAddress(actualIndex);
-                                  setOpenMenu(null);
-                                }}
-                                className="flex cursor-pointer items-center gap-2 whitespace-nowrap px-3 py-2 text-sm hover:bg-gray-100 hover:text-red-600"
-                              >
-                                <img
-                                  src="/favicon/delete.svg"
-                                  className="h-5 w-5 scale-110"
-                                />
-                                <span className="text-sm font-medium">
-                                  Delete
-                                </span>
-                              </div>
-                            </div>
-                          )}
                         </div>
                       </div>
                     ))}
 
-                    <p
+                    <button
+                      type="button"
                       onClick={() => {
                         if (!user) {
                           showGuestPopup();
@@ -878,23 +1108,23 @@ export default function ProfilePage() {
                           default: false,
                         });
                       }}
-                      className="cursor-pointer text-blue-600"
+                      className="w-full rounded-[10px] border border-dashed border-[#c0a8b0] px-4 py-[14px] text-center text-[13px] text-[#7B2D42]"
                     >
                       + Add New Address
-                    </p>
+                    </button>
                   </div>
                 )}
 
                 {showForm && (
                   <div className="grid grid-cols-1 gap-5">
                     <div>
-                      <label className="text-sm font-semibold text-[#5a4f4d]">
+                      <label className="text-sm font-medium text-[#5a4f4d]">
                         PIN Code *
                       </label>
                       <input
                         value={form.pincode}
                         placeholder="Eg: 110001"
-                        className="mt-1 w-full rounded-lg border border-[#ead2d8] bg-[#fffaf7] p-3 text-[#3e2f2b] outline-none placeholder:text-[#c9ada7] focus:ring-2 focus:ring-[#d4a373]"
+                        className="mt-1 w-full rounded-lg border border-[#f0dde2] bg-[#fdf6f7] p-3 text-[#3e2f2b] outline-none placeholder:text-[#c9ada7] focus:border-[#7B2D42]"
                         onChange={async (e) => {
                           const pin = e.target.value.replace(/\D/g, "");
                           setForm((prev) => ({ ...prev, pincode: pin }));
@@ -917,45 +1147,45 @@ export default function ProfilePage() {
                                 }));
                               }
                             } catch {
-                              console.log("Error fetching pincode");
+                              console.error("Error fetching pincode");
                             }
                           }
                         }}
                       />
                     </div>
 
-                    <div className="grid grid-cols-2 gap-4">
+                    <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                       <div>
-                        <label className="text-sm font-semibold text-[#5a4f4d]">
+                        <label className="text-sm font-medium text-[#5a4f4d]">
                           City
                         </label>
                         <input
                           value={form.city}
                           disabled
-                          className="mt-1 w-full rounded-lg border border-[#ead2d8] bg-gray-100 p-3"
+                          className="mt-1 w-full rounded-lg border border-[#f0dde2] bg-[#f4edef] p-3"
                         />
                       </div>
 
                       <div>
-                        <label className="text-sm font-semibold text-[#5a4f4d]">
+                        <label className="text-sm font-medium text-[#5a4f4d]">
                           State
                         </label>
                         <input
                           value={form.state}
                           disabled
-                          className="mt-1 w-full rounded-lg border border-[#ead2d8] bg-gray-100 p-3"
+                          className="mt-1 w-full rounded-lg border border-[#f0dde2] bg-[#f4edef] p-3"
                         />
                       </div>
                     </div>
 
                     <div>
-                      <label className="text-sm font-semibold text-[#5a4f4d]">
+                      <label className="text-sm font-medium text-[#5a4f4d]">
                         Flat / Building No (Optional)
                       </label>
                       <input
                         value={form.flat}
                         placeholder="Eg: A1, Block D"
-                        className="mt-1 w-full rounded-lg border border-[#ead2d8] bg-[#fffaf7] p-3 text-[#3e2f2b] outline-none placeholder:text-[#c9ada7] focus:ring-2 focus:ring-[#d4a373]"
+                        className="mt-1 w-full rounded-lg border border-[#f0dde2] bg-[#fdf6f7] p-3 text-[#3e2f2b] outline-none placeholder:text-[#c9ada7] focus:border-[#7B2D42]"
                         onChange={(e) =>
                           setForm({ ...form, flat: e.target.value })
                         }
@@ -963,13 +1193,13 @@ export default function ProfilePage() {
                     </div>
 
                     <div>
-                      <label className="text-sm font-semibold text-[#5a4f4d]">
+                      <label className="text-sm font-medium text-[#5a4f4d]">
                         Complete Address *
                       </label>
                       <input
                         value={form.address}
                         placeholder="Eg: Plot no. 401"
-                        className="mt-1 w-full rounded-lg border border-[#ead2d8] bg-[#fffaf7] p-3 text-[#3e2f2b] outline-none placeholder:text-[#c9ada7] focus:ring-2 focus:ring-[#d4a373]"
+                        className="mt-1 w-full rounded-lg border border-[#f0dde2] bg-[#fdf6f7] p-3 text-[#3e2f2b] outline-none placeholder:text-[#c9ada7] focus:border-[#7B2D42]"
                         onChange={(e) => {
                           setForm({ ...form, address: e.target.value });
 
@@ -985,52 +1215,54 @@ export default function ProfilePage() {
                       )}
                     </div>
 
-                    <div>
-                      <label className="text-sm font-semibold text-[#5a4f4d]">
-                        First Name *
-                      </label>
-                      <input
-                        value={form.name}
-                        placeholder="Eg: Om"
-                        className="mt-1 w-full rounded-lg border border-[#ead2d8] bg-[#fffaf7] p-3 text-[#3e2f2b] outline-none placeholder:text-[#c9ada7] focus:ring-2 focus:ring-[#d4a373]"
-                        onChange={(e) => {
-                          setForm({ ...form, name: e.target.value });
+                    <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                      <div>
+                        <label className="text-sm font-medium text-[#5a4f4d]">
+                          First Name *
+                        </label>
+                        <input
+                          value={form.name}
+                          placeholder="Eg: Om"
+                          className="mt-1 w-full rounded-lg border border-[#f0dde2] bg-[#fdf6f7] p-3 text-[#3e2f2b] outline-none placeholder:text-[#c9ada7] focus:border-[#7B2D42]"
+                          onChange={(e) => {
+                            setForm({ ...form, name: e.target.value });
 
-                          if (errors.name) {
-                            setErrors({ ...errors, name: "" });
+                            if (errors.name) {
+                              setErrors({ ...errors, name: "" });
+                            }
+                          }}
+                        />
+                        {errors.name && (
+                          <p className="mt-1 text-sm text-red-500">
+                            {errors.name}
+                          </p>
+                        )}
+                      </div>
+
+                      <div>
+                        <label className="text-sm font-medium text-[#5a4f4d]">
+                          Last Name (Optional)
+                        </label>
+                        <input
+                          value={form.lastname}
+                          placeholder="Eg: Sharma"
+                          className="mt-1 w-full rounded-lg border border-[#f0dde2] bg-[#fdf6f7] p-3 text-[#3e2f2b] outline-none placeholder:text-[#c9ada7] focus:border-[#7B2D42]"
+                          onChange={(e) =>
+                            setForm({ ...form, lastname: e.target.value })
                           }
-                        }}
-                      />
-                      {errors.name && (
-                        <p className="mt-1 text-sm text-red-500">
-                          {errors.name}
-                        </p>
-                      )}
+                        />
+                      </div>
                     </div>
 
                     <div>
-                      <label className="text-sm font-semibold text-[#5a4f4d]">
-                        Last Name (Optional)
-                      </label>
-                      <input
-                        value={form.lastname}
-                        placeholder="Eg: Sharma"
-                        className="mt-1 w-full rounded-lg border border-[#ead2d8] bg-[#fffaf7] p-3 text-[#3e2f2b] outline-none placeholder:text-[#c9ada7] focus:ring-2 focus:ring-[#d4a373]"
-                        onChange={(e) =>
-                          setForm({ ...form, lastname: e.target.value })
-                        }
-                      />
-                    </div>
-
-                    <div>
-                      <label className="text-sm font-semibold text-[#5a4f4d]">
+                      <label className="text-sm font-medium text-[#5a4f4d]">
                         Mobile Number *
                       </label>
                       <input
                         value={form.phone}
                         maxLength={10}
                         placeholder="Eg: 9876543210"
-                        className="mt-1 w-full rounded-lg border border-[#ead2d8] bg-[#fffaf7] p-3 text-[#3e2f2b] outline-none placeholder:text-[#c9ada7] focus:ring-2 focus:ring-[#d4a373]"
+                        className="mt-1 w-full rounded-lg border border-[#f0dde2] bg-[#fdf6f7] p-3 text-[#3e2f2b] outline-none placeholder:text-[#c9ada7] focus:border-[#7B2D42]"
                         onChange={(e) => {
                           const value = e.target.value.replace(/\D/g, "");
                           setForm({ ...form, phone: value });
@@ -1047,7 +1279,7 @@ export default function ProfilePage() {
                       )}
                     </div>
 
-                    <div className="mt-2 flex items-center gap-2">
+                    <div className="mt-1 flex items-center gap-2">
                       <input
                         type="checkbox"
                         checked={form.default}
@@ -1062,7 +1294,7 @@ export default function ProfilePage() {
 
                     <button
                       onClick={saveAddress}
-                      className="mt-4 rounded-xl bg-[#7a1f2b] py-3 text-white transition hover:opacity-90"
+                      className="mt-2 rounded-[10px] bg-[#7B2D42] py-3 text-white transition hover:opacity-90"
                     >
                       Save Address
                     </button>
@@ -1073,22 +1305,21 @@ export default function ProfilePage() {
 
             {activeTab === "orders" && (
               <div>
-                <h2 className="mb-6 text-2xl font-semibold text-[#3e2f2b]">
+                <h2 className="mb-6 text-[20px] font-medium text-[#2f1f25]">
                   My Orders
                 </h2>
 
                 {orders.length === 0 ? (
-                  <div className="py-12 text-center">
-                    <div className="mb-4 text-6xl">📦</div>
-                    <p className="text-lg font-medium text-[#3e2f2b]">
-                      No Orders Yet
+                  <div className="rounded-[10px] border border-[#f0dde2] bg-[#fdf6f7] py-12 text-center">
+                    <p className="text-lg font-medium text-[#2f1f25]">
+                      No orders yet
                     </p>
                     <p className="mt-2 text-sm text-[#7a6f6b]">
                       Start shopping to see your orders here.
                     </p>
                     <Link
                       href="/shop"
-                      className="mt-6 inline-block rounded-lg bg-[#7a1f2b] px-6 py-3 font-semibold text-white transition hover:shadow-md"
+                      className="mt-6 inline-block rounded-lg bg-[#7B2D42] px-6 py-3 font-semibold text-white transition hover:shadow-md"
                     >
                       Start Shopping
                     </Link>
@@ -1096,15 +1327,248 @@ export default function ProfilePage() {
                 ) : (
                   <div className="space-y-4">
                     {orders.map((order: any) => (
-                      <div key={order.id} className="animate-fadeUp">
-                        <OrderCard order={order} />
+                      <Link key={order._id || order.id} href={`/orders/${order._id || order.id}`}>
+                        <div className="rounded-[10px] border border-[#f0dde2] bg-[#fdf6f7] px-4 py-3 transition hover:border-[#e4c4cc]">
+                          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                            <div className="min-w-0">
+                              <p className="text-sm font-medium text-[#2f1f25]">
+                                Order #{String(order._id || order.id).slice(-6)}
+                              </p>
+                              <p className="mt-1 truncate text-sm text-[#6f5b63]">
+                                {order.items
+                                  ?.map((item: any) => item.productName || item.name)
+                                  .filter(Boolean)
+                                  .join(", ") || "Items unavailable"}
+                              </p>
+                              <p className="mt-1 text-xs text-[#8b7680]">
+                                {formatDate(order.createdAt)} • ₹
+                                {Number(order.totalAmount || 0).toFixed(2)}
+                              </p>
+                            </div>
+                            <div className="flex items-center gap-3">
+                              <span
+                                className={`rounded-full px-3 py-1 text-[11px] font-medium ${getStatusBadgeClass(
+                                  order.status
+                                )}`}
+                              >
+                                {order.status}
+                              </span>
+                              <ChevronRight
+                                size={16}
+                                className="text-[#8f6d78]"
+                                strokeWidth={1.8}
+                              />
+                            </div>
+                          </div>
+                        </div>
+                      </Link>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
+
+            {activeTab === "wishlist" && (
+              <div>
+                <h2 className="mb-6 text-[20px] font-medium text-[#2f1f25]">
+                  My Wishlist
+                </h2>
+
+                {wishlistItems.length === 0 ? (
+                  <div className="rounded-[12px] border border-[#f0dde2] bg-[#fdf6f7] p-6 text-sm text-[#7f6b73]">
+                    <p>No wishlist items yet.</p>
+                    <Link
+                      href="/wishlist"
+                      className="mt-4 inline-flex rounded-[8px] border border-[#7B2D42] px-3 py-2 text-xs font-medium text-[#7B2D42] transition hover:bg-[#7B2D42] hover:text-white"
+                    >
+                      Open Wishlist Page
+                    </Link>
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                    {wishlistItems.map((item) => (
+                      <div
+                        key={item._id}
+                        className="rounded-[12px] border border-[#f0dde2] bg-white p-3"
+                      >
+                        <div className="mb-3 flex items-start gap-3">
+                          <div className="flex h-24 flex-1 items-center justify-center rounded-[10px] bg-[#fdf6f7]">
+                            {item.image ? (
+                              <img
+                                src={item.image}
+                                alt={item.name}
+                                className="h-full w-full rounded-[10px] object-cover"
+                              />
+                            ) : (
+                              <Package size={28} className="text-[#c0a8b0]" />
+                            )}
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() => handleWishlistRemove(item._id)}
+                            className="shrink-0 rounded-full border border-[#f0dde2] p-2 text-[#7B2D42]"
+                          >
+                            <Heart size={14} fill="currentColor" />
+                          </button>
+                        </div>
+                        <p className="text-sm font-medium text-[#2f1f25]">
+                          {item.name}
+                        </p>
+                        <p className="mt-1 text-sm text-[#7B2D42]">
+                          ₹{Number(item.price || 0).toFixed(2)}
+                        </p>
+                        <button
+                          type="button"
+                          onClick={() => handleWishlistMoveToCart(item)}
+                          className="mt-3 rounded-[8px] border border-[#7B2D42] px-3 py-1.5 text-xs font-medium text-[#7B2D42] transition hover:bg-[#7B2D42] hover:text-white"
+                        >
+                          Move to Cart
+                        </button>
                       </div>
                     ))}
                   </div>
                 )}
               </div>
             )}
-          </div>
+
+            {activeTab === "reviews" && (
+              <div>
+                <h2 className="mb-6 text-[20px] font-medium text-[#2f1f25]">
+                  My Reviews
+                </h2>
+
+                {reviewCards.length === 0 ? (
+                  <div className="rounded-[10px] border border-[#f0dde2] bg-[#fdf6f7] p-6 text-sm text-[#7f6b73]">
+                    <p className="text-sm text-[#2f1f25]">
+                      Review history is not synced to the profile yet.
+                    </p>
+                    <p className="mt-2 leading-6">
+                      You can still leave reviews from eligible product pages after
+                      purchase.
+                    </p>
+                    <div className="mt-4 flex flex-wrap gap-3">
+                      <Link
+                        href="/orders"
+                        className="rounded-[8px] border border-[#7B2D42] px-3 py-2 text-xs font-medium text-[#7B2D42] transition hover:bg-[#7B2D42] hover:text-white"
+                      >
+                        View Orders
+                      </Link>
+                      <Link
+                        href="/shop"
+                        className="rounded-[8px] bg-[#7B2D42] px-3 py-2 text-xs font-medium text-white transition hover:opacity-90"
+                      >
+                        Browse Products
+                      </Link>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="space-y-4">
+                    {reviewCards.map((review) => (
+                      <div
+                        key={review.id}
+                        className="rounded-[10px] border border-[#f0dde2] bg-[#fdf6f7] p-[14px]"
+                      >
+                        <p className="text-sm font-medium text-[#2f1f25]">
+                          {review.name}
+                        </p>
+                        <div className="mt-2 flex items-center gap-1">
+                          {Array.from({ length: 5 }).map((_, index) => (
+                            <Star
+                              key={index}
+                              size={15}
+                              className="text-[#7B2D42]"
+                              fill={index < review.rating ? "#7B2D42" : "none"}
+                              strokeWidth={1.8}
+                            />
+                          ))}
+                        </div>
+                        <p className="mt-3 text-sm leading-6 text-[#6f5b63]">
+                          {review.text}
+                        </p>
+                        <p className="mt-3 text-xs text-[#9a8a91]">
+                          {formatDate(review.date)}
+                        </p>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
+
+            {activeTab === "notifications" && (
+              <div>
+                <h2 className="mb-6 text-[20px] font-medium text-[#2f1f25]">
+                  Notifications
+                </h2>
+
+                <div className="overflow-hidden rounded-[10px] border border-[#f0dde2]">
+                  {notificationItems.map((item, index) => (
+                    <div
+                      key={item.id}
+                      className={`flex items-start gap-3 px-4 py-3 ${
+                        item.unread
+                          ? "bg-[#fdf6f7] font-medium"
+                          : "bg-white text-[#8a7780]"
+                      } ${index !== notificationItems.length - 1 ? "border-b border-[#f0dde2]" : ""}`}
+                    >
+                      <span
+                        className={`mt-1 h-2 w-2 rounded-full ${
+                          item.unread ? "bg-[#7B2D42]" : "bg-transparent"
+                        }`}
+                      />
+                      <div>
+                        <p className="text-sm text-[#2f1f25]">{item.title}</p>
+                        <p className="mt-1 text-sm text-[#7f6b73]">
+                          {item.subtitle}
+                        </p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {activeTab === "support" && (
+              <div>
+                <h2 className="mb-6 text-[20px] font-medium text-[#2f1f25]">
+                  Help & Support
+                </h2>
+
+                <div className="space-y-4">
+                  {supportCards.map((card) => (
+                    <Link
+                      key={card.title}
+                      href={card.href}
+                      target={card.external ? "_blank" : undefined}
+                      rel={card.external ? "noreferrer" : undefined}
+                      className="flex items-center justify-between rounded-[10px] border border-[#f0dde2] bg-[#fdf6f7] px-4 py-[14px]"
+                    >
+                      <div className="flex items-center gap-3">
+                        <card.icon
+                          size={18}
+                          className="text-[#7B2D42]"
+                          strokeWidth={1.8}
+                        />
+                        <div>
+                          <p className="text-sm font-medium text-[#2f1f25]">
+                            {card.title}
+                          </p>
+                          <p className="text-sm text-[#7f6b73]">
+                            {card.subtitle}
+                          </p>
+                        </div>
+                      </div>
+                      <ChevronRight
+                        size={16}
+                        className="text-[#8f6d78]"
+                        strokeWidth={1.8}
+                      />
+                    </Link>
+                  ))}
+                </div>
+              </div>
+            )}
+          </section>
         </div>
       </div>
     </div>

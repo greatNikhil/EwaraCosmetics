@@ -1,216 +1,200 @@
-# Ewara Cosmetics 💄
+# Ewara Cosmetics
 
-A premium e-commerce platform for cosmetics featuring a modern UI, secure payment processing, and comprehensive product management.
+A full-stack cosmetics e-commerce project built with a Next.js storefront and an Express + MongoDB backend.
 
-## 🌟 Features
+## Features
 
-- **User Authentication** - JWT-based secure authentication
-- **Product Catalog** - Browse beauty products by category
-- **Shopping Cart** - Persistent cart with Zustand state management
-- **Stripe Payments** - Secure payment processing with Stripe
-- **Order Tracking** - Real-time order status updates
-- **Admin Dashboard** - Manage products and orders
-- **Responsive Design** - Beautiful UI with Tailwind CSS
-- **API Integration** - RESTful backend with Express.js
+- Authentication with email/password, OTP registration/reset, and Google login
+- Product listing, product detail page, cart, wishlist, profile, and orders
+- Checkout with address selection, coupons, COD, and Razorpay flow
+- Admin dashboard for products, orders, coupons, users, and reviews
+- Express API with JWT auth, products, orders, addresses, coupons, and promo email routes
 
-## 🛠️ Tech Stack
+## Tech Stack
 
 ### Frontend
-- **Framework**: Next.js 14
-- **Language**: TypeScript
-- **Styling**: Tailwind CSS
-- **State Management**: Zustand
-- **Payments**: Stripe
-- **HTTP Client**: Axios
-- **UI Notifications**: React Hot Toast
+- Next.js 14
+- React 18
+- TypeScript
+- Tailwind CSS
+- Zustand
+- Axios
 
 ### Backend
-- **Runtime**: Node.js
-- **Framework**: Express.js
-- **Database**: MongoDB
-- **Authentication**: JWT (jsonwebtoken)
-- **Validation**: Express middleware
-- **Email**: Nodemailer
+- Node.js
+- Express
+- MongoDB + Mongoose
+- JWT
+- Nodemailer
 
-## 📦 Installation
+### Payments in the Codebase
+- Razorpay is the active checkout path in the UI
+- Stripe route handlers also exist, but they should only be used if you complete that flow
 
-### Prerequisites
-- Node.js 16+
-- npm or yarn
-- MongoDB running locally or MongoDB Atlas connection
+## Installation
 
-### Frontend Setup
-
+### Frontend
 ```bash
-cd 'c:\Ewara codes'
+cd "c:\Ewara codes"
 npm install
 npm run dev
 ```
 
-Visit `http://localhost:3000`
+Frontend runs on `http://localhost:3000`
 
-### Backend Setup
-
+### Backend
 ```bash
-cd 'c:\Ewara codes\backend'
+cd "c:\Ewara codes\backend"
 npm install
 npm run dev
 ```
 
-Server runs on `http://localhost:5000`
+Backend runs on `http://localhost:5000`
 
-## 🔑 Environment Variables
+## Environment Variables
 
-### Frontend (.env.local)
+### Frontend root: `.env.local`
+Used by the Next.js app and its `app/api/*` route handlers.
+
 ```env
 NEXT_PUBLIC_API_URL=http://localhost:5000
 NEXT_PUBLIC_APP_URL=http://localhost:3000
+NEXT_PUBLIC_GOOGLE_CLIENT_ID=your_google_client_id_here
+NEXT_PUBLIC_RAZORPAY_KEY_ID=rzp_test_your_key_id_here
 NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY=pk_test_xxx
+RAZORPAY_KEY_SECRET=your_razorpay_key_secret_here
+STRIPE_SECRET_KEY=sk_test_xxx
+STRIPE_WEBHOOK_SECRET=whsec_xxx
 ```
 
-### Backend (.env)
+### Backend: `backend/.env`
+Used by the Express server.
+
 ```env
 PORT=5000
 MONGO_URI=mongodb://127.0.0.1:27017/ewara
-JWT_SECRET=your_jwt_secret
+JWT_SECRET=replace_with_a_long_random_secret
 EMAIL_USER=your_email@gmail.com
 EMAIL_PASS=your_app_password
-STRIPE_SECRET_KEY=sk_test_xxx
-STRIPE_PUBLISHABLE_KEY=pk_test_xxx
+EMAIL_FROM=info@ewaraofficial.com
+BUSINESS_NAME=Ewara Cosmetics
+NEXT_PUBLIC_APP_URL=http://localhost:3000
+FRONTEND_URL=http://localhost:3000
+CORS_ORIGINS=http://localhost:3000
+RAZORPAY_KEY_SECRET=your_razorpay_key_secret_here
 NODE_ENV=development
 ```
 
-## 🚀 Getting Stripe Keys
+## Important Notes
 
-1. Go to https://dashboard.stripe.com/
-2. Sign up or login
-3. Navigate to Developers → API Keys
-4. Copy Publishable Key (pk_test_) and Secret Key (sk_test_)
-5. Add to your `.env` files
+- `NEXT_PUBLIC_API_URL` should point to your live backend API in production
+- `NEXT_PUBLIC_APP_URL` should match your frontend origin exactly
+- Backend `CORS_ORIGINS` should include your deployed frontend origin
+- Root `.env.local` and `backend/.env` are separate and both are required
 
-**⚠️ Important**: Use test keys for development, not live keys!
+## Payment Keys
 
-## 📁 Project Structure
+### Razorpay
+Required for the current checkout flow:
+- `NEXT_PUBLIC_RAZORPAY_KEY_ID`
+- `RAZORPAY_KEY_SECRET`
 
-```
-c:\Ewara codes/
-├── app/                 # Next.js app directory
-├── backend/             # Express backend
-├── components/          # React components
-├── store/              # Zustand stores
-├── lib/                # Utilities & API client
-├── utils/              # Helper functions
-├── public/             # Static assets
-└── package.json        # Frontend dependencies
-```
+### Google Login
+Required if Google login is enabled:
+- `NEXT_PUBLIC_GOOGLE_CLIENT_ID`
 
-## 📚 Available Scripts
+### Stripe
+Only needed if you plan to use the existing Stripe route handlers:
+- `NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY`
+- `STRIPE_SECRET_KEY`
+- `STRIPE_WEBHOOK_SECRET`
+
+## Deployment Notes
+
+### Frontend
+- The Next.js app is configured for Vercel via [vercel.json](vercel.json)
+- Vercel env vars should include:
+  - `NEXT_PUBLIC_API_URL`
+  - `NEXT_PUBLIC_APP_URL`
+  - `NEXT_PUBLIC_GOOGLE_CLIENT_ID`
+  - `NEXT_PUBLIC_RAZORPAY_KEY_ID`
+  - `NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY`
+  - `RAZORPAY_KEY_SECRET`
+  - `STRIPE_SECRET_KEY`
+  - `STRIPE_WEBHOOK_SECRET`
+
+### Backend
+- Deploy the Express app separately
+- Required backend env vars:
+  - `MONGO_URI`
+  - `JWT_SECRET`
+  - `EMAIL_USER`
+  - `EMAIL_PASS`
+  - `NEXT_PUBLIC_APP_URL`
+  - `FRONTEND_URL` or `CORS_ORIGINS`
+  - `RAZORPAY_KEY_SECRET`
+
+## Available Scripts
 
 ### Frontend
 ```bash
-npm run dev        # Start development server
-npm run build      # Build for production
-npm run start      # Start production server
-npm run lint       # Run ESLint
-npm run lint:fix   # Fix linting issues
-npm run format     # Format code with Prettier
-npm run type-check # Check TypeScript types
-npm run test       # Run tests with Vitest
-npm run test:ui    # Run tests with UI
+npm run dev
+npm run build
+npm run start
+npm run lint
+npm run lint:fix
+npm run format
+npm run type-check
+npm run test
+npm run test:ui
 ```
 
 ### Backend
 ```bash
-npm run dev        # Start dev server with hot reload
-npm run build      # Build TypeScript
-npm run start      # Run production build
+npm run dev
+npm run build
+npm run start
+npm run test
 ```
 
-## 🧪 Testing the Flow
+## Quick Smoke Test
 
-1. **Register**: Create account at `/register`
-2. **Browse**: View products at `/shop`
-3. **Cart**: Add items to cart (persists to localStorage)
-4. **Checkout**: Complete Stripe test payment
-5. **Confirmation**: View order at `/orders`
+1. Register at `/register`
+2. Login at `/login`
+3. Browse products at `/shop`
+4. Open a product detail page
+5. Add products to cart
+6. Open checkout and place a COD or Razorpay order
+7. Confirm the order appears in `/orders`
+8. Confirm admin pages load with an admin account
 
-## 🔐 Security
+## Security Notes
 
-- ✅ CORS protection configured
-- ✅ JWT authentication
-- ✅ Security headers enabled
-- ✅ Input validation
-- ✅ Environment variables hidden
+- JWT authentication is implemented
+- Backend CORS now supports an allowlist configuration
+- Basic security response headers are enabled on the backend
+- Sensitive auth routes use rate limiting
+- Admin APIs are protected on the backend
 
-## 📝 API Documentation
+## Troubleshooting
 
-See [API_DOCS.md](API_DOCS.md) for complete API reference including:
-- Authentication endpoints
-- Product endpoints
-- Order endpoints
-- Stripe webhook handling
+### CORS or Login Issues
+- check `NEXT_PUBLIC_APP_URL`
+- check backend `CORS_ORIGINS`
+- check `NEXT_PUBLIC_API_URL`
 
-## 🐛 Troubleshooting
+### MongoDB Connection Issues
+- verify `MONGO_URI`
+- ensure MongoDB is running or Atlas network access is configured
 
-### Port Already in Use
-```powershell
-netstat -ano | findstr :3000
-taskkill /PID <PID> /F
-```
+### Payment Key Issues
+- verify the correct Razorpay/Stripe keys are set in the correct env file
+- restart the app after changing env files
 
-### MongoDB Connection Failed
-Ensure MongoDB is running:
-```bash
-# Local MongoDB
-mongod
+## API Documentation
 
-# Or use MongoDB Atlas connection string in .env
-```
+See [API_DOCS.md](API_DOCS.md) for the backend API reference.
 
-### Stripe Test Mode
-Always use `pk_test_` and `sk_test_` keys for development!
+## License
 
-## 📊 Project Completion Status
-
-Current: **~60% Complete**
-
-✅ Completed:
-- Git repository
-- Frontend & backend structure
-- Database models
-- API endpoints
-- Authentication system
-- Stripe checkout integration
-- State management (Zustand)
-- Security headers
-- npm scripts
-
-⏳ In Progress:
-- Frontend Stripe UI components
-- Order tracking features
-- Admin dashboard refinements
-
-## 🤝 Contributing
-
-1. Create a feature branch
-2. Make your changes
-3. Test thoroughly
-4. Commit with clear messages
-5. Push and create a pull request
-
-## 📞 Support
-
-For issues or questions:
-1. Check API_DOCS.md
-2. Review error messages in console
-3. Check environment variables
-4. Verify MongoDB connection
-
-## 📄 License
-
-Private - Ewara Cosmetics
-
----
-
-**Happy coding! 🚀**
-
+Private project for Ewara Cosmetics.

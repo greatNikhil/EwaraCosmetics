@@ -2,16 +2,35 @@
 
 import { useState, useEffect } from "react";
 import axios from "axios";
-import { ArrowLeft, ChevronDown, ChevronUp, X, Check, Truck, CreditCard, Lock } from "lucide-react";
+import {
+  ArrowLeft,
+  ChevronRight,
+  X,
+  Check,
+  Truck,
+  CreditCard,
+  Receipt,
+} from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useCartStore } from "@/store/cartStore";
 import { useAuthStore } from "@/store/authStore";
+import { buildApiUrl } from "@/utils/api";
+import { removeUnavailableCartItems } from "@/utils/cart";
 import AddressSelectorModal from "./checkout/AddressSelectorModal";
 
 interface CheckoutModalProps {
   isOpen: boolean;
   onClose: () => void;
 }
+
+type PaymentOption = {
+  id: string;
+  name: string;
+  icon: string;
+  description: string;
+  gatewayLabel?: string;
+  online?: boolean;
+};
 
 declare global {
   interface Window {
@@ -25,33 +44,213 @@ export default function CheckoutModal({
 }: CheckoutModalProps) {
   const router = useRouter();
   const { items: cartItems, getTotalPrice, clearCart } = useCartStore();
-  const { user, token } = useAuthStore();
+  const { user, token, addresses: savedAddresses, setAddresses } = useAuthStore();
 
   const [showExitConfirm, setShowExitConfirm] = useState(false);
   const [showAddressSelector, setShowAddressSelector] = useState(false);
   const [couponCode, setCouponCode] = useState("");
-  const [selectedPayment, setSelectedPayment] = useState("razorpay");
-  const [expandedPayment, setExpandedPayment] = useState("razorpay");
+  const [selectedPayment, setSelectedPayment] = useState("online");
+  const [expandedPayment, setExpandedPayment] = useState("online");
   const [isProcessing, setIsProcessing] = useState(false);
   const [appliedCoupon, setAppliedCoupon] = useState<any>(null);
   const [userAddress, setUserAddress] = useState<any>(null);
 
-  const coupons = [
-    { code: "EWARA10", type: "percent", value: 10 },
-    { code: "FLAT50", type: "flat", value: 50 },
+  useEffect(() => {
+    const fallbackAddress =
+      savedAddresses.find((address) => address.default) || savedAddresses[0] || null;
+
+    if (fallbackAddress) {
+      setUserAddress((currentAddress: any) => currentAddress || fallbackAddress);
+    }
+  }, [savedAddresses]);
+
+  const normalizedOrderItems = cartItems.map((item) => ({
+    productId: item.id,
+    name: item.name,
+    price: item.price,
+    quantity: item.quantity,
+    image: item.image,
+  }));
+
+  const normalizedShippingAddress = userAddress
+    ? {
+        fullName: [userAddress.name, userAddress.lastname]
+          .filter(Boolean)
+          .join(" ")
+          .trim(),
+        phoneNumber: userAddress.phone,
+        addressLine1: userAddress.address,
+        addressLine2: userAddress.flat || "",
+        city: userAddress.city,
+        state: userAddress.state,
+        postalCode: userAddress.pincode,
+        country: "India",
+      }
+    : null;
+
+  const subtotal = getTotalPrice();
+
+  const paymentOptions: PaymentOption[] = [
+    {
+      id: "online",
+      name: "All Online Methods",
+      icon: "RP",
+      description: "Cards, UPI, wallets, net banking, EMI and pay later",
+      gatewayLabel: "Razorpay",
+      online: true,
+    },
+    {
+      id: "card",
+      name: "Credit / Debit Card",
+      icon: "CC",
+      description: "Visa, Mastercard, RuPay and supported card offers",
+      gatewayLabel: "Razorpay - Card",
+      online: true,
+    },
+    {
+      id: "upi",
+      name: "UPI",
+      icon: "UPI",
+      description: "Google Pay, PhonePe, Paytm and supported UPI apps",
+      gatewayLabel: "Razorpay - UPI",
+      online: true,
+    },
+    {
+      id: "wallet",
+      name: "Wallets",
+      icon: "WLT",
+      description: "Supported wallets enabled on your Razorpay account",
+      gatewayLabel: "Razorpay - Wallet",
+      online: true,
+    },
+    {
+      id: "netbanking",
+      name: "Net Banking",
+      icon: "NB",
+      description: "Popular Indian banks through Razorpay checkout",
+      gatewayLabel: "Razorpay - Net Banking",
+      online: true,
+    },
+    {
+      id: "emi",
+      name: "EMI",
+      icon: "EMI",
+      description: "Eligible card EMI plans enabled in Razorpay",
+      gatewayLabel: "Razorpay - EMI",
+      online: true,
+    },
+    {
+      id: "paylater",
+      name: "Pay Later",
+      icon: "PL",
+      description: "Eligible pay later partners enabled for your account",
+      gatewayLabel: "Razorpay - Pay Later",
+      online: true,
+    },
+    {
+      id: "cod",
+      name: "Cash on Delivery",
+      icon: "COD",
+      description: "Pay on delivery with Rs. 50 COD charges",
+    },
   ];
 
-  const handleApplyCoupon = () => {
-    const found = coupons.find(
-      (c) => c.code.toLowerCase() === couponCode.toLowerCase()
-    );
+  const getPaymentOptionById = (paymentId: string) =>
+    paymentOptions.find((option) => option.id === paymentId);
 
-    if (!found) {
-      alert("Invalid coupon");
+  const getRazorpayConfig = (paymentId: string) => {
+    const paymentBlocks: Record<
+      string,
+      { blockCode: string; blockName: string; method: string }
+    > = {
+      card: {
+        blockCode: "cards_only",
+        blockName: "Pay via Card",
+        method: "card",
+      },
+      upi: {
+        blockCode: "upi_only",
+        blockName: "Pay via UPI",
+        method: "upi",
+      },
+      wallet: {
+        blockCode: "wallet_only",
+        blockName: "Pay via Wallet",
+        method: "wallet",
+      },
+      netbanking: {
+        blockCode: "netbanking_only",
+        blockName: "Pay via Net Banking",
+        method: "netbanking",
+      },
+      emi: {
+        blockCode: "emi_only",
+        blockName: "Pay via EMI",
+        method: "emi",
+      },
+      paylater: {
+        blockCode: "paylater_only",
+        blockName: "Pay via Pay Later",
+        method: "paylater",
+      },
+    };
+
+    const selectedBlock = paymentBlocks[paymentId];
+
+    if (!selectedBlock) {
+      return undefined;
+    }
+
+    return {
+      display: {
+        blocks: {
+          [selectedBlock.blockCode]: {
+            name: selectedBlock.blockName,
+            instruments: [
+              {
+                method: selectedBlock.method,
+              },
+            ],
+          },
+        },
+        sequence: [`block.${selectedBlock.blockCode}`],
+        preferences: {
+          show_default_blocks: false,
+        },
+      },
+    };
+  };
+
+  const handleApplyCoupon = async () => {
+    if (!couponCode.trim()) {
+      alert("Enter a coupon code");
       return;
     }
 
-    setAppliedCoupon(found);
+    try {
+      const res = await fetch(buildApiUrl("/api/coupons/validate"), {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          code: couponCode.trim(),
+          subtotal,
+        }),
+      });
+
+      const data = await res.json();
+
+      if (!res.ok || !data.success || !data.coupon) {
+        alert(data.message || "Invalid coupon");
+        return;
+      }
+
+      setAppliedCoupon(data.coupon);
+    } catch (error) {
+      console.error("COUPON APPLY ERROR:", error);
+      alert("Failed to validate coupon");
+    }
   };
 
   useEffect(() => {
@@ -65,19 +264,26 @@ export default function CheckoutModal({
       }
 
       try {
-        const userKey = user?.email || user?.phone;
-        if (userKey) {
-          const addresses = localStorage.getItem(`addresses_${userKey}`);
-          if (addresses) {
-            const parsedAddresses = JSON.parse(addresses);
-            const defaultAddress = parsedAddresses.find(
-              (addr: any) => addr.default
-            );
-            if (defaultAddress) {
-              setUserAddress(defaultAddress);
-            }
-          }
+        const res = await fetch(buildApiUrl("/api/addresses"), {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        });
+
+        const data = await res.json();
+
+        if (!res.ok || !data.success) {
+          return;
         }
+
+        const nextAddresses = data.addresses || [];
+        setAddresses(nextAddresses);
+        const defaultAddress =
+          nextAddresses.find((addr: any) => addr.default) ||
+          nextAddresses[0] ||
+          null;
+
+        setUserAddress(defaultAddress);
       } catch (error) {
         console.error("CHECKOUT DATA ERROR:", error);
       }
@@ -87,7 +293,6 @@ export default function CheckoutModal({
   }, [isOpen, router, token, user]);
 
   useEffect(() => {
-    // Load Razorpay script
     if (!window.Razorpay) {
       const script = document.createElement("script");
       script.src = "https://checkout.razorpay.com/v1/checkout.js";
@@ -115,7 +320,7 @@ export default function CheckoutModal({
       return;
     }
 
-    if (!userAddress) {
+    if (!normalizedShippingAddress) {
       alert("Please select a delivery address");
       return;
     }
@@ -123,50 +328,55 @@ export default function CheckoutModal({
     setIsProcessing(true);
 
     try {
-      const total = getTotalPrice();
+      const selectedPaymentOption = getPaymentOptionById(selectedPayment);
+      const checkoutConfig = getRazorpayConfig(selectedPayment);
+      const onlinePaymentLabel =
+        selectedPaymentOption?.gatewayLabel || "Razorpay";
 
-      // Create Razorpay order
-      const response = await axios.post(
-        `${process.env.NEXT_PUBLIC_API_URL}/api/checkout/razorpay`,
-        {
-          items: cartItems,
-          customerEmail: user?.email,
-          customerPhone: user?.phone,
-          total: total,
-          shippingAddress: userAddress,
-        }
-      );
+      const response = await axios.post("/api/checkout/razorpay", {
+        items: normalizedOrderItems,
+        customerEmail: user?.email,
+        customerPhone: user?.phone,
+        totalAmount: total,
+        shippingAddress: normalizedShippingAddress,
+      });
 
-      const { orderId, amount, key_id } = response.data;
+      const checkoutData = response.data?.data;
+
+      if (!response.data?.success || !checkoutData) {
+        alert(response.data?.message || "Failed to create Razorpay order");
+        setIsProcessing(false);
+        return;
+      }
+
+      const { orderId, amount, key_id } = checkoutData;
 
       if (!window.Razorpay) {
         alert("Razorpay is not loaded. Please refresh and try again.");
         return;
       }
 
-      // Open Razorpay checkout
       const options = {
         key: key_id,
-        amount: amount, // in paise
-        currency: 'INR',
-        name: 'Ewara Cosmetics',
-        description: `Order with ${cartItems.length} items`,
+        amount,
+        currency: "INR",
+        name: "Ewara Cosmetics",
+        description: `${onlinePaymentLabel} payment for ${cartItems.length} item${cartItems.length > 1 ? "s" : ""}`,
         order_id: orderId,
-        handler: async function (response: any) {
-          console.log('✅ Payment successful:', response);
-
-          // Verify payment on backend
+        config: checkoutConfig,
+        handler: async (response: any) => {
           try {
             const orderRes = await axios.post(
-              `${process.env.NEXT_PUBLIC_API_URL}/api/orders`,
+              buildApiUrl("/api/orders"),
               {
                 razorpayPaymentId: response.razorpay_payment_id,
                 razorpayOrderId: response.razorpay_order_id,
                 razorpaySignature: response.razorpay_signature,
-                items: cartItems,
-                shippingAddress: userAddress,
-                total: total,
-                paymentMethod: "Razorpay",
+                items: normalizedOrderItems,
+                shippingAddress: normalizedShippingAddress,
+                totalAmount: total,
+                paymentMethod: onlinePaymentLabel,
+                couponCode: appliedCoupon?.code || undefined,
               },
               {
                 headers: {
@@ -179,92 +389,73 @@ export default function CheckoutModal({
             clearCart();
             setIsProcessing(false);
             onClose();
-            alert("✅ Payment successful! Order created.");
+            alert("Payment successful! Order created.");
             router.push(`/order-success/${mongoOrderId}`);
           } catch (error: any) {
-            console.error('Order creation error:', error);
-            alert('Payment verified but order creation failed. Please contact support.');
+            console.error("Order creation error:", error);
+            alert("Payment verified but order creation failed. Please contact support.");
             setIsProcessing(false);
           }
         },
         prefill: {
-          name: user?.name || '',
-          email: user?.email || '',
-          contact: user?.phone || '',
+          name: user?.name || "",
+          email: user?.email || "",
+          contact: user?.phone || "",
         },
         theme: {
-          color: '#7a1f2b',
+          color: "#7a1f2b",
         },
         modal: {
-          ondismiss: function () {
-            console.log('Payment modal closed');
+          ondismiss: () => {
             setIsProcessing(false);
           },
         },
       };
 
       const rzp = new window.Razorpay(options);
-      rzp.on('payment.failed', function (response: any) {
-        console.error('Payment failed:', response.error);
-        alert('❌ Payment failed: ' + response.error.description);
+      rzp.on("payment.failed", async (response: any) => {
+        console.error("Payment failed:", response.error);
+        try {
+          await axios.post(
+            buildApiUrl("/api/orders/payment-failure"),
+            {
+              amount: total,
+              reason:
+                response.error?.description ||
+                "Payment gateway reported a failure",
+              razorpayOrderId: response.error?.metadata?.order_id,
+            },
+            {
+              headers: {
+                Authorization: `Bearer ${token}`,
+              },
+            }
+          );
+        } catch (notifyError) {
+          console.error("PAYMENT FAILURE NOTIFY ERROR:", notifyError);
+        }
+        alert(`Payment failed: ${response.error.description}`);
         setIsProcessing(false);
       });
       rzp.open();
     } catch (error: any) {
-      console.error('Razorpay checkout error:', error);
-      alert(error.response?.data?.error || 'Checkout failed');
+      console.error("Razorpay checkout error:", error);
+      alert(error.response?.data?.message || "Checkout failed");
     } finally {
       setIsProcessing(false);
     }
   };
 
-  const paymentOptions = [
-    {
-      id: "razorpay",
-      name: "Razorpay - All Methods",
-      icon: "💳",
-      description: "Cards, UPI, Wallets, NetBanking",
-    },
-    {
-      id: "card",
-      name: "Credit/Debit Card",
-      icon: "💳",
-      description: "Visa, Mastercard, RuPay",
-    },
-    {
-      id: "upi",
-      name: "UPI",
-      icon: "📲",
-      description: "Google Pay, PhonePe, PayTM",
-    },
-    {
-      id: "netbanking",
-      name: "Net Banking",
-      icon: "🏦",
-      description: "All major banks",
-    },
-    {
-      id: "cod",
-      name: "Cash on Delivery",
-      icon: "💵",
-      description: "₹50 COD charges",
-    },
-  ];
-
-  const subtotal = getTotalPrice();
   let discount = 0;
 
   if (appliedCoupon) {
-    if (appliedCoupon.type === "percent") {
-      discount = Math.round((subtotal * appliedCoupon.value) / 100);
-    } else {
-      discount = appliedCoupon.value;
-    }
+    discount = appliedCoupon.discountAmount || 0;
   }
 
   const shipping = selectedPayment === "cod" ? 50 : 0;
   const gst = Math.round((subtotal - discount) * 0.18);
   const total = subtotal - discount + gst + shipping;
+  const selectedPaymentOption = getPaymentOptionById(selectedPayment);
 
   const handlePlaceOrder = async () => {
     if (!user) {
@@ -273,7 +464,7 @@ export default function CheckoutModal({
       return;
     }
 
-    if (!userAddress) {
+    if (!normalizedShippingAddress) {
       alert("Please add/select an address first");
       return;
     }
@@ -283,26 +474,30 @@ export default function CheckoutModal({
       return;
     }
 
-    // If Razorpay is selected, use Razorpay checkout
-    if (selectedPayment === "razorpay") {
+    const removedCount = await removeUnavailableCartItems();
+    if (removedCount > 0) {
+      alert("Some unavailable products were removed from your cart. Please review your cart and try again.");
+      return;
+    }
+
+    if (selectedPaymentOption?.online) {
       handleRazorpayCheckout();
       return;
     }
 
-    // For other payment methods (COD, etc)
     setIsProcessing(true);
 
     try {
-      const paymentMethod =
-        paymentOptions.find((p) => p.id === selectedPayment)?.name || "COD";
+      const paymentMethod = selectedPaymentOption?.name || "COD";
 
       const res = await axios.post(
-        `${process.env.NEXT_PUBLIC_API_URL}/api/orders`,
+        buildApiUrl("/api/orders"),
         {
-          items: cartItems,
-          totalAmount: getTotalPrice(),
+          items: normalizedOrderItems,
+          totalAmount: total,
           paymentMethod,
-          shippingAddress: userAddress,
+          shippingAddress: normalizedShippingAddress,
+          couponCode: appliedCoupon?.code || undefined,
         },
         {
           headers: {
@@ -316,7 +511,7 @@ export default function CheckoutModal({
         clearCart();
         setIsProcessing(false);
         onClose();
-        alert("Order placed successfully ✅");
+        alert("Order placed successfully.");
         router.push(`/order-success/${orderId}`);
       }
     } catch (error: any) {
@@ -333,249 +528,315 @@ export default function CheckoutModal({
   return (
     <>
       <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/60 p-4 backdrop-blur-sm sm:items-center">
-        <div className="max-h-[90vh] w-full max-w-2xl animate-slideUp overflow-hidden rounded-t-3xl bg-white shadow-2xl sm:rounded-3xl">
-          {/* Header */}
-          <div className="sticky top-0 z-10 flex items-center justify-between border-b border-[#ead2d8] bg-white px-6 py-4">
-            <button
-              onClick={handleClose}
-              className="p-2 -ml-2 hover:bg-[#f7e7ea] rounded-lg transition-colors duration-200"
-            >
-              <ArrowLeft size={20} className="text-[#4a2c2a]" />
-            </button>
-            <h1 className="text-lg font-bold text-[#4a2c2a]">Order Checkout</h1>
-            <button
-              onClick={handleClose}
-              className="p-2 hover:bg-[#f7e7ea] rounded-lg transition-colors duration-200"
-            >
-              <X size={20} className="text-[#4a2c2a]" />
-            </button>
+        <div className="max-h-[90vh] w-full max-w-2xl animate-slideUp overflow-hidden rounded-t-[14px] border border-[var(--blush-border)] bg-[var(--blush-bg)] sm:rounded-[14px]">
+          <div className="sticky top-0 z-10 border-b border-[var(--blush-border)] bg-[var(--blush-bg)] px-[15px] py-3">
+            <div className="flex items-center justify-between">
+              <button
+                onClick={handleClose}
+                className="-ml-1 flex h-6 w-6 items-center justify-center text-[var(--blush-brand)] transition-colors duration-200"
+              >
+                <ArrowLeft size={18} />
+              </button>
+              <h1 className="text-[14px] font-medium text-[var(--blush-dark)]">
+                Order checkout
+              </h1>
+              <button
+                onClick={handleClose}
+                className="flex h-[22px] w-[22px] items-center justify-center rounded-full bg-[var(--blush-light)] text-[11px] text-[var(--blush-muted)] transition-colors duration-200"
+              >
+                <X size={12} />
+              </button>
+            </div>
           </div>
 
-          <div className="no-scrollbar max-h-[calc(90vh-140px)] overflow-y-auto">
-            {/* Order Items Summary */}
-            <div className="border-b border-[#ead2d8] bg-[#fdf8f6] px-6 py-5">
-              <h2 className="text-sm font-bold text-[#4a2c2a] uppercase tracking-wide mb-3">
-                Order Summary
-              </h2>
-              <div className="space-y-3">
-                <div className="flex justify-between items-center">
-                  <span className="text-sm text-[#6b7280]">Subtotal ({cartItems.length} items)</span>
-                  <span className="font-semibold text-[#4a2c2a]">₹{subtotal}</span>
-                </div>
-                {appliedCoupon && (
-                  <div className="flex justify-between items-center text-green-600">
-                    <span className="text-sm">Discount ({appliedCoupon.code})</span>
-                    <span className="font-semibold">-₹{discount}</span>
-                  </div>
-                )}
-                <div className="flex justify-between items-center">
-                  <span className="text-sm text-[#6b7280]">GST (18%)</span>
-                  <span className="font-semibold text-[#4a2c2a]">₹{gst}</span>
-                </div>
-                {shipping > 0 && (
-                  <div className="flex justify-between items-center">
-                    <span className="text-sm text-[#6b7280]">COD Charges</span>
-                    <span className="font-semibold text-[#4a2c2a]">₹{shipping}</span>
-                  </div>
-                )}
-                <div className="border-t border-[#ead2d8] pt-3 flex justify-between items-center">
-                  <span className="font-bold text-[#4a2c2a]">Total Amount</span>
-                  <span className="text-2xl font-bold text-[#7a1f2b]">₹{total}</span>
-                </div>
+          <div className="border-b border-[var(--blush-border)] bg-[var(--blush-bg)] px-[15px] py-[10px]">
+            <div className="flex items-center">
+              <div className="flex items-center gap-1.5">
+                <span className="flex h-5 w-5 items-center justify-center rounded-full bg-[var(--blush-brand)] text-[9px] font-medium text-white">
+                  1
+                </span>
+                <span className="text-[10px] font-medium text-[var(--blush-brand)]">
+                  Summary
+                </span>
+              </div>
+              <div className="mx-1 h-px flex-1 bg-[var(--blush-border)]" />
+              <div className="flex items-center gap-1.5">
+                <span className="flex h-5 w-5 items-center justify-center rounded-full bg-[var(--blush-brand)] text-[9px] font-medium text-white">
+                  2
+                </span>
+                <span className="text-[10px] font-medium text-[var(--blush-brand)]">
+                  Address
+                </span>
+              </div>
+              <div className="mx-1 h-px flex-1 bg-[var(--blush-border)]" />
+              <div className="flex items-center gap-1.5">
+                <span className="flex h-5 w-5 items-center justify-center rounded-full bg-[var(--blush-brand)] text-[9px] font-medium text-white">
+                  3
+                </span>
+                <span className="text-[10px] font-medium text-[var(--blush-brand)]">
+                  Payment
+                </span>
               </div>
             </div>
+          </div>
 
-            {/* Coupon Section */}
-            <div className="border-b border-[#ead2d8] px-6 py-5">
-              <h3 className="text-sm font-bold text-[#4a2c2a] uppercase tracking-wide mb-3">
-                Apply Coupon
-              </h3>
-              <div className="flex gap-2">
-                <input
-                  type="text"
-                  placeholder="Enter coupon code"
-                  value={couponCode}
-                  onChange={(e) => setCouponCode(e.target.value.toUpperCase())}
-                  className="flex-1 rounded-lg border border-[#ead2d8] px-4 py-3 text-sm text-[#4a2c2a] placeholder-[#b5a9a4] focus:border-[#7a1f2b] focus:ring-2 focus:ring-[#7a1f2b]/10 outline-none transition-all duration-200"
-                />
-                <button
-                  className="px-6 py-3 bg-gradient-to-r from-[#7a1f2b] to-[#5c1721] text-white font-semibold rounded-lg hover:shadow-lg transition-all duration-200 hover:scale-105 active:scale-95"
-                  onClick={handleApplyCoupon}
-                >
-                  Apply
-                </button>
-              </div>
-              <p className="text-xs text-[#6b7280] mt-2">Try: EWARA10 (10% off) or FLAT50 (₹50 off)</p>
-            </div>
-
-            {/* Delivery Address */}
-            <div className="border-b border-[#ead2d8] px-6 py-5">
-              <div className="flex items-center justify-between mb-4">
-                <div className="flex items-center gap-2">
-                  <Truck className="h-5 w-5 text-[#7a1f2b]" />
-                  <h3 className="text-sm font-bold text-[#4a2c2a] uppercase tracking-wide">
-                    Delivery Address
-                  </h3>
+          <div
+            className="checkout-scroll-area no-scrollbar max-h-[calc(90vh-140px)] overflow-y-auto"
+            style={{
+              msOverflowStyle: "none",
+              scrollbarWidth: "none",
+            }}
+          >
+            <div className="space-y-5 bg-[var(--blush-bg)] px-[15px] py-4">
+              <section>
+                <div className="mb-3 flex items-center gap-2">
+                  <Receipt className="h-4 w-4 text-[var(--blush-brand)]" />
+                  <h2 className="text-[11px] font-medium uppercase tracking-[0.05em] text-[var(--blush-brand)]">
+                    Order Summary
+                  </h2>
                 </div>
-                <button
-                  onClick={() => setShowAddressSelector(true)}
-                  className="text-sm font-semibold text-[#7a1f2b] hover:text-[#5c1721] transition-colors duration-200"
-                >
-                  Change
-                </button>
-              </div>
-
-              {userAddress ? (
-                <div className="bg-[#fdf8f6] rounded-lg p-4 border border-[#ead2d8]">
-                  <p className="font-semibold text-[#4a2c2a] mb-1">{userAddress.name}</p>
-                  <p className="text-sm text-[#6b7280] mb-2">{userAddress.address}</p>
-                  <p className="text-sm text-[#6b7280] mb-2">
-                    {userAddress.city}, {userAddress.state} - {userAddress.pincode}
-                  </p>
-                  <p className="text-sm text-[#6b7280]">{userAddress.phone}</p>
-                </div>
-              ) : (
-                <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
-                  <p className="text-sm text-yellow-700">⚠️ No address added. Please select a delivery address.</p>
-                </div>
-              )}
-
-              {/* Delivery Timeline */}
-              <div className="mt-4 bg-green-50 border border-green-200 rounded-lg p-4 flex items-start gap-3">
-                <Check className="h-5 w-5 text-green-600 flex-shrink-0 mt-0.5" />
-                <div>
-                  <p className="font-semibold text-green-900 text-sm">Express Delivery</p>
-                  <p className="text-xs text-green-700 mt-1">
-                    Estimated delivery by {new Date(Date.now() + 3 * 24 * 60 * 60 * 1000).toLocaleDateString("en-IN", { weekday: "short", month: "short", day: "numeric" })}
-                  </p>
-                </div>
-              </div>
-            </div>
-
-            {/* Payment Method */}
-            <div className="px-6 py-5">
-              <div className="flex items-center gap-2 mb-4">
-                <CreditCard className="h-5 w-5 text-[#7a1f2b]" />
-                <h3 className="text-sm font-bold text-[#4a2c2a] uppercase tracking-wide">
-                  Payment Method
-                </h3>
-              </div>
-
-              <div className="space-y-2">
-                {paymentOptions.map((option) => (
-                  <div key={option.id} className="border border-[#ead2d8] rounded-lg overflow-hidden">
-                    <button
-                      onClick={() => {
-                        setSelectedPayment(option.id);
-                        setExpandedPayment(expandedPayment === option.id ? "" : option.id);
-                      }}
-                      className={`w-full px-4 py-3 flex items-center justify-between transition-all duration-200 ${
-                        selectedPayment === option.id
-                          ? "bg-[#f7e7ea] border-[#7a1f2b]"
-                          : "hover:bg-[#fdf8f6]"
-                      }`}
-                    >
-                      <div className="flex items-center gap-3">
-                        <div className={`flex h-8 w-8 items-center justify-center rounded-full text-lg transition-all duration-200 ${
-                          selectedPayment === option.id ? "bg-[#7a1f2b] text-white" : "bg-[#f7e7ea]"
-                        }`}>
-                          {option.icon}
-                        </div>
-                        <div className="text-left">
-                          <p className="font-semibold text-[#4a2c2a]">{option.name}</p>
-                          <p className="text-xs text-[#6b7280]">{option.description}</p>
-                        </div>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        {selectedPayment === option.id && (
-                          <div className="flex h-5 w-5 items-center justify-center rounded-full bg-[#7a1f2b]">
-                            <Check size={12} className="text-white" />
-                          </div>
-                        )}
-                        {expandedPayment === option.id ? (
-                          <ChevronUp size={18} className="text-[#6b7280]" />
-                        ) : (
-                          <ChevronDown size={18} className="text-[#6b7280]" />
-                        )}
-                      </div>
-                    </button>
-
-                    {expandedPayment === option.id && (
-                      <div className="border-t border-[#ead2d8] bg-[#fdf8f6] px-4 py-4">
-                        {option.id === "upi" && (
-                          <div className="text-center">
-                            <div className="mx-auto mb-4 flex h-32 w-32 items-center justify-center rounded-lg bg-gray-200">
-                              <span className="text-sm text-gray-500">QR Code Placeholder</span>
-                            </div>
-                            <button className="rounded-lg bg-[#7a1f2b] px-6 py-2 text-sm font-medium text-white hover:bg-[#5c1721] transition-colors duration-200">
-                              Show QR Code
-                            </button>
-                          </div>
-                        )}
-
-                        {option.id === "card" && (
-                          <div className="space-y-3">
-                            <input
-                              type="text"
-                              placeholder="Card number"
-                              className="w-full rounded-lg border border-[#ead2d8] px-4 py-2.5 text-sm focus:border-[#7a1f2b] focus:ring-2 focus:ring-[#7a1f2b]/10 outline-none"
-                            />
-                            <div className="grid grid-cols-2 gap-3">
-                              <input
-                                type="text"
-                                placeholder="MM/YY"
-                                className="rounded-lg border border-[#ead2d8] px-4 py-2.5 text-sm focus:border-[#7a1f2b] focus:ring-2 focus:ring-[#7a1f2b]/10 outline-none"
-                              />
-                              <input
-                                type="text"
-                                placeholder="CVV"
-                                className="rounded-lg border border-[#ead2d8] px-4 py-2.5 text-sm focus:border-[#7a1f2b] focus:ring-2 focus:ring-[#7a1f2b]/10 outline-none"
-                              />
-                            </div>
-                          </div>
-                        )}
-
-                        {option.id === "cod" && (
-                          <div className="py-2 text-center">
-                            <p className="text-sm text-[#6b7280]">
-                              Pay ₹{total} in cash when your order is delivered
-                            </p>
-                          </div>
-                        )}
-
-                        {option.id !== "upi" && option.id !== "card" && option.id !== "cod" && (
-                          <div className="py-4 text-center">
-                            <p className="text-sm text-[#6b7280]">
-                              {option.name} payment option will be available at checkout
-                            </p>
-                          </div>
-                        )}
+                <div className="mb-3 rounded-[10px] border border-[var(--blush-border)] bg-white px-3 py-[10px]">
+                  <div className="space-y-3">
+                    <div className="flex items-center justify-between">
+                      <span className="text-[11px] font-normal text-[var(--blush-muted)]">
+                        Subtotal ({cartItems.length} items)
+                      </span>
+                      <span className="text-[11px] font-normal text-[var(--blush-dark)]">
+                        Rs. {subtotal}
+                      </span>
+                    </div>
+                    {appliedCoupon && (
+                      <div className="flex items-center justify-between">
+                        <span className="text-[11px] font-normal text-[var(--green-text)]">
+                          Discount ({appliedCoupon.code})
+                        </span>
+                        <span className="text-[11px] font-normal text-[var(--green-text)]">
+                          -Rs. {discount}
+                        </span>
                       </div>
                     )}
+                    <div className="flex items-center justify-between">
+                      <span className="text-[11px] font-normal text-[var(--blush-muted)]">
+                        GST (18%)
+                      </span>
+                      <span className="text-[11px] font-normal text-[var(--blush-dark)]">
+                        Rs. {gst}
+                      </span>
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <span className="text-[11px] font-normal text-[var(--blush-muted)]">
+                        Shipping
+                      </span>
+                      {shipping > 0 ? (
+                        <span className="text-[11px] font-normal text-[var(--blush-dark)]">
+                          Rs. {shipping}
+                        </span>
+                      ) : (
+                        <span className="rounded-[4px] bg-[var(--green-bg)] px-[7px] py-[2px] text-[10px] font-medium text-[var(--green-text)]">
+                          Free
+                        </span>
+                      )}
+                    </div>
+                    <div className="border-t border-[var(--blush-border)] pt-2">
+                      <div className="flex items-center justify-between">
+                        <span className="text-[13px] font-medium text-[var(--blush-dark)]">
+                          Total Amount
+                        </span>
+                        <span className="text-[16px] font-medium text-[var(--blush-brand)]">
+                          Rs. {total}
+                        </span>
+                      </div>
+                    </div>
                   </div>
-                ))}
-              </div>
+                </div>
+              </section>
+
+              <section>
+                <h3 className="mb-[9px] text-[11px] font-medium uppercase tracking-[0.05em] text-[var(--blush-brand)]">
+                  Apply Coupon
+                </h3>
+                <div className="flex gap-[6px]">
+                  <input
+                    type="text"
+                    placeholder="Enter coupon code"
+                    value={couponCode}
+                    onChange={(e) => setCouponCode(e.target.value.toUpperCase())}
+                    className="min-w-0 flex-1 rounded-[8px] border border-[var(--blush-input-border)] bg-white px-[10px] py-[8px] text-[11px] font-normal text-[var(--blush-dark)] outline-none placeholder:text-[var(--blush-muted)] focus:border-[var(--blush-input-border)]"
+                  />
+                  <button
+                    className="rounded-[8px] bg-[var(--blush-brand)] px-3 py-[8px] text-[11px] font-medium text-white transition-colors duration-200 hover:bg-[var(--blush-brand)]"
+                    onClick={handleApplyCoupon}
+                  >
+                    Apply
+                  </button>
+                </div>
+                <p className="mb-3 mt-2 text-[10px] font-normal text-[var(--blush-muted)]">
+                  Try: EWARA10 (10% off) or FLAT50 (₹50 off)
+                </p>
+              </section>
+
+              <section>
+                <div className="mb-3 flex items-center justify-between gap-3">
+                  <div className="flex items-center gap-2">
+                    <Truck className="h-4 w-4 text-[var(--blush-brand)]" />
+                    <h3 className="text-[11px] font-medium uppercase tracking-[0.05em] text-[var(--blush-brand)]">
+                      Delivery Address
+                    </h3>
+                  </div>
+                  <button
+                    onClick={() => setShowAddressSelector(true)}
+                    className="ml-auto text-[10px] font-normal text-[var(--blush-brand)] underline underline-offset-2 transition-colors duration-200 hover:text-[var(--blush-brand)]"
+                  >
+                    Change
+                  </button>
+                </div>
+
+                {userAddress ? (
+                  <div className="mb-2 rounded-[10px] border border-[var(--blush-border)] bg-white px-3 py-[10px]">
+                    <p className="mb-1 text-[12px] font-medium text-[var(--blush-dark)]">
+                      {userAddress.name}
+                    </p>
+                    <div className="space-y-1 text-[11px] font-normal leading-[1.6] text-[var(--blush-muted)]">
+                      <p>{userAddress.address}</p>
+                      <p>
+                        {userAddress.city}, {userAddress.state} - {userAddress.pincode}
+                      </p>
+                      <p>{userAddress.phone}</p>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="mb-2 rounded-[10px] border border-[var(--blush-border)] bg-white px-3 py-[10px]">
+                    <p className="text-[11px] font-normal text-[var(--blush-muted)]">
+                      No address added. Please select a delivery address.
+                    </p>
+                  </div>
+                )}
+
+                <div className="mb-3 flex items-start gap-2 rounded-[8px] border border-[var(--green-border)] bg-[var(--green-bg)] px-[11px] py-[8px]">
+                  <div className="mt-0.5 flex h-4 w-4 flex-shrink-0 items-center justify-center rounded-full bg-[var(--green-text)]">
+                    <Check className="h-2.5 w-2.5 text-white" />
+                  </div>
+                  <div>
+                    <p className="text-[12px] font-medium text-[var(--green-text)]">
+                      Express delivery
+                    </p>
+                    <p className="mt-1 text-[10px] font-normal text-[var(--green-sub)]">
+                      Estimated delivery by{" "}
+                      {new Date(
+                        Date.now() + 3 * 24 * 60 * 60 * 1000
+                      ).toLocaleDateString("en-IN", {
+                        weekday: "short",
+                        month: "short",
+                        day: "numeric",
+                      })}
+                    </p>
+                  </div>
+                </div>
+              </section>
+
+              <section>
+                <div className="mb-4 flex items-center gap-2">
+                  <CreditCard className="h-4 w-4 text-[var(--blush-brand)]" />
+                  <h3 className="text-[11px] font-medium uppercase tracking-[0.05em] text-[var(--blush-brand)]">
+                    Payment Method
+                  </h3>
+                </div>
+
+                <div className="space-y-[7px]">
+                  {paymentOptions.map((option) => (
+                    <div key={option.id} className="space-y-2">
+                      <button
+                        onClick={() => {
+                          setSelectedPayment(option.id);
+                          setExpandedPayment(expandedPayment === option.id ? "" : option.id);
+                        }}
+                        className={`flex w-full items-center justify-between rounded-[10px] px-3 py-[10px] text-left transition-colors duration-200 ${
+                          selectedPayment === option.id
+                            ? "border border-[var(--blush-brand)] bg-[var(--blush-selected-bg)]"
+                            : "border border-[var(--blush-border)] bg-white hover:bg-white"
+                        }`}
+                      >
+                        <div className="flex min-w-0 items-center gap-3">
+                          <div
+                            className={`flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-[8px] text-[9px] font-medium ${
+                              selectedPayment === option.id
+                                ? "bg-[var(--blush-brand)] text-white"
+                                : "bg-[var(--blush-light)] text-[var(--blush-brand)]"
+                            }`}
+                          >
+                            {option.icon}
+                          </div>
+                          <div className="min-w-0">
+                            <p className="truncate text-[12px] font-medium text-[var(--blush-dark)]">
+                              {option.name}
+                            </p>
+                            <p className="truncate text-[10px] font-normal text-[var(--blush-muted)]">
+                              {option.id === "cod"
+                                ? "Pay when you receive"
+                                : option.description}
+                            </p>
+                          </div>
+                        </div>
+                        <div className="ml-3 flex items-center gap-2">
+                          {selectedPayment === option.id && (
+                            <div className="flex h-[18px] w-[18px] items-center justify-center rounded-full bg-[var(--blush-brand)]">
+                              <Check size={10} className="text-white" />
+                            </div>
+                          )}
+                          <ChevronRight className="h-4 w-4 text-[#c4a090]" />
+                        </div>
+                      </button>
+
+                      {expandedPayment === option.id && (
+                        <div className="rounded-[10px] border border-[var(--blush-border)] bg-white px-3 py-3">
+                          {option.id === "cod" ? (
+                            <div className="py-1 text-center">
+                              <p className="text-[11px] font-normal text-[var(--blush-muted)]">
+                                Pay Rs. {total} in cash when your order is delivered
+                              </p>
+                            </div>
+                          ) : (
+                            <div className="space-y-2">
+                              <p className="text-[11px] font-medium text-[var(--blush-dark)]">
+                                {option.name} opens inside Razorpay checkout.
+                              </p>
+                              <p className="text-[11px] leading-[1.6] text-[var(--blush-muted)]">
+                                Only the selected method is shown first for this order, subject to what is enabled on your Razorpay account.
+                              </p>
+                              {option.id === "upi" && (
+                                <p className="text-[10px] leading-[1.6] text-[var(--blush-muted)]">
+                                  Customers continue with supported UPI apps or QR-based flows inside Razorpay.
+                                </p>
+                              )}
+                            </div>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </section>
             </div>
           </div>
 
-          {/* Footer CTA */}
-          <div className="sticky bottom-0 border-t border-[#ead2d8] bg-white px-6 py-5">
+          <div className="sticky bottom-0 border-t border-[var(--blush-border)] bg-[var(--blush-bg)] px-[15px] py-[11px]">
             <button
               onClick={handlePlaceOrder}
-              disabled={isProcessing || !userAddress}
-              className="w-full py-4 px-6 bg-gradient-to-r from-[#7a1f2b] to-[#5c1721] text-white font-bold rounded-lg hover:shadow-xl hover:shadow-[#7a1f2b]/20 transition-all duration-300 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+              disabled={isProcessing || !normalizedShippingAddress}
+              className="mb-[5px] flex w-full items-center justify-center gap-2 rounded-[10px] bg-[var(--blush-brand)] px-6 py-3 text-[13px] font-medium text-white transition-colors duration-200 hover:bg-[var(--blush-brand)] disabled:cursor-not-allowed disabled:opacity-50"
             >
-              <Lock size={18} />
-              <span>{isProcessing ? "Processing..." : `Pay ₹${total} Now`}</span>
+              <span className="relative h-[9px] w-[11px] border-[1.5px] border-white">
+                <span className="absolute left-[1px] top-[-5px] h-[5px] w-[5px] rounded-t-[3px] border-[1.5px] border-b-0 border-white content-['']" />
+              </span>
+              <span>{isProcessing ? "Processing..." : `Pay ₹${total} now`}</span>
             </button>
-            <p className="text-center text-xs text-[#6b7280] mt-3">
-              ✓ Secure & encrypted checkout
+            <p className="text-center text-[10px] font-normal text-[var(--blush-muted)]">
+              Secure and encrypted checkout
             </p>
           </div>
         </div>
       </div>
 
-      {/* Exit Confirmation */}
       {showExitConfirm && (
         <div className="fixed inset-0 z-[60] flex items-end justify-center bg-black/60 p-4 backdrop-blur-sm sm:items-center">
           <div className="w-full max-w-md animate-slideUp rounded-t-3xl bg-white p-6 sm:rounded-3xl">
@@ -592,13 +853,13 @@ export default function CheckoutModal({
               <div className="flex gap-3">
                 <button
                   onClick={confirmExit}
-                  className="flex-1 rounded-lg bg-red-500 py-3 font-semibold text-white hover:bg-red-600 transition-colors duration-200"
+                  className="flex-1 rounded-lg bg-red-500 py-3 font-semibold text-white transition-colors duration-200 hover:bg-red-600"
                 >
                   Yes, Exit
                 </button>
                 <button
                   onClick={cancelExit}
-                  className="flex-1 rounded-lg border-2 border-[#ead2d8] py-3 font-semibold text-[#4a2c2a] hover:bg-[#f7e7ea] transition-colors duration-200"
+                  className="flex-1 rounded-lg border-2 border-[#ead2d8] py-3 font-semibold text-[#4a2c2a] transition-colors duration-200 hover:bg-[#f7e7ea]"
                 >
                   Continue
                 </button>
@@ -608,7 +869,6 @@ export default function CheckoutModal({
         </div>
       )}
 
-      {/* Address Selector Modal */}
       <AddressSelectorModal
         isOpen={showAddressSelector}
         onClose={() => setShowAddressSelector(false)}

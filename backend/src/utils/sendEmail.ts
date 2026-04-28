@@ -1,8 +1,5 @@
 import nodemailer from "nodemailer";
 
-console.log("EMAIL_USER:", process.env.EMAIL_USER);
-console.log("EMAIL_PASS:", process.env.EMAIL_PASS ? "FOUND" : "MISSING");
-
 const sendEmail = async (
   to: string,
   subject: string,
@@ -17,7 +14,7 @@ const sendEmail = async (
   });
 
   return await transporter.sendMail({
-    from: process.env.EMAIL_USER,
+    from: process.env.EMAIL_FROM || process.env.EMAIL_USER,
     to,
     subject,
     html,

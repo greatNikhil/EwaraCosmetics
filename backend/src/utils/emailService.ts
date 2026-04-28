@@ -6,9 +6,11 @@ import { orderShippedTemplate } from "./emailTemplates/orderShipped";
 import { orderDeliveredTemplate } from "./emailTemplates/orderDelivered";
 import { passwordResetTemplate } from "./emailTemplates/passwordReset";
 import { promotionalEmailTemplate } from "./emailTemplates/promotionalEmail";
+import { logError, logInfo } from "./logger";
 
 const BUSINESS_NAME = process.env.BUSINESS_NAME || "Ewara Fashion pvt. ltd.";
 const BUSINESS_EMAIL = process.env.EMAIL_FROM || "info@ewaraofficial.com";
+const APP_URL = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
 
 // ============================================
 // 1. ORDER CONFIRMATION EMAIL
@@ -34,12 +36,9 @@ export const sendOrderConfirmationEmail = async (
       htmlContent
     );
 
-    console.log(`✅ Order confirmation email sent to ${customerEmail}`);
+    logInfo(`Order confirmation email sent to ${customerEmail}`);
   } catch (error: any) {
-    console.error(
-      "❌ Error sending order confirmation email:",
-      error.message
-    );
+    logError("Error sending order confirmation email:", error.message);
   }
 };
 
@@ -77,9 +76,9 @@ export const sendPaymentSuccessEmail = async (
       htmlContent
     );
 
-    console.log(`✅ Payment success email sent to ${customerEmail}`);
+    logInfo(`Payment success email sent to ${customerEmail}`);
   } catch (error: any) {
-    console.error("❌ Error sending payment success email:", error.message);
+    logError("Error sending payment success email:", error.message);
   }
 };
 
@@ -105,9 +104,9 @@ export const sendPaymentFailedEmail = async (
       htmlContent
     );
 
-    console.log(`✅ Payment failed email sent to ${customerEmail}`);
+    logInfo(`Payment failed email sent to ${customerEmail}`);
   } catch (error: any) {
-    console.error("❌ Error sending payment failed email:", error.message);
+    logError("Error sending payment failed email:", error.message);
   }
 };
 
@@ -134,9 +133,9 @@ export const sendOrderShippedEmail = async (
       htmlContent
     );
 
-    console.log(`✅ Order shipped email sent to ${customerEmail}`);
+    logInfo(`Order shipped email sent to ${customerEmail}`);
   } catch (error: any) {
-    console.error("❌ Error sending order shipped email:", error.message);
+    logError("Error sending order shipped email:", error.message);
   }
 };
 
@@ -161,9 +160,9 @@ export const sendOrderDeliveredEmail = async (
       htmlContent
     );
 
-    console.log(`✅ Order delivered email sent to ${customerEmail}`);
+    logInfo(`Order delivered email sent to ${customerEmail}`);
   } catch (error: any) {
-    console.error("❌ Error sending order delivered email:", error.message);
+    logError("Error sending order delivered email:", error.message);
   }
 };
 
@@ -187,14 +186,75 @@ export const sendPasswordResetEmail = async (
       htmlContent
     );
 
-    console.log(`✅ Password reset email sent to ${customerEmail}`);
+    logInfo(`Password reset email sent to ${customerEmail}`);
   } catch (error: any) {
-    console.error("❌ Error sending password reset email:", error.message);
+    logError("Error sending password reset email:", error.message);
   }
 };
 
 // ============================================
-// 7. PROMOTIONAL EMAIL
+// 7. PASSWORD RESET SUCCESS EMAIL
+// ============================================
+export const sendPasswordResetSuccessEmail = async (
+  customerEmail: string,
+  successData: {
+    customerName: string;
+    loginLink?: string;
+  }
+) => {
+  try {
+    const loginLink = successData.loginLink || `${APP_URL}/login`;
+    const htmlContent = `
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+      </head>
+      <body style="font-family: Arial, sans-serif; background-color: #f9f9f9; margin: 0; padding: 0;">
+        <div style="max-width: 600px; margin: 0 auto; background-color: white; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); overflow: hidden;">
+          <div style="background: linear-gradient(135deg, #7a1f2b 0%, #5c1721 100%); color: white; padding: 30px; text-align: center;">
+            <h1 style="margin: 0; font-size: 28px;">Password Updated</h1>
+            <p style="margin: 10px 0 0 0; font-size: 14px; opacity: 0.9;">Your account is ready to use again</p>
+          </div>
+          <div style="padding: 30px;">
+            <p style="font-size: 16px; margin-bottom: 20px;">Hi ${successData.customerName},</p>
+            <p style="font-size: 14px; color: #666; margin-bottom: 20px;">
+              Your password has been changed successfully. If you made this change, you can safely log in using your new password.
+            </p>
+            <div style="text-align: center; margin: 30px 0;">
+              <a href="${loginLink}" style="display: inline-block; background: linear-gradient(135deg, #7a1f2b 0%, #5c1721 100%); color: white; padding: 12px 30px; text-decoration: none; border-radius: 4px; font-weight: 600;">
+                Login Now
+              </a>
+            </div>
+            <div style="background-color: #fff5f5; border-left: 4px solid #dc3545; padding: 15px; border-radius: 4px;">
+              <p style="margin: 0; font-size: 12px; color: #721c24;">
+                If you did not change your password, please contact us immediately at <strong>${BUSINESS_EMAIL}</strong>.
+              </p>
+            </div>
+          </div>
+          <div style="background-color: #f5f5f5; padding: 20px; text-align: center; border-top: 1px solid #eee; font-size: 12px; color: #999;">
+            <p style="margin: 0;">© 2026 ${BUSINESS_NAME}. All rights reserved.</p>
+          </div>
+        </div>
+      </body>
+      </html>
+    `;
+
+    await sendEmail(
+      customerEmail,
+      `Password Updated Successfully - ${BUSINESS_NAME}`,
+      htmlContent
+    );
+
+    logInfo(`Password reset success email sent to ${customerEmail}`);
+  } catch (error: any) {
+    logError("Error sending password reset success email:", error.message);
+  }
+};
+
+// ============================================
+// 8. PROMOTIONAL EMAIL
 // ============================================
 export const sendPromotionalEmail = async (
   customerEmail: string,
@@ -218,14 +278,14 @@ export const sendPromotionalEmail = async (
       htmlContent
     );
 
-    console.log(`✅ Promotional email sent to ${customerEmail}`);
+    logInfo(`Promotional email sent to ${customerEmail}`);
   } catch (error: any) {
-    console.error("❌ Error sending promotional email:", error.message);
+    logError("Error sending promotional email:", error.message);
   }
 };
 
 // ============================================
-// 8. WELCOME EMAIL (BONUS)
+// 9. WELCOME EMAIL (BONUS)
 // ============================================
 export const sendWelcomeEmail = async (
   customerEmail: string,
@@ -251,7 +311,7 @@ export const sendWelcomeEmail = async (
               Explore our premium collection of cosmetics and beauty products.
             </p>
             <div style="text-align: center; margin: 30px 0;">
-              <a href="https://ewara.com/shop" style="display: inline-block; background: linear-gradient(135deg, #7a1f2b 0%, #5c1721 100%); color: white; padding: 12px 30px; text-decoration: none; border-radius: 4px; font-weight: 600;">
+              <a href="${APP_URL}/shop" style="display: inline-block; background: linear-gradient(135deg, #7a1f2b 0%, #5c1721 100%); color: white; padding: 12px 30px; text-decoration: none; border-radius: 4px; font-weight: 600;">
                 Start Shopping
               </a>
             </div>
@@ -273,14 +333,14 @@ export const sendWelcomeEmail = async (
       welcomeHtml
     );
 
-    console.log(`✅ Welcome email sent to ${customerEmail}`);
+    logInfo(`Welcome email sent to ${customerEmail}`);
   } catch (error: any) {
-    console.error("❌ Error sending welcome email:", error.message);
+    logError("Error sending welcome email:", error.message);
   }
 };
 
 // ============================================
 // EXPORT SUMMARY
 // ============================================
-console.log(`📧 Email Service Initialized for: ${BUSINESS_NAME}`);
-console.log(`📬 Sender Email: ${BUSINESS_EMAIL}`);
+logInfo(`Email service initialized for: ${BUSINESS_NAME}`);
+logInfo(`Sender email: ${BUSINESS_EMAIL}`);

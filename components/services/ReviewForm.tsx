@@ -2,20 +2,78 @@
 
 import { useState } from "react";
 import { Star } from "lucide-react";
+import { buildApiUrl } from "@/utils/api";
 
-export default function ReviewForm() {
+interface ReviewFormProps {
+  productId?: string;
+  onSubmitted?: () => void | Promise<void>;
+}
+
+export default function ReviewForm({ productId, onSubmitted }: ReviewFormProps) {
   const [rating, setRating] = useState(0);
   const [hovered, setHovered] = useState(0);
   const [reviewText, setReviewText] = useState("");
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [message, setMessage] = useState("");
 
-  const handleSubmit = (event: React.FormEvent<HTMLFormElement>) => {
+  const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
+
     if (!rating || !reviewText.trim()) {
       alert("Please select a rating and write your review.");
       return;
     }
-    console.log({ rating, reviewText });
-    alert("Thank you! Your review is ready to submit.");
+
+    if (!productId) {
+      alert("Thank you! Your review is ready to submit.");
+      setRating(0);
+      setHovered(0);
+      setReviewText("");
+      return;
+    }
+
+    const token = localStorage.getItem("token");
+
+    if (!token) {
+      alert("Please login first to submit a review.");
+      return;
+    }
+
+    try {
+      setIsSubmitting(true);
+      setMessage("");
+
+      const res = await fetch(buildApiUrl(`/api/products/${productId}/reviews`), {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          rating,
+          comment: reviewText.trim(),
+        }),
+      });
+
+      const data = await res.json();
+
+      if (!res.ok || !data.success) {
+        alert(data.message || "Failed to submit review");
+        return;
+      }
+
+      setMessage("Your review has been saved.");
+      if (onSubmitted) {
+        await onSubmitted();
+      }
+    } catch (error) {
+      console.error("REVIEW SUBMIT ERROR:", error);
+      alert("Failed to submit review");
+      return;
+    } finally {
+      setIsSubmitting(false);
+    }
+
     setRating(0);
     setHovered(0);
     setReviewText("");
@@ -66,10 +124,15 @@ export default function ReviewForm() {
 
       <button
         type="submit"
+        disabled={isSubmitting}
         className="w-full rounded-full bg-[#7a1f2b] px-8 py-4 text-base font-semibold text-white shadow-[0_18px_48px_rgba(122,31,43,0.18)] transition duration-300 hover:bg-[#5a1920]"
       >
-        Submit Review
+        {isSubmitting ? "Submitting..." : "Submit Review"}
       </button>
+
+      {message ? (
+        <p className="text-sm font-medium text-green-700">{message}</p>
+      ) : null}
     </form>
   );
 }

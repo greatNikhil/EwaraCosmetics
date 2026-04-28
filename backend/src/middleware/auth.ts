@@ -1,11 +1,12 @@
 import { Request, Response, NextFunction } from "express";
 import jwt from "jsonwebtoken";
+import User from "../models/user";
 
 interface AuthRequest extends Request {
   user?: any;
 }
 
-const authMiddleware = (
+const authMiddleware = async (
   req: AuthRequest,
   res: Response,
   next: NextFunction
@@ -25,7 +26,21 @@ const authMiddleware = (
     const decoded = jwt.verify(
       token,
       process.env.JWT_SECRET as string
-    );
+    ) as any;
+
+    const user = await User.findById(decoded?.id).select("_id googleId password");
+
+    if (!user) {
+      return res.status(401).json({
+        success: false,
+        message: "Token invalid or expired",
+      });
+    }
+
+    if (user.googleId && user.password == null) {
+      req.user = decoded;
+      return next();
+    }
 
     req.user = decoded;
 

@@ -219,7 +219,7 @@ export const generateInvoicePDF = (order: Order): void => {
         </div>
 
         <div class="footer">
-          <p>Thank you for your purchase! For support, contact us at support@ewara.com</p>
+          <p>Thank you for your purchase! For support, contact us at info@ewaraofficial.com</p>
           <p>This is an electronically generated invoice and is valid without signature.</p>
         </div>
       </div>

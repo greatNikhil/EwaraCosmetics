@@ -2,23 +2,27 @@
 
 import Link from "next/link";
 import { useState, useEffect, useRef } from "react";
-import { Search, LogOut, Settings, Menu, X } from "lucide-react";
-import { Sparkles } from "lucide-react";
-import { Heart, ShoppingBag, User } from "lucide-react";
-import { useRouter } from "next/navigation";
+import { Search, Menu, X, Sparkles } from "lucide-react";
+import { usePathname, useRouter } from "next/navigation";
 import BagDrawer from "@/components/BagDrawer";
 import { useAuthStore } from "@/store/authStore";
 import { useCartStore } from "@/store/cartStore";
+import {
+  getWishlistCount,
+  wishlistChangedEvent,
+} from "@/utils/wishlist";
+import { clearClientAuth } from "@/utils/clientAuth";
 
 export function Navbar() {
   const [bagOpen, setBagOpen] = useState(false);
   const [userInput, setUserInput] = useState("");
   const [liked, setLiked] = useState(false);
   const router = useRouter();
+  const pathname = usePathname();
   const [wishlistCount, setWishlistCount] = useState(0);
   const [isMenuOpen, setIsMenuOpen] = useState(false);
 
-  const { user, logout } = useAuthStore();
+  const { user } = useAuthStore();
   const { items: cartItems, getTotalItems } = useCartStore();
   const [isAdmin, setIsAdmin] = useState(false);
   const [cartCount, setCartCount] = useState(0);
@@ -28,25 +32,36 @@ export function Navbar() {
   }, [user]);
 
   useEffect(() => {
-    const storedWishlist = localStorage.getItem("wishlist");
-    if (storedWishlist) {
+    const syncWishlistCount = () => {
       try {
-        const wishlist = JSON.parse(storedWishlist);
-        setWishlistCount(wishlist.length);
+        setWishlistCount(getWishlistCount());
       } catch (error) {
-        console.error("Error parsing wishlist:", error);
+        console.error("Error reading wishlist:", error);
+        setWishlistCount(0);
       }
-    }
+    };
+
+    const handleStorage = (event: StorageEvent) => {
+      // ✅ No longer needed - wishlist is backend-driven
+      // Wishlist changes are now handled by wishlistChangedEvent
+    };
+
+    syncWishlistCount();
+    window.addEventListener(wishlistChangedEvent, syncWishlistCount);
+    window.addEventListener("storage", handleStorage);
+
+    return () => {
+      window.removeEventListener(wishlistChangedEvent, syncWishlistCount);
+      window.removeEventListener("storage", handleStorage);
+    };
   }, []);
 
   useEffect(() => {
     setCartCount(getTotalItems());
-  }, [cartItems]);
+  }, [cartItems, getTotalItems]);
 
   const handleLogout = () => {
-    logout();
-    localStorage.removeItem("token");
-    localStorage.removeItem("userData");
+    clearClientAuth({ dispatchEvent: true });
     router.push("/login");
   };
 
@@ -54,24 +69,11 @@ export function Navbar() {
   const profileRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    const updateUser = () => {
-      const storedUser = localStorage.getItem("user");
-      if (storedUser) {
-        // User data available
-      }
-    };
-    window.addEventListener("userChanged", updateUser);
-    return () => {
-      window.removeEventListener("userChanged", updateUser);
-    };
-  }, []);
-
-  useEffect(() => {
-    function handleClickOutside(event: any) {
-      if (profileRef.current && !profileRef.current.contains(event.target)) {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (profileRef.current && !profileRef.current.contains(event.target as Node)) {
         setIsProfileOpen(false);
       }
-    }
+    };
 
     document.addEventListener("mousedown", handleClickOutside);
     return () => {
@@ -79,62 +81,121 @@ export function Navbar() {
     };
   }, []);
 
+  const isActivePath = (href: string) =>
+    pathname === href || (href !== "/" && pathname.startsWith(`${href}/`));
+
+  const displayName =
+    user?.name || user?.username || user?.email?.split("@")[0] || "Profile";
+
+  const getNavLinkClassName = (href: string) =>
+    `rounded-lg px-4 py-2 text-sm font-medium transition-all duration-200 ${
+      isActivePath(href)
+        ? "bg-[#f7e7ea] text-[#7a1f2b]"
+        : "text-[#4a2c2a] hover:bg-[#f7e7ea] hover:text-[#7a1f2b]"
+    }`;
+
+  const getMobileNavLinkClassName = (href: string) =>
+    `block rounded-lg px-4 py-3 text-base font-medium transition-all duration-200 ${
+      isActivePath(href)
+        ? "bg-[#f7e7ea] text-[#7a1f2b]"
+        : "text-[#4a2c2a] hover:bg-[#f7e7ea] hover:text-[#7a1f2b]"
+    }`;
+
+  const handleSearchSubmit = (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    const normalizedQuery = userInput.trim();
+
+    if (!normalizedQuery) {
+      router.push("/shop");
+      setIsMenuOpen(false);
+      return;
+    }
+
+    router.push(`/shop?q=${encodeURIComponent(normalizedQuery)}`);
+    setIsMenuOpen(false);
+  };
+
   return (
     <>
-      {/* TOP OFFER BANNER */}
-      <div className="overflow-hidden whitespace-nowrap bg-gradient-to-r from-[#f7e7ea]/90 via-[#f3ede7]/90 to-[#e8d5c4]/90 backdrop-blur-md border-b border-[#ead2d8]/50">
-        <div className="animate-marquee inline-block px-4 py-2.5 text-xs md:text-sm font-medium text-[#4a2c2a]">
-          ✨ First Order: Get Extra 10% Off on ₹700+ &nbsp;&nbsp;✦✦&nbsp;&nbsp; ✨ Up
-          to 50% Off + Surprise Gifts &nbsp;&nbsp;✦✦&nbsp;&nbsp; ✨ Free Shipping on
-          Orders Above ₹999 ✨
+      <div className="overflow-hidden whitespace-nowrap border-b border-[#ead2d8]/50 bg-gradient-to-r from-[#f7e7ea]/90 via-[#f3ede7]/90 to-[#e8d5c4]/90 backdrop-blur-md">
+        <div className="animate-marquee inline-block px-4 py-2.5 text-xs font-medium text-[#4a2c2a] md:text-sm">
+          First Order: Get Extra 10% Off on Rs. 700+ &nbsp;&nbsp;•&nbsp;&nbsp; Up to 50% Off + Surprise Gifts &nbsp;&nbsp;•&nbsp;&nbsp; Free Shipping on Orders Above Rs. 999
         </div>
       </div>
 
-      {/* MAIN NAVBAR */}
-      <header className="sticky top-0 z-50 bg-white/95 backdrop-blur-md border-b border-[#ead2d8]/50 shadow-[0_2px_12px_rgba(0,0,0,0.06)] transition-all duration-300">
+      <header className="sticky top-0 z-50 border-b border-[#ead2d8]/50 bg-white/95 shadow-[0_2px_12px_rgba(0,0,0,0.06)] backdrop-blur-md transition-all duration-300">
         <div className="mx-auto max-w-7xl px-4 md:px-6 lg:px-8">
-          {/* Top Row */}
           <div className="flex items-center justify-between py-4">
-            {/* LOGO */}
-            <Link href="/" className="flex-shrink-0 group">
+            <Link
+              href="/"
+              className={`group flex-shrink-0 rounded-lg transition-all duration-200 ${
+                pathname === "/" ? "ring-2 ring-[#7a1f2b]/15 ring-offset-2 ring-offset-white" : ""
+              }`}
+            >
               <img
                 src="/favicon/logo.png"
                 alt="Ewara Logo"
-                className="h-8 md:h-10 w-auto object-contain transition-transform duration-300 group-hover:scale-105"
+                className="h-8 w-auto object-contain transition-transform duration-300 group-hover:scale-105 md:h-10"
               />
             </Link>
 
-            {/* SEARCH BAR - HIDDEN ON MOBILE */}
-            <div className="hidden md:flex flex-1 mx-8 items-center bg-[#fdf8f6] rounded-full border border-[#ead2d8] px-4 py-2.5 hover:border-[#7a1f2b]/30 focus-within:border-[#7a1f2b] focus-within:ring-2 focus-within:ring-[#7a1f2b]/10 transition-all duration-200">
-              <Search size={18} className="text-[#9c8b87] flex-shrink-0" />
+            <form
+              onSubmit={handleSearchSubmit}
+              className="mx-8 hidden flex-1 items-center rounded-full border border-[#ead2d8] bg-[#fdf8f6] px-4 py-2.5 transition-all duration-200 hover:border-[#7a1f2b]/30 focus-within:border-[#7a1f2b] focus-within:ring-2 focus-within:ring-[#7a1f2b]/10 md:flex"
+            >
+              <Search size={18} className="flex-shrink-0 text-[#9c8b87]" />
               <input
                 type="text"
                 placeholder="Search products, brands..."
-                className="bg-transparent outline-none px-3 w-full text-sm text-[#4a2c2a] placeholder-[#b5a9a4]"
+                className="w-full bg-transparent px-3 text-sm text-[#4a2c2a] outline-none placeholder:text-[#b5a9a4]"
                 value={userInput}
                 onChange={(e) => setUserInput(e.target.value)}
               />
-            </div>
+              <button
+                type="submit"
+                className="rounded-full bg-[#7a1f2b] px-4 py-2 text-xs font-semibold uppercase tracking-[0.14em] text-white transition hover:bg-[#8d2742]"
+              >
+                Search
+              </button>
+            </form>
 
-            {/* RIGHT ICONS */}
             <div className="flex items-center gap-2 md:gap-6">
-              {/* PROFILE - DESKTOP */}
               <div className="relative hidden md:block" ref={profileRef}>
                 <button
                   onClick={() => setIsProfileOpen(!isProfileOpen)}
-                  className="p-2 hover:bg-[#f7e7ea] rounded-lg transition-colors duration-200"
+                  className={`transition-all duration-200 ${
+                    user
+                      ? "flex items-center gap-[5px] rounded-[20px] bg-[#2a0a18] px-3 py-[7px] hover:opacity-95"
+                      : "rounded-lg p-2 hover:bg-[#fdf0f3]"
+                  }`}
                 >
-                  <User className="h-5 w-5 text-[#4a2c2a]" />
+                  <svg
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke={user ? "#f9c8d8" : "#5a1228"}
+                    strokeWidth="1.8"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    className="h-4 w-4 flex-shrink-0"
+                    aria-hidden="true"
+                  >
+                    <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
+                    <circle cx="12" cy="7" r="4" />
+                  </svg>
+                  {user && (
+                    <span className="max-w-[110px] truncate text-[11px] font-semibold text-[#f9c8d8]">
+                      {displayName}
+                    </span>
+                  )}
                 </button>
 
-                {/* PROFILE DROPDOWN */}
                 {isProfileOpen && (
-                  <div className="absolute right-0 top-full mt-3 w-48 rounded-lg bg-white border border-[#ead2d8] shadow-lg overflow-hidden z-50 animation-in">
+                  <div className="animation-in absolute right-0 top-full z-50 mt-3 w-48 overflow-hidden rounded-lg border border-[#ead2d8] bg-white shadow-lg">
                     {!user ? (
                       <Link
                         href="/login"
                         onClick={() => setIsProfileOpen(false)}
-                        className="block px-4 py-3 text-sm font-medium text-[#4a2c2a] hover:bg-[#f7e7ea] border-b border-[#ead2d8] transition-colors duration-200"
+                        className="block border-b border-[#ead2d8] px-4 py-3 text-sm font-medium text-[#4a2c2a] transition-colors duration-200 hover:bg-[#f7e7ea]"
                       >
                         Sign In
                       </Link>
@@ -144,24 +205,26 @@ export function Navbar() {
                           handleLogout();
                           setIsProfileOpen(false);
                         }}
-                        className="w-full text-left px-4 py-3 text-sm font-medium text-[#4a2c2a] hover:bg-[#f7e7ea] border-b border-[#ead2d8] transition-colors duration-200"
+                        className="w-full border-b border-[#ead2d8] px-4 py-3 text-left text-sm font-medium text-[#4a2c2a] transition-colors duration-200 hover:bg-[#f7e7ea]"
                       >
                         Logout
                       </button>
                     )}
 
-                    <Link
-                      href="/profile"
-                      onClick={() => setIsProfileOpen(false)}
-                      className="block px-4 py-3 text-sm text-[#6b7280] hover:bg-[#f7e7ea] hover:text-[#4a2c2a] border-b border-[#ead2d8] transition-colors duration-200"
-                    >
-                      My Profile
-                    </Link>
+                    {user && (
+                      <Link
+                        href="/profile"
+                        onClick={() => setIsProfileOpen(false)}
+                        className="block border-b border-[#ead2d8] px-4 py-3 text-sm text-[#6b7280] transition-colors duration-200 hover:bg-[#f7e7ea] hover:text-[#4a2c2a]"
+                      >
+                        My Profile
+                      </Link>
+                    )}
 
                     <Link
                       href="/help"
                       onClick={() => setIsProfileOpen(false)}
-                      className="block px-4 py-3 text-sm text-[#6b7280] hover:bg-[#f7e7ea] hover:text-[#4a2c2a] transition-colors duration-200"
+                      className="block px-4 py-3 text-sm text-[#6b7280] transition-colors duration-200 hover:bg-[#f7e7ea] hover:text-[#4a2c2a]"
                     >
                       Help & Support
                     </Link>
@@ -169,7 +232,6 @@ export function Navbar() {
                 )}
               </div>
 
-              {/* WISHLIST */}
               <button
                 onClick={() => {
                   if (!user) {
@@ -179,71 +241,86 @@ export function Navbar() {
                   setLiked(!liked);
                   router.push("/wishlist");
                 }}
-                className="relative p-2 hover:bg-[#f7e7ea] rounded-lg transition-colors duration-200 group"
+                className="group relative rounded-lg p-2 transition-colors duration-200 hover:bg-[#fdf0f3]"
               >
-                <Heart
-                  className={`h-5 w-5 transition-all duration-300 ${
-                    liked
-                      ? "fill-[#7a1f2b] text-[#7a1f2b]"
-                      : "text-[#4a2c2a] group-hover:text-[#7a1f2b]"
-                  }`}
-                />
+                <svg
+                  viewBox="0 0 24 24"
+                  fill={liked ? "#7b1d3a" : "none"}
+                  stroke="#5a1228"
+                  strokeWidth="1.8"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  className="h-5 w-5 transition-all duration-300"
+                  aria-hidden="true"
+                >
+                  <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z" />
+                </svg>
                 {wishlistCount > 0 && (
-                  <span className="absolute top-1 right-1 inline-flex items-center justify-center px-2 py-0.5 text-xs font-bold leading-none text-white transform translate-x-1/2 -translate-y-1/2 bg-[#7a1f2b] rounded-full">
+                  <span className="absolute top-1 right-1 inline-flex translate-x-1/2 -translate-y-1/2 transform items-center justify-center rounded-full bg-[#7a1f2b] px-2 py-0.5 text-xs font-bold leading-none text-white">
                     {wishlistCount}
                   </span>
                 )}
               </button>
 
-              {/* CART */}
               <button
                 onClick={() => setBagOpen(true)}
-                className="relative p-2 hover:bg-[#f7e7ea] rounded-lg transition-colors duration-200 group"
+                className="group relative rounded-lg p-2 transition-colors duration-200 hover:bg-[#fdf0f3]"
               >
-                <ShoppingBag className="h-5 w-5 text-[#4a2c2a] group-hover:text-[#7a1f2b] transition-colors duration-200" />
+                <svg
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="#5a1228"
+                  strokeWidth="1.8"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  className="h-5 w-5"
+                  aria-hidden="true"
+                >
+                  <path d="M6 2L3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z" />
+                  <line x1="3" y1="6" x2="21" y2="6" />
+                  <path d="M16 10a4 4 0 0 1-8 0" />
+                </svg>
                 {cartCount > 0 && (
-                  <span className="absolute top-1 right-1 inline-flex items-center justify-center px-2 py-0.5 text-xs font-bold leading-none text-white transform translate-x-1/2 -translate-y-1/2 bg-[#7a1f2b] rounded-full">
+                  <span className="absolute right-0 top-0 inline-flex h-[18px] w-[18px] items-center justify-center rounded-full border-2 border-white bg-[#7b1d3a] text-[9px] font-bold leading-none text-white">
                     {cartCount}
                   </span>
                 )}
               </button>
 
-              {/* MOBILE MENU BUTTON */}
               <button
                 onClick={() => setIsMenuOpen(true)}
-                className="md:hidden p-2 hover:bg-[#f7e7ea] rounded-lg transition-colors duration-200"
+                className="rounded-lg p-2 transition-colors duration-200 hover:bg-[#f7e7ea] md:hidden"
               >
                 <Menu className="h-5 w-5 text-[#4a2c2a]" />
               </button>
             </div>
           </div>
 
-          {/* Navigation Menu - DESKTOP ONLY */}
-          <div className="hidden md:flex items-center justify-center gap-1 py-3 border-t border-[#ead2d8]/30">
+          <div className="hidden items-center justify-center gap-1 border-t border-[#ead2d8]/30 py-3 md:flex">
             <Link
               href="/new-arrivals"
-              className="px-4 py-2 text-sm font-medium text-[#4a2c2a] hover:text-[#7a1f2b] hover:bg-[#f7e7ea] rounded-lg transition-all duration-200"
+              className={getNavLinkClassName("/new-arrivals")}
             >
               New Arrivals
             </Link>
 
             <Link
               href="/category"
-              className="px-4 py-2 text-sm font-medium text-[#4a2c2a] hover:text-[#7a1f2b] hover:bg-[#f7e7ea] rounded-lg transition-all duration-200"
+              className={getNavLinkClassName("/category")}
             >
               Category
             </Link>
 
             <Link
               href="/shop"
-              className="px-4 py-2 text-sm font-medium text-[#4a2c2a] hover:text-[#7a1f2b] hover:bg-[#f7e7ea] rounded-lg transition-all duration-200"
+              className={getNavLinkClassName("/shop")}
             >
-              Shop All
+              Shop
             </Link>
 
             <Link
               href="/services"
-              className="px-4 py-2 text-sm font-medium text-[#4a2c2a] hover:text-[#7a1f2b] hover:bg-[#f7e7ea] rounded-lg transition-all duration-200"
+              className={getNavLinkClassName("/services")}
             >
               Services
             </Link>
@@ -251,7 +328,7 @@ export function Navbar() {
             {isAdmin && (
               <Link
                 href="/admin"
-                className="px-4 py-2 text-sm font-bold text-white bg-gradient-to-r from-[#7a1f2b] to-[#5c1721] hover:shadow-md rounded-lg transition-all duration-200"
+                className="rounded-lg bg-gradient-to-r from-[#7a1f2b] to-[#5c1721] px-4 py-2 text-sm font-bold text-white transition-all duration-200 hover:shadow-md"
               >
                 Admin Panel
               </Link>
@@ -259,7 +336,11 @@ export function Navbar() {
 
             <Link
               href="/offers"
-              className="ml-2 flex items-center gap-2 px-4 py-2 text-sm font-bold text-white bg-gradient-to-r from-[#7a1f2b] via-[#d4a373] to-[#7a1f2b] hover:shadow-lg rounded-lg transition-all duration-200 hover:scale-105"
+              className={`ml-2 flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-bold text-white transition-all duration-200 ${
+                isActivePath("/offers")
+                  ? "bg-[#7a1f2b] shadow-lg"
+                  : "bg-gradient-to-r from-[#7a1f2b] via-[#d4a373] to-[#7a1f2b] hover:scale-105 hover:shadow-lg"
+              }`}
             >
               <Sparkles size={16} />
               Offers
@@ -269,53 +350,57 @@ export function Navbar() {
         </div>
       </header>
 
-      {/* MOBILE MENU DRAWER */}
       {isMenuOpen && (
         <div className="fixed inset-0 z-50 md:hidden">
-          {/* OVERLAY */}
           <div
             className="absolute inset-0 bg-black/40 backdrop-blur-sm"
             onClick={() => setIsMenuOpen(false)}
           />
 
-          {/* DRAWER */}
-          <div className="absolute left-0 top-0 h-full w-full max-w-xs bg-white shadow-2xl flex flex-col">
-            {/* HEADER */}
+          <div className="absolute left-0 top-0 flex h-full w-full max-w-xs flex-col bg-white shadow-2xl">
             <div className="flex items-center justify-between border-b border-[#ead2d8] px-6 py-5">
               <h2 className="text-lg font-bold text-[#4a2c2a]">Menu</h2>
               <button
                 onClick={() => setIsMenuOpen(false)}
-                className="p-2 hover:bg-[#f7e7ea] rounded-lg transition-colors duration-200"
+                className="rounded-lg p-2 transition-colors duration-200 hover:bg-[#f7e7ea]"
               >
                 <X className="h-5 w-5 text-[#4a2c2a]" />
               </button>
             </div>
 
-            {/* CONTENT */}
-            <div className="flex-1 overflow-y-auto px-6 py-6 space-y-2">
-              {/* Search on Mobile */}
-              <div className="mb-6 flex items-center bg-[#fdf8f6] rounded-lg border border-[#ead2d8] px-3 py-2">
+            <div className="flex-1 space-y-2 overflow-y-auto px-6 py-6">
+              <form
+                onSubmit={handleSearchSubmit}
+                className="mb-6 flex items-center gap-2 rounded-lg border border-[#ead2d8] bg-[#fdf8f6] px-3 py-2"
+              >
                 <Search size={16} className="text-[#9c8b87]" />
                 <input
                   type="text"
                   placeholder="Search..."
-                  className="bg-transparent outline-none px-2 w-full text-sm text-[#4a2c2a]"
+                  className="w-full bg-transparent px-2 text-sm text-[#4a2c2a] outline-none"
+                  value={userInput}
+                  onChange={(e) => setUserInput(e.target.value)}
                 />
-              </div>
+                <button
+                  type="submit"
+                  className="rounded-full bg-[#7a1f2b] px-3 py-1.5 text-xs font-semibold uppercase tracking-[0.14em] text-white transition hover:bg-[#8d2742]"
+                >
+                  Go
+                </button>
+              </form>
 
-              {/* Menu Items */}
               <Link
                 href="/shop"
                 onClick={() => setIsMenuOpen(false)}
-                className="block px-4 py-3 text-base font-medium text-[#4a2c2a] hover:bg-[#f7e7ea] hover:text-[#7a1f2b] rounded-lg transition-all duration-200"
+                className={getMobileNavLinkClassName("/shop")}
               >
-                Shop All
+                Shop
               </Link>
 
               <Link
                 href="/new-arrivals"
                 onClick={() => setIsMenuOpen(false)}
-                className="block px-4 py-3 text-base font-medium text-[#4a2c2a] hover:bg-[#f7e7ea] hover:text-[#7a1f2b] rounded-lg transition-all duration-200"
+                className={getMobileNavLinkClassName("/new-arrivals")}
               >
                 New Arrivals
               </Link>
@@ -323,7 +408,7 @@ export function Navbar() {
               <Link
                 href="/category"
                 onClick={() => setIsMenuOpen(false)}
-                className="block px-4 py-3 text-base font-medium text-[#4a2c2a] hover:bg-[#f7e7ea] hover:text-[#7a1f2b] rounded-lg transition-all duration-200"
+                className={getMobileNavLinkClassName("/category")}
               >
                 Category
               </Link>
@@ -331,17 +416,17 @@ export function Navbar() {
               <Link
                 href="/services"
                 onClick={() => setIsMenuOpen(false)}
-                className="block px-4 py-3 text-base font-medium text-[#4a2c2a] hover:bg-[#f7e7ea] hover:text-[#7a1f2b] rounded-lg transition-all duration-200"
+                className={getMobileNavLinkClassName("/services")}
               >
                 Services
               </Link>
 
-              <div className="border-t border-[#ead2d8] my-4" />
+              <div className="my-4 border-t border-[#ead2d8]" />
 
               <Link
                 href="/profile"
                 onClick={() => setIsMenuOpen(false)}
-                className="block px-4 py-3 text-base font-medium text-[#4a2c2a] hover:bg-[#f7e7ea] hover:text-[#7a1f2b] rounded-lg transition-all duration-200"
+                className={getMobileNavLinkClassName("/profile")}
               >
                 My Profile
               </Link>
@@ -349,17 +434,21 @@ export function Navbar() {
               <Link
                 href="/help"
                 onClick={() => setIsMenuOpen(false)}
-                className="block px-4 py-3 text-base font-medium text-[#4a2c2a] hover:bg-[#f7e7ea] hover:text-[#7a1f2b] rounded-lg transition-all duration-200"
+                className={getMobileNavLinkClassName("/help")}
               >
                 Help & Support
               </Link>
 
-              <div className="border-t border-[#ead2d8] my-4" />
+              <div className="my-4 border-t border-[#ead2d8]" />
 
               <Link
                 href="/offers"
                 onClick={() => setIsMenuOpen(false)}
-                className="flex items-center gap-2 px-4 py-3 text-base font-bold text-white bg-gradient-to-r from-[#7a1f2b] via-[#d4a373] to-[#7a1f2b] hover:shadow-lg rounded-lg transition-all duration-200"
+                className={`flex items-center gap-2 rounded-lg px-4 py-3 text-base font-bold text-white transition-all duration-200 ${
+                  isActivePath("/offers")
+                    ? "bg-[#7a1f2b] shadow-lg"
+                    : "bg-gradient-to-r from-[#7a1f2b] via-[#d4a373] to-[#7a1f2b] hover:shadow-lg"
+                }`}
               >
                 <Sparkles size={18} />
                 Offers
@@ -367,7 +456,6 @@ export function Navbar() {
               </Link>
             </div>
 
-            {/* FOOTER */}
             <div className="border-t border-[#ead2d8] px-6 py-5">
               <button
                 onClick={() => {
@@ -379,7 +467,7 @@ export function Navbar() {
                     setIsMenuOpen(false);
                   }
                 }}
-                className="w-full py-3 px-4 rounded-lg text-white font-bold bg-gradient-to-r from-[#7a1f2b] to-[#5c1721] hover:shadow-lg transition-all duration-200"
+                className="w-full rounded-lg bg-gradient-to-r from-[#7a1f2b] to-[#5c1721] px-4 py-3 font-bold text-white transition-all duration-200 hover:shadow-lg"
               >
                 {user ? "Logout" : "Sign In"}
               </button>

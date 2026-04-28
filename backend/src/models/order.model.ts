@@ -22,6 +22,11 @@ export interface IShippingAddress {
 export interface IOrder extends Document {
   user?: mongoose.Types.ObjectId;
   items: IOrderItem[];
+  subtotalAmount: number;
+  couponCode?: string;
+  discountAmount: number;
+  gstAmount: number;
+  shippingAmount: number;
   totalAmount: number;
   paymentMethod: string;
   paymentStatus: string;
@@ -70,6 +75,31 @@ const orderSchema = new Schema<IOrder>(
       ref: "User",
     },
     items: [orderItemSchema],
+    subtotalAmount: {
+      type: Number,
+      required: true,
+      default: 0,
+    },
+    couponCode: {
+      type: String,
+      uppercase: true,
+      trim: true,
+    },
+    discountAmount: {
+      type: Number,
+      required: true,
+      default: 0,
+    },
+    gstAmount: {
+      type: Number,
+      required: true,
+      default: 0,
+    },
+    shippingAmount: {
+      type: Number,
+      required: true,
+      default: 0,
+    },
     totalAmount: {
       type: Number,
       required: true,
