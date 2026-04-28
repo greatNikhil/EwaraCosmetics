@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
 import ProductCard from "@/components/ProductCard";
 import { getAllProducts, type Product } from "@/utils/productApi";
@@ -15,7 +15,7 @@ const SKIN_TYPE_OPTIONS = [
 ];
 const RATING_OPTIONS = ["All", "4", "3", "2"];
 
-export default function ShopPage() {
+export function ShopContent() {
   const searchParams = useSearchParams();
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
@@ -450,5 +450,19 @@ export default function ShopPage() {
         </div>
       </div>
     </div>
+  );
+}
+
+export default function ShopPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="flex justify-center items-center min-h-screen">
+          <div className="h-12 w-12 animate-spin rounded-full border-4 border-[#eadfd5] border-t-[#7b5b45]" />
+        </div>
+      }
+    >
+      <ShopContent />
+    </Suspense>
   );
 }
