@@ -13,7 +13,7 @@ import {
 const buildAuthSuccessResponse = (user: any) => {
   const token = jwt.sign(
     {
-      id: user._id,
+      id: user.id,
       role: user.role,
     },
     process.env.JWT_SECRET as string,
@@ -25,7 +25,8 @@ const buildAuthSuccessResponse = (user: any) => {
     message: "Login successful",
     token,
     user: {
-      _id: user._id,
+      _id: user.id,
+      id: user.id,
       name: user.name,
       email: user.email,
       phone: user.phone,
@@ -48,7 +49,7 @@ export const sendOTP = async (req: Request, res: Response) => {
 
     const normalizedEmail = email.trim().toLowerCase();
 
-    const existingUser = await User.findOne({ email: normalizedEmail });
+    const existingUser = await User.findOne({ where: { email: normalizedEmail } });
 
     if (existingUser) {
       return res.status(400).json({
@@ -59,7 +60,7 @@ export const sendOTP = async (req: Request, res: Response) => {
 
     const otp = Math.floor(100000 + Math.random() * 900000).toString();
 
-    await Otp.deleteMany({ email: normalizedEmail });
+    await Otp.destroy({ where: { email: normalizedEmail } });
 
     await Otp.create({
       email: normalizedEmail,
@@ -110,7 +111,7 @@ export const register = async (req: Request, res: Response) => {
     const trimmedName = name.trim();
     const trimmedPhone = phone.trim();
 
-    const existingUserByEmail = await User.findOne({ email: normalizedEmail });
+    const existingUserByEmail = await User.findOne({ where: { email: normalizedEmail } });
     if (existingUserByEmail) {
       return res.status(400).json({
         success: false,
@@ -118,7 +119,7 @@ export const register = async (req: Request, res: Response) => {
       });
     }
 
-    const existingUserByPhone = await User.findOne({ phone: trimmedPhone });
+    const existingUserByPhone = await User.findOne({ where: { phone: trimmedPhone } });
     if (existingUserByPhone) {
       return res.status(400).json({
         success: false,
@@ -126,7 +127,7 @@ export const register = async (req: Request, res: Response) => {
       });
     }
 
-    const otpData = await Otp.findOne({ email: normalizedEmail });
+    const otpData = await Otp.findOne({ where: { email: normalizedEmail } });
 
     if (!otpData) {
       return res.status(400).json({
@@ -136,7 +137,7 @@ export const register = async (req: Request, res: Response) => {
     }
 
     if (otpData.expiresAt < new Date()) {
-      await Otp.deleteMany({ email: normalizedEmail });
+      await Otp.destroy({ where: { email: normalizedEmail } });
 
       return res.status(400).json({
         success: false,
@@ -160,7 +161,7 @@ export const register = async (req: Request, res: Response) => {
       password: hashedPassword,
     });
 
-    await Otp.deleteMany({ email: normalizedEmail });
+    await Otp.destroy({ where: { email: normalizedEmail } });
 
     // Send welcome email
     await sendWelcomeEmail(normalizedEmail, trimmedName);
@@ -169,7 +170,8 @@ export const register = async (req: Request, res: Response) => {
       success: true,
       message: "User registered successfully",
       user: {
-        _id: user._id,
+        _id: user.id,
+        id: user.id,
         name: user.name,
         email: user.email,
         phone: user.phone,
@@ -201,7 +203,7 @@ export const login = async (req: Request, res: Response) => {
 
     const normalizedEmail = email.trim().toLowerCase();
 
-    const user = await User.findOne({ email: normalizedEmail });
+    const user = await User.findOne({ where: { email: normalizedEmail } });
 
     if (!user) {
       return res.status(400).json({
@@ -241,7 +243,9 @@ export const login = async (req: Request, res: Response) => {
 // GET LOGGED-IN USER
 export const getMe = async (req: any, res: Response) => {
   try {
-    const user = await User.findById(req.user.id).select("-password -__v");
+    const user = await User.findByPk(req.user.id, {
+      attributes: { exclude: ["password"] },
+    });
 
     if (!user) {
       return res.status(404).json({
@@ -252,7 +256,10 @@ export const getMe = async (req: any, res: Response) => {
 
     return res.status(200).json({
       success: true,
-      user,
+      user: {
+        ...user.toJSON(),
+        _id: user.id,
+      },
     });
   } catch (error: any) {
     console.error("GET ME ERROR:", error);
@@ -293,7 +300,7 @@ export const googleLogin = async (req: Request, res: Response) => {
     const normalizedEmail = String(tokenInfo.email).trim().toLowerCase();
     const normalizedName = String(tokenInfo.name || "").trim() || "Google User";
 
-    let user = await User.findOne({ email: normalizedEmail });
+    let user = await User.findOne({ where: { email: normalizedEmail } });
 
     if (!user) {
       user = await User.create({
@@ -348,7 +355,7 @@ export const updateProfile = async (req: any, res: Response) => {
     const normalizedEmail = String(email).trim().toLowerCase();
     const trimmedPhone = String(phone).trim();
 
-    const user = await User.findById(userId);
+    const user = await User.findByPk(userId);
 
     if (!user) {
       return res.status(404).json({
@@ -358,8 +365,10 @@ export const updateProfile = async (req: any, res: Response) => {
     }
 
     const existingUserByEmail = await User.findOne({
-      email: normalizedEmail,
-      _id: { $ne: userId },
+      where: {
+        email: normalizedEmail,
+        id: { [require("sequelize").Op.ne]: userId },
+      },
     });
 
     if (existingUserByEmail) {
@@ -370,8 +379,10 @@ export const updateProfile = async (req: any, res: Response) => {
     }
 
     const existingUserByPhone = await User.findOne({
-      phone: trimmedPhone,
-      _id: { $ne: userId },
+      where: {
+        phone: trimmedPhone,
+        id: { [require("sequelize").Op.ne]: userId },
+      },
     });
 
     if (existingUserByPhone) {
@@ -392,7 +403,8 @@ export const updateProfile = async (req: any, res: Response) => {
       success: true,
       message: "Profile updated successfully",
       user: {
-        _id: user._id,
+        _id: user.id,
+        id: user.id,
         name: user.name,
         lastname: user.lastname,
         email: user.email,
@@ -428,7 +440,7 @@ export const forgotPasswordSendOTP = async (
 
     const normalizedEmail = email.trim().toLowerCase();
 
-    const user = await User.findOne({ email: normalizedEmail });
+    const user = await User.findOne({ where: { email: normalizedEmail } });
 
     if (!user) {
       return res.status(404).json({
@@ -439,7 +451,7 @@ export const forgotPasswordSendOTP = async (
 
     const otp = Math.floor(100000 + Math.random() * 900000).toString();
 
-    await Otp.deleteMany({ email: normalizedEmail });
+    await Otp.destroy({ where: { email: normalizedEmail } });
 
     await Otp.create({
       email: normalizedEmail,
@@ -493,7 +505,7 @@ export const resetPassword = async (req: Request, res: Response) => {
 
     const normalizedEmail = email.trim().toLowerCase();
 
-    const user = await User.findOne({ email: normalizedEmail });
+    const user = await User.findOne({ where: { email: normalizedEmail } });
 
     if (!user) {
       return res.status(404).json({
@@ -502,7 +514,7 @@ export const resetPassword = async (req: Request, res: Response) => {
       });
     }
 
-    const otpData = await Otp.findOne({ email: normalizedEmail });
+    const otpData = await Otp.findOne({ where: { email: normalizedEmail } });
 
     if (!otpData) {
       return res.status(400).json({
@@ -512,7 +524,7 @@ export const resetPassword = async (req: Request, res: Response) => {
     }
 
     if (otpData.expiresAt < new Date()) {
-      await Otp.deleteMany({ email: normalizedEmail });
+      await Otp.destroy({ where: { email: normalizedEmail } });
 
       return res.status(400).json({
         success: false,
@@ -532,7 +544,7 @@ export const resetPassword = async (req: Request, res: Response) => {
     user.password = hashedPassword;
     await user.save();
 
-    await Otp.deleteMany({ email: normalizedEmail });
+    await Otp.destroy({ where: { email: normalizedEmail } });
 
     await sendPasswordResetSuccessEmail(normalizedEmail, {
       customerName: user.name || "User",

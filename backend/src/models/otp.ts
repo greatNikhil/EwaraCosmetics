@@ -1,35 +1,51 @@
-import mongoose, { Schema, Document } from "mongoose";
+import { DataTypes, Model, Optional } from "sequelize";
+import { sequelize } from "../config/db";
 
-export interface IOtp extends Document {
+export interface IOtp {
+  id?: number;
   email: string;
   otp: string;
   expiresAt: Date;
+  createdAt?: Date;
+  updatedAt?: Date;
 }
 
-const otpSchema = new Schema<IOtp>(
+interface OtpCreationAttributes extends Optional<IOtp, "id"> {}
+
+export class Otp extends Model<IOtp, OtpCreationAttributes> implements IOtp {
+  declare id: number;
+  declare email: string;
+  declare otp: string;
+  declare expiresAt: Date;
+  declare createdAt: Date;
+  declare updatedAt: Date;
+}
+
+Otp.init(
   {
+    id: {
+      type: DataTypes.INTEGER,
+      primaryKey: true,
+      autoIncrement: true,
+    },
     email: {
-      type: String,
-      required: true,
-      lowercase: true,
-      trim: true,
+      type: DataTypes.STRING(255),
+      allowNull: false,
     },
     otp: {
-      type: String,
-      required: true,
+      type: DataTypes.STRING(10),
+      allowNull: false,
     },
     expiresAt: {
-      type: Date,
-      required: true,
+      type: DataTypes.DATE,
+      allowNull: false,
     },
   },
   {
+    sequelize,
+    tableName: "otps",
     timestamps: true,
   }
 );
-
-const Otp =
-  mongoose.models.Otp ||
-  mongoose.model<IOtp>("Otp", otpSchema);
 
 export default Otp;

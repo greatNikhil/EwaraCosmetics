@@ -1,6 +1,8 @@
-import mongoose, { Document, Schema } from "mongoose";
+import { DataTypes, Model, Optional } from "sequelize";
+import { sequelize } from "../config/db";
 
-export interface ICoupon extends Document {
+export interface ICoupon {
+  id?: number;
   code: string;
   type: "percent" | "flat";
   value: number;
@@ -9,58 +11,70 @@ export interface ICoupon extends Document {
   maxUses?: number;
   usedCount: number;
   expiresAt?: Date;
-  createdAt: Date;
-  updatedAt: Date;
+  createdAt?: Date;
+  updatedAt?: Date;
 }
 
-const couponSchema = new Schema<ICoupon>(
+interface CouponCreationAttributes extends Optional<ICoupon, "id"> {}
+
+export class Coupon extends Model<ICoupon, CouponCreationAttributes> implements ICoupon {
+  declare id: number;
+  declare code: string;
+  declare type: "percent" | "flat";
+  declare value: number;
+  declare minOrderAmount: number;
+  declare isActive: boolean;
+  declare maxUses: number;
+  declare usedCount: number;
+  declare expiresAt: Date;
+  declare createdAt: Date;
+  declare updatedAt: Date;
+}
+
+Coupon.init(
   {
+    id: {
+      type: DataTypes.INTEGER,
+      primaryKey: true,
+      autoIncrement: true,
+    },
     code: {
-      type: String,
-      required: true,
+      type: DataTypes.STRING(50),
+      allowNull: false,
       unique: true,
-      uppercase: true,
-      trim: true,
     },
     type: {
-      type: String,
-      enum: ["percent", "flat"],
-      required: true,
+      type: DataTypes.ENUM("percent", "flat"),
+      allowNull: false,
     },
     value: {
-      type: Number,
-      required: true,
-      min: 0,
+      type: DataTypes.DECIMAL(10, 2),
+      allowNull: false,
     },
     minOrderAmount: {
-      type: Number,
-      default: 0,
-      min: 0,
+      type: DataTypes.DECIMAL(10, 2),
+      defaultValue: 0,
     },
     isActive: {
-      type: Boolean,
-      default: true,
+      type: DataTypes.BOOLEAN,
+      defaultValue: true,
     },
     maxUses: {
-      type: Number,
-      min: 1,
+      type: DataTypes.INTEGER,
     },
     usedCount: {
-      type: Number,
-      default: 0,
-      min: 0,
+      type: DataTypes.INTEGER,
+      defaultValue: 0,
     },
     expiresAt: {
-      type: Date,
+      type: DataTypes.DATE,
     },
   },
   {
+    sequelize,
+    tableName: "coupons",
     timestamps: true,
   }
 );
-
-const Coupon =
-  mongoose.models.Coupon ||
-  mongoose.model<ICoupon>("Coupon", couponSchema);
 
 export default Coupon;

@@ -1,56 +1,77 @@
-import mongoose, { Document, Model, Schema } from "mongoose";
+import { DataTypes, Model, Optional } from "sequelize";
+import { sequelize } from "../config/db";
 
-export interface IReview extends Document {
-  product: mongoose.Types.ObjectId;
-  user: mongoose.Types.ObjectId;
+export interface IReview {
+  id?: number;
+  product: number;
+  user: number;
   name: string;
   rating: number;
   comment: string;
-  createdAt: Date;
-  updatedAt: Date;
+  createdAt?: Date;
+  updatedAt?: Date;
 }
 
-const reviewSchema = new Schema<IReview>(
+interface ReviewCreationAttributes extends Optional<IReview, "id"> {}
+
+export class Review extends Model<IReview, ReviewCreationAttributes> implements IReview {
+  declare id: number;
+  declare product: number;
+  declare user: number;
+  declare name: string;
+  declare rating: number;
+  declare comment: string;
+  declare createdAt: Date;
+  declare updatedAt: Date;
+}
+
+Review.init(
   {
+    id: {
+      type: DataTypes.INTEGER,
+      primaryKey: true,
+      autoIncrement: true,
+    },
     product: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: "Product",
-      required: true,
-      index: true,
+      type: DataTypes.INTEGER,
+      allowNull: false,
+      references: {
+        model: "products",
+        key: "id",
+      },
     },
     user: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: "User",
-      required: true,
-      index: true,
+      type: DataTypes.INTEGER,
+      allowNull: false,
+      references: {
+        model: "users",
+        key: "id",
+      },
     },
     name: {
-      type: String,
-      required: true,
-      trim: true,
+      type: DataTypes.STRING(255),
+      allowNull: false,
     },
     rating: {
-      type: Number,
-      required: true,
-      min: [1, "Rating must be at least 1"],
-      max: [5, "Rating cannot exceed 5"],
+      type: DataTypes.INTEGER,
+      allowNull: false,
     },
     comment: {
-      type: String,
-      required: true,
-      trim: true,
-      maxlength: [1200, "Review cannot exceed 1200 characters"],
+      type: DataTypes.TEXT,
+      allowNull: false,
     },
   },
   {
+    sequelize,
+    tableName: "reviews",
     timestamps: true,
+    indexes: [
+      { fields: ["product"] },
+      { fields: ["user"] },
+      { fields: ["product", "user"], unique: true },
+      { fields: ["createdAt"] },
+    ],
   }
 );
-
-reviewSchema.index({ product: 1, user: 1 }, { unique: true });
-reviewSchema.index({ createdAt: -1 });
-
-const Review: Model<IReview> =
-  mongoose.models.Review || mongoose.model<IReview>("Review", reviewSchema);
 
 export default Review;

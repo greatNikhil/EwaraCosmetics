@@ -1,7 +1,9 @@
-import mongoose, { Document, Schema } from "mongoose";
+import { DataTypes, Model, Optional } from "sequelize";
+import { sequelize } from "../config/db";
 
-export interface IAddress extends Document {
-  user: mongoose.Types.ObjectId;
+export interface IAddress {
+  id?: number;
+  user: number;
   name: string;
   lastname?: string;
   address: string;
@@ -11,72 +13,88 @@ export interface IAddress extends Document {
   city: string;
   state: string;
   default: boolean;
-  createdAt: Date;
-  updatedAt: Date;
+  createdAt?: Date;
+  updatedAt?: Date;
 }
 
-const addressSchema = new Schema<IAddress>(
+interface AddressCreationAttributes extends Optional<IAddress, "id"> {}
+
+export class Address extends Model<IAddress, AddressCreationAttributes> implements IAddress {
+  declare id: number;
+  declare user: number;
+  declare name: string;
+  declare lastname: string;
+  declare address: string;
+  declare phone: string;
+  declare pincode: string;
+  declare flat: string;
+  declare city: string;
+  declare state: string;
+  declare default: boolean;
+  declare createdAt: Date;
+  declare updatedAt: Date;
+}
+
+Address.init(
   {
+    id: {
+      type: DataTypes.INTEGER,
+      primaryKey: true,
+      autoIncrement: true,
+    },
     user: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: "User",
-      required: true,
-      index: true,
+      type: DataTypes.INTEGER,
+      allowNull: false,
+      references: {
+        model: "users",
+        key: "id",
+      },
     },
     name: {
-      type: String,
-      required: true,
-      trim: true,
+      type: DataTypes.STRING(255),
+      allowNull: false,
     },
     lastname: {
-      type: String,
-      trim: true,
-      default: "",
+      type: DataTypes.STRING(255),
+      defaultValue: "",
     },
     address: {
-      type: String,
-      required: true,
-      trim: true,
+      type: DataTypes.TEXT,
+      allowNull: false,
     },
     phone: {
-      type: String,
-      required: true,
-      trim: true,
+      type: DataTypes.STRING(20),
+      allowNull: false,
     },
     pincode: {
-      type: String,
-      required: true,
-      trim: true,
+      type: DataTypes.STRING(20),
+      allowNull: false,
     },
     flat: {
-      type: String,
-      trim: true,
-      default: "",
+      type: DataTypes.STRING(255),
+      defaultValue: "",
     },
     city: {
-      type: String,
-      required: true,
-      trim: true,
+      type: DataTypes.STRING(255),
+      allowNull: false,
     },
     state: {
-      type: String,
-      required: true,
-      trim: true,
+      type: DataTypes.STRING(255),
+      allowNull: false,
     },
     default: {
-      type: Boolean,
-      default: false,
+      type: DataTypes.BOOLEAN,
+      defaultValue: false,
     },
   },
   {
+    sequelize,
+    tableName: "addresses",
     timestamps: true,
+    indexes: [
+      { fields: ["user", "default"] },
+    ],
   }
 );
-
-addressSchema.index({ user: 1, default: 1 });
-
-const Address =
-  mongoose.models.Address ||
-  mongoose.model<IAddress>("Address", addressSchema);
 
 export default Address;

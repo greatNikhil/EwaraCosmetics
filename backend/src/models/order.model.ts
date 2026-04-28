@@ -1,7 +1,8 @@
-import mongoose, { Document, Schema } from "mongoose";
+import { DataTypes, Model, Optional } from "sequelize";
+import { sequelize } from "../config/db";
 
 export interface IOrderItem {
-  productId: mongoose.Types.ObjectId;
+  productId: number;
   name: string;
   price: number;
   quantity: number;
@@ -19,8 +20,9 @@ export interface IShippingAddress {
   country: string;
 }
 
-export interface IOrder extends Document {
-  user?: mongoose.Types.ObjectId;
+export interface IOrder {
+  id?: number;
+  user?: number;
   items: IOrderItem[];
   subtotalAmount: number;
   couponCode?: string;
@@ -35,104 +37,110 @@ export interface IOrder extends Document {
   razorpayPaymentId?: string;
   razorpayOrderId?: string;
   stockRestored: boolean;
-  createdAt: Date;
-  updatedAt: Date;
+  createdAt?: Date;
+  updatedAt?: Date;
 }
 
-const orderItemSchema = new Schema<IOrderItem>(
+interface OrderCreationAttributes extends Optional<IOrder, "id"> {}
+
+export class Order extends Model<IOrder, OrderCreationAttributes> implements IOrder {
+  declare id: number;
+  declare user: number;
+  declare items: IOrderItem[];
+  declare subtotalAmount: number;
+  declare couponCode: string;
+  declare discountAmount: number;
+  declare gstAmount: number;
+  declare shippingAmount: number;
+  declare totalAmount: number;
+  declare paymentMethod: string;
+  declare paymentStatus: string;
+  declare status: string;
+  declare shippingAddress: IShippingAddress;
+  declare razorpayPaymentId: string;
+  declare razorpayOrderId: string;
+  declare stockRestored: boolean;
+  declare createdAt: Date;
+  declare updatedAt: Date;
+}
+
+Order.init(
   {
-    productId: {
-      type: mongoose.Schema.Types.ObjectId,
-      required: true,
-      ref: "Product",
+    id: {
+      type: DataTypes.INTEGER,
+      primaryKey: true,
+      autoIncrement: true,
     },
-    name: { type: String, required: true },
-    price: { type: Number, required: true },
-    quantity: { type: Number, required: true },
-    image: { type: String, required: true },
-  },
-  { _id: false }
-);
-
-const shippingAddressSchema = new Schema<IShippingAddress>(
-  {
-    fullName: { type: String, required: true },
-    phoneNumber: { type: String, required: true },
-    addressLine1: { type: String, required: true },
-    addressLine2: { type: String },
-    city: { type: String, required: true },
-    state: { type: String, required: true },
-    postalCode: { type: String, required: true },
-    country: { type: String, required: true },
-  },
-  { _id: false }
-);
-
-const orderSchema = new Schema<IOrder>(
-  {
     user: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: "User",
+      type: DataTypes.INTEGER,
+      references: {
+        model: "users",
+        key: "id",
+      },
     },
-    items: [orderItemSchema],
+    items: {
+      type: DataTypes.JSON,
+      allowNull: false,
+      defaultValue: [],
+    },
     subtotalAmount: {
-      type: Number,
-      required: true,
-      default: 0,
+      type: DataTypes.DECIMAL(12, 2),
+      allowNull: false,
+      defaultValue: 0,
     },
     couponCode: {
-      type: String,
-      uppercase: true,
-      trim: true,
+      type: DataTypes.STRING(50),
     },
     discountAmount: {
-      type: Number,
-      required: true,
-      default: 0,
+      type: DataTypes.DECIMAL(12, 2),
+      allowNull: false,
+      defaultValue: 0,
     },
     gstAmount: {
-      type: Number,
-      required: true,
-      default: 0,
+      type: DataTypes.DECIMAL(12, 2),
+      allowNull: false,
+      defaultValue: 0,
     },
     shippingAmount: {
-      type: Number,
-      required: true,
-      default: 0,
+      type: DataTypes.DECIMAL(12, 2),
+      allowNull: false,
+      defaultValue: 0,
     },
     totalAmount: {
-      type: Number,
-      required: true,
+      type: DataTypes.DECIMAL(12, 2),
+      allowNull: false,
     },
     paymentMethod: {
-      type: String,
-      default: "COD",
+      type: DataTypes.STRING(50),
+      defaultValue: "COD",
     },
     paymentStatus: {
-      type: String,
-      default: "Pending",
-      enum: ["Pending", "Completed", "Failed", "Refunded"],
+      type: DataTypes.STRING(50),
+      defaultValue: "Pending",
     },
     status: {
-      type: String,
-      default: "Pending",
-      enum: ["Pending", "Processing", "Shipped", "Delivered", "Cancelled"],
+      type: DataTypes.STRING(50),
+      defaultValue: "Pending",
     },
-    shippingAddress: shippingAddressSchema,
+    shippingAddress: {
+      type: DataTypes.JSON,
+    },
     razorpayPaymentId: {
-      type: String,
+      type: DataTypes.STRING(255),
     },
     razorpayOrderId: {
-      type: String,
+      type: DataTypes.STRING(255),
     },
     stockRestored: {
-      type: Boolean,
-      default: false,
+      type: DataTypes.BOOLEAN,
+      defaultValue: false,
     },
   },
   {
+    sequelize,
+    tableName: "orders",
     timestamps: true,
   }
 );
 
-export default mongoose.model<IOrder>("Order", orderSchema);
+export default Order;

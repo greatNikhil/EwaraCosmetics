@@ -1,7 +1,8 @@
-import mongoose, { Schema, Document } from "mongoose";
+import { DataTypes, Model, Optional } from "sequelize";
+import { sequelize } from "../config/db";
 
-export interface IUser extends Document {
-  id?: string;
+export interface IUser {
+  id?: number;
   name: string;
   lastname?: string;
   email: string;
@@ -10,59 +11,76 @@ export interface IUser extends Document {
   googleId?: string;
   avatar?: string;
   role: string;
+  createdAt?: Date;
+  updatedAt?: Date;
 }
 
-const userSchema = new Schema<IUser>(
+interface UserCreationAttributes extends Optional<IUser, "id"> {}
+
+export class User extends Model<IUser, UserCreationAttributes> implements IUser {
+  declare id: number;
+  declare name: string;
+  declare lastname: string;
+  declare email: string;
+  declare phone: string | null;
+  declare password: string | null;
+  declare googleId: string;
+  declare avatar: string;
+  declare role: string;
+  declare createdAt: Date;
+  declare updatedAt: Date;
+}
+
+User.init(
   {
+    id: {
+      type: DataTypes.INTEGER,
+      primaryKey: true,
+      autoIncrement: true,
+    },
     name: {
-      type: String,
-      required: true,
-      trim: true,
+      type: DataTypes.STRING(255),
+      allowNull: false,
+      validate: { len: [1, 255] },
     },
     lastname: {
-      type: String,
-      trim: true,
-      default: "",
+      type: DataTypes.STRING(255),
+      defaultValue: "",
     },
     email: {
-      type: String,
-      required: true,
+      type: DataTypes.STRING(255),
+      allowNull: false,
       unique: true,
-      lowercase: true,
-      trim: true,
+      validate: { isEmail: true },
     },
     phone: {
-      type: String,
+      type: DataTypes.STRING(20),
       unique: true,
-      sparse: true,
-      trim: true,
-      default: null,
+      allowNull: true,
     },
     password: {
-      type: String,
-      default: null,
+      type: DataTypes.STRING(255),
+      allowNull: true,
     },
     googleId: {
-      type: String,
+      type: DataTypes.STRING(255),
       unique: true,
-      sparse: true,
-      trim: true,
+      allowNull: true,
     },
     avatar: {
-      type: String,
-      trim: true,
-      default: "",
+      type: DataTypes.TEXT,
+      defaultValue: "",
     },
     role: {
-      type: String,
-      default: "user",
+      type: DataTypes.STRING(50),
+      defaultValue: "user",
     },
   },
-  { timestamps: true }
+  {
+    sequelize,
+    tableName: "users",
+    timestamps: true,
+  }
 );
-
-const User =
-  mongoose.models.User ||
-  mongoose.model<IUser>("User", userSchema);
 
 export default User;

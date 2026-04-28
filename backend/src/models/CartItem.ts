@@ -1,59 +1,86 @@
-import mongoose, { Document, Schema } from "mongoose";
+import { DataTypes, Model, Optional } from "sequelize";
+import { sequelize } from "../config/db";
 
-export interface ICartItem extends Document {
-  userId: mongoose.Types.ObjectId;
+export interface ICartItem {
+  id?: number;
+  userId: number;
   productId: string;
   productName: string;
   price: number;
   quantity: number;
   image: string;
   category: string;
-  addedAt: Date;
+  addedAt?: Date;
 }
 
-const cartItemSchema = new Schema({
-  userId: {
-    type: Schema.Types.ObjectId,
-    ref: "User",
-    required: true,
-    index: true,
-  },
-  productId: {
-    type: String,
-    required: true,
-  },
-  productName: {
-    type: String,
-    required: true,
-  },
-  price: {
-    type: Number,
-    required: true,
-  },
-  quantity: {
-    type: Number,
-    required: true,
-    default: 1,
-    min: 1,
-  },
-  image: {
-    type: String,
-    required: true,
-  },
-  category: {
-    type: String,
-    required: true,
-  },
-  addedAt: {
-    type: Date,
-    default: Date.now,
-    index: true,
-  },
-});
+interface CartItemCreationAttributes extends Optional<ICartItem, "id"> {}
 
-// Compound index for userId + productId to prevent duplicates
-cartItemSchema.index({ userId: 1, productId: 1 }, { unique: true });
+export class CartItem extends Model<ICartItem, CartItemCreationAttributes> implements ICartItem {
+  declare id: number;
+  declare userId: number;
+  declare productId: string;
+  declare productName: string;
+  declare price: number;
+  declare quantity: number;
+  declare image: string;
+  declare category: string;
+  declare addedAt: Date;
+}
 
-export const CartItem =
-  mongoose.models.CartItem ||
-  mongoose.model<ICartItem>("CartItem", cartItemSchema);
+CartItem.init(
+  {
+    id: {
+      type: DataTypes.INTEGER,
+      primaryKey: true,
+      autoIncrement: true,
+    },
+    userId: {
+      type: DataTypes.INTEGER,
+      allowNull: false,
+      references: {
+        model: "users",
+        key: "id",
+      },
+    },
+    productId: {
+      type: DataTypes.STRING(255),
+      allowNull: false,
+    },
+    productName: {
+      type: DataTypes.STRING(255),
+      allowNull: false,
+    },
+    price: {
+      type: DataTypes.DECIMAL(10, 2),
+      allowNull: false,
+    },
+    quantity: {
+      type: DataTypes.INTEGER,
+      allowNull: false,
+      defaultValue: 1,
+    },
+    image: {
+      type: DataTypes.TEXT,
+      allowNull: false,
+    },
+    category: {
+      type: DataTypes.STRING(255),
+      allowNull: false,
+    },
+    addedAt: {
+      type: DataTypes.DATE,
+      defaultValue: DataTypes.NOW,
+    },
+  },
+  {
+    sequelize,
+    tableName: "cart_items",
+    timestamps: false,
+    indexes: [
+      { fields: ["userId", "productId"], unique: true },
+      { fields: ["addedAt"] },
+    ],
+  }
+);
+
+export default CartItem;
