@@ -1,9 +1,16 @@
 import nodemailer from "nodemailer";
 
+type EmailAttachment = {
+  filename: string;
+  content: string | Buffer;
+  contentType?: string;
+};
+
 const sendEmail = async (
   to: string,
   subject: string,
-  html: string
+  html: string,
+  attachments?: EmailAttachment[]
 ) => {
   const transporter = nodemailer.createTransport({
     service: "gmail",
@@ -18,6 +25,7 @@ const sendEmail = async (
     to,
     subject,
     html,
+    attachments,
   });
 };
 

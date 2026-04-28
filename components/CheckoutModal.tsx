@@ -15,7 +15,7 @@ import { useRouter } from "next/navigation";
 import { useCartStore } from "@/store/cartStore";
 import { useAuthStore } from "@/store/authStore";
 import { buildApiUrl } from "@/utils/api";
-import { removeUnavailableCartItems } from "@/utils/cart";
+import { syncCartWithCatalog } from "@/utils/cart";
 import AddressSelectorModal from "./checkout/AddressSelectorModal";
 
 interface CheckoutModalProps {
@@ -376,7 +376,7 @@ export default function CheckoutModal({
                 shippingAddress: normalizedShippingAddress,
                 totalAmount: total,
                 paymentMethod: onlinePaymentLabel,
-                couponCode: appliedCoupon?.code || undefined,
+                couponCode: activeCouponCode,
               },
               {
                 headers: {
@@ -393,7 +393,10 @@ export default function CheckoutModal({
             router.push(`/order-success/${mongoOrderId}`);
           } catch (error: any) {
             console.error("Order creation error:", error);
-            alert("Payment verified but order creation failed. Please contact support.");
+            alert(
+              error?.response?.data?.message ||
+                "Payment verified but order creation failed. Please contact support."
+            );
             setIsProcessing(false);
           }
         },
@@ -446,15 +449,18 @@ export default function CheckoutModal({
     }
   };
 
-  let discount = 0;
-
-  if (appliedCoupon) {
-    discount = appliedCoupon.discountAmount || 0;
-  }
-
+  const rawDiscount = appliedCoupon
+    ? appliedCoupon.type === "percent"
+      ? Math.round(subtotal * (Number(appliedCoupon.value || 0) / 100))
+      : Number(appliedCoupon.value ?? appliedCoupon.discountAmount ?? 0)
+    : 0;
+  const discount = Math.min(Math.max(rawDiscount, 0), subtotal);
+  const taxableAmount = Math.max(subtotal - discount, 0);
   const shipping = selectedPayment === "cod" ? 50 : 0;
-  const gst = Math.round((subtotal - discount) * 0.18);
-  const total = subtotal - discount + gst + shipping;
+  const gst = Math.round(taxableAmount * 0.18);
+  const total = taxableAmount + gst + shipping;
+  const activeCouponCode =
+    appliedCoupon && discount > 0 ? appliedCoupon.code : undefined;
   const selectedPaymentOption = getPaymentOptionById(selectedPayment);
 
   const handlePlaceOrder = async () => {
@@ -474,9 +480,12 @@ export default function CheckoutModal({
       return;
     }
 
-    const removedCount = await removeUnavailableCartItems();
-    if (removedCount > 0) {
-      alert("Some unavailable products were removed from your cart. Please review your cart and try again.");
+    const { removedCount, updatedCount, quantityAdjustedCount } =
+      await syncCartWithCatalog();
+    if (removedCount > 0 || updatedCount > 0 || quantityAdjustedCount > 0) {
+      alert(
+        "Your cart was refreshed with the latest product availability, prices, or quantities. Please review the updated total and place the order again."
+      );
       return;
     }
 
@@ -497,7 +506,7 @@ export default function CheckoutModal({
           totalAmount: total,
           paymentMethod,
           shippingAddress: normalizedShippingAddress,
-          couponCode: appliedCoupon?.code || undefined,
+          couponCode: activeCouponCode,
         },
         {
           headers: {
@@ -670,9 +679,6 @@ export default function CheckoutModal({
                     Apply
                   </button>
                 </div>
-                <p className="mb-3 mt-2 text-[10px] font-normal text-[var(--blush-muted)]">
-                  Try: EWARA10 (10% off) or FLAT50 (₹50 off)
-                </p>
               </section>
 
               <section>
@@ -828,7 +834,7 @@ export default function CheckoutModal({
               <span className="relative h-[9px] w-[11px] border-[1.5px] border-white">
                 <span className="absolute left-[1px] top-[-5px] h-[5px] w-[5px] rounded-t-[3px] border-[1.5px] border-b-0 border-white content-['']" />
               </span>
-              <span>{isProcessing ? "Processing..." : `Pay ₹${total} now`}</span>
+              <span>{isProcessing ? "Processing..." : `Pay Rs. ${total} now`}</span>
             </button>
             <p className="text-center text-[10px] font-normal text-[var(--blush-muted)]">
               Secure and encrypted checkout
@@ -880,3 +886,4 @@ export default function CheckoutModal({
     </>
   );
 }
+

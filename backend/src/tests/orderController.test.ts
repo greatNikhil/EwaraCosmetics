@@ -261,6 +261,22 @@ export const runOrderControllerTests = async () => {
         amount: 1121,
         paymentMethod: "Razorpay",
         transactionId: "pay_test_123",
+        customerEmail: "buyer@example.com",
+        items: [
+          {
+            productId: "507f1f77bcf86cd799439020",
+            name: "Glow Serum",
+            price: 1000,
+            quantity: 1,
+            image: "/serum.jpg",
+          },
+        ],
+        shippingAddress: undefined,
+        subtotalAmount: 1000,
+        discountAmount: 50,
+        gstAmount: 171,
+        shippingAmount: 0,
+        createdAt: createdOrders[1].createdAt,
       },
     });
 

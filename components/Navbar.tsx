@@ -84,8 +84,7 @@ export function Navbar() {
   const isActivePath = (href: string) =>
     pathname === href || (href !== "/" && pathname.startsWith(`${href}/`));
 
-  const displayName =
-    user?.name || user?.username || user?.email?.split("@")[0] || "Profile";
+  const displayName = user?.name || user?.email?.split("@")[0] || "Profile";
 
   const getNavLinkClassName = (href: string) =>
     `rounded-lg px-4 py-2 text-sm font-medium transition-all duration-200 ${
@@ -133,7 +132,7 @@ export function Navbar() {
               }`}
             >
               <img
-                src="/favicon/logo.png"
+                src="/favicon/WhatsApp Image 2026-04-25 at 3.42.39 PM.jpeg"
                 alt="Ewara Logo"
                 className="h-8 w-auto object-contain transition-transform duration-300 group-hover:scale-105 md:h-10"
               />

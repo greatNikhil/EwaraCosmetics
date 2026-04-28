@@ -9,20 +9,16 @@ export const runCouponTests = async () => {
 
   const coupon = await getCouponSource("EWARA10");
 
-  assert.deepEqual(coupon, {
-    code: "EWARA10",
-    type: "percent",
-    value: 10,
-    minOrderAmount: 0,
-  });
+  assert.equal(coupon, null);
 
-  const percentageResult = await resolveCouponDiscount({
-    code: "EWARA10",
-    subtotal: 1000,
-  });
-
-  assert.equal(percentageResult.discountAmount, 100);
-  assert.equal(percentageResult.coupon?.code, "EWARA10");
+  await assert.rejects(
+    () =>
+      resolveCouponDiscount({
+        code: "EWARA10",
+        subtotal: 1000,
+      }),
+    /Invalid coupon/
+  );
 
   (Coupon as any).findOne = async () => ({
     code: "VIP200",

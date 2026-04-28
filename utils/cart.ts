@@ -142,19 +142,61 @@ export const clearCart = async () => {
   }
 };
 
-export const removeUnavailableCartItems = async (): Promise<number> => {
+export type CartSyncResult = {
+  removedCount: number;
+  updatedCount: number;
+  quantityAdjustedCount: number;
+};
+
+export const syncCartWithCatalog = async (): Promise<CartSyncResult> => {
   try {
     const data = await getAllProducts();
-    const validProductIds = new Set(
-      (data.products || []).map((product) => product._id)
+    const productMap = new Map(
+      (data.products || []).map((product) => [product._id, product])
     );
-
     const store = useCartStore.getState();
-    const validItems = store.items.filter((item) => validProductIds.has(item.id));
-    const removedCount = store.items.length - validItems.length;
+    const syncedItems = [];
+    let removedCount = 0;
+    let updatedCount = 0;
+    let quantityAdjustedCount = 0;
 
-    if (removedCount > 0) {
-      useCartStore.setState({ items: validItems });
+    for (const item of store.items) {
+      const product = productMap.get(item.id);
+      const stockCount = Math.max(product?.countInStock ?? 0, 0);
+
+      if (!product || !product.isPublished || stockCount === 0) {
+        removedCount += 1;
+        continue;
+      }
+
+      const nextQuantity = Math.min(item.quantity, stockCount);
+      const nextItem = {
+        ...item,
+        name: product.name,
+        price: product.price,
+        quantity: nextQuantity,
+        image: product.images?.[0] || item.image || "/favicon/product.jpeg",
+        category: product.category || product.brand || item.category || "General",
+      };
+
+      if (nextQuantity !== item.quantity) {
+        quantityAdjustedCount += 1;
+      }
+
+      if (
+        nextItem.name !== item.name ||
+        nextItem.price !== item.price ||
+        nextItem.image !== item.image ||
+        nextItem.category !== item.category
+      ) {
+        updatedCount += 1;
+      }
+
+      syncedItems.push(nextItem);
+    }
+
+    if (removedCount > 0 || updatedCount > 0 || quantityAdjustedCount > 0) {
+      useCartStore.setState({ items: syncedItems });
 
       const token = getToken();
       if (token) {
@@ -166,11 +208,16 @@ export const removeUnavailableCartItems = async (): Promise<number> => {
       }
     }
 
-    return removedCount;
+    return { removedCount, updatedCount, quantityAdjustedCount };
   } catch (error) {
-    console.error("Failed to remove unavailable cart items:", error);
-    return 0;
+    console.error("Failed to sync cart with catalog:", error);
+    return { removedCount: 0, updatedCount: 0, quantityAdjustedCount: 0 };
   }
+};
+
+export const removeUnavailableCartItems = async (): Promise<number> => {
+  const result = await syncCartWithCatalog();
+  return result.removedCount;
 };
 
 export const getCartCount = (): number => {

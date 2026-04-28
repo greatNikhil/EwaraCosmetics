@@ -215,6 +215,14 @@ export const createOrder = async (req: any, res: Response) => {
         amount: finalTotalAmount,
         paymentMethod: "Razorpay",
         transactionId: razorpayPaymentId,
+        customerEmail,
+        items: sanitizedItems,
+        shippingAddress: shippingAddress || undefined,
+        subtotalAmount,
+        discountAmount,
+        gstAmount,
+        shippingAmount,
+        createdAt: order.createdAt,
       });
     }
 
@@ -226,9 +234,23 @@ export const createOrder = async (req: any, res: Response) => {
   } catch (error: any) {
     console.error("CREATE ORDER ERROR:", error);
 
+    const message = error.message || "Failed to create order";
+    const knownValidationError =
+      message === "Invalid coupon" ||
+      message === "Coupon has expired" ||
+      message === "Coupon limit reached" ||
+      message.startsWith("Minimum order amount is Rs.");
+
+    if (knownValidationError) {
+      return res.status(400).json({
+        success: false,
+        message,
+      });
+    }
+
     return res.status(500).json({
       success: false,
-      message: error.message || "Failed to create order",
+      message,
     });
   }
 };

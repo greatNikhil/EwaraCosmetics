@@ -17,12 +17,12 @@ import {
 import { buildApiUrl } from "@/utils/api";
 import { useProtectedRoute } from "@/hooks/useProtectedRoute";
 import { clearClientAuth } from "@/utils/clientAuth";
-import AdminProductsPage from "./products/page";
-import AdminOrdersPage from "./orders/page";
-import AdminCouponsPage from "./coupons/page";
-import AdminOffersPage from "./offers/page";
-import AdminUsersPage from "./users/page";
-import AdminReviewsPage from "./reviews/page";
+import { AdminProductsView } from "./products/AdminProductsView";
+import { AdminOrdersView } from "./orders/AdminOrdersView";
+import { AdminCouponsView } from "./coupons/AdminCouponsView";
+import { AdminOffersView } from "./offers/AdminOffersView";
+import { AdminUsersView } from "./users/AdminUsersView";
+import { AdminReviewsView } from "./reviews/AdminReviewsView";
 
 interface UserSummary {
   _id?: string;
@@ -752,12 +752,12 @@ export default function AdminPage() {
           </div>
         )}
 
-        {activeView === "products" && renderEmbeddedView(AdminProductsPage)}
-        {activeView === "orders" && renderEmbeddedView(AdminOrdersPage)}
-        {activeView === "coupons" && renderEmbeddedView(AdminCouponsPage)}
-        {activeView === "offers" && renderEmbeddedView(AdminOffersPage)}
-        {activeView === "users" && renderEmbeddedView(AdminUsersPage)}
-        {activeView === "reviews" && renderEmbeddedView(AdminReviewsPage)}
+        {activeView === "products" && renderEmbeddedView(AdminProductsView)}
+        {activeView === "orders" && renderEmbeddedView(AdminOrdersView)}
+        {activeView === "coupons" && renderEmbeddedView(AdminCouponsView)}
+        {activeView === "offers" && renderEmbeddedView(AdminOffersView)}
+        {activeView === "users" && renderEmbeddedView(AdminUsersView)}
+        {activeView === "reviews" && renderEmbeddedView(AdminReviewsView)}
       </main>
     </div>
   );

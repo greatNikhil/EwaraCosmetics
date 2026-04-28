@@ -10,21 +10,6 @@ export type CouponSource = {
   expiresAt?: Date;
 };
 
-const defaultCoupons: CouponSource[] = [
-  {
-    code: "EWARA10",
-    type: "percent",
-    value: 10,
-    minOrderAmount: 0,
-  },
-  {
-    code: "FLAT50",
-    type: "flat",
-    value: 50,
-    minOrderAmount: 0,
-  },
-];
-
 export const getCouponSource = async (
   code: string
 ): Promise<CouponSource | null> => {
@@ -42,7 +27,7 @@ export const getCouponSource = async (
     };
   }
 
-  return defaultCoupons.find((item) => item.code === code) || null;
+  return null;
 };
 
 export const resolveCouponDiscount = async ({

@@ -7,14 +7,17 @@ import { orderDeliveredTemplate } from "./emailTemplates/orderDelivered";
 import { passwordResetTemplate } from "./emailTemplates/passwordReset";
 import { promotionalEmailTemplate } from "./emailTemplates/promotionalEmail";
 import { logError, logInfo } from "./logger";
+import {
+  generateInvoicePdf,
+  generateInvoiceNumber,
+  type InvoiceAddress,
+  type InvoiceItem,
+} from "./invoice";
 
 const BUSINESS_NAME = process.env.BUSINESS_NAME || "Ewara Fashion pvt. ltd.";
 const BUSINESS_EMAIL = process.env.EMAIL_FROM || "info@ewaraofficial.com";
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
 
-// ============================================
-// 1. ORDER CONFIRMATION EMAIL
-// ============================================
 export const sendOrderConfirmationEmail = async (
   customerEmail: string,
   orderData: any
@@ -32,7 +35,7 @@ export const sendOrderConfirmationEmail = async (
 
     await sendEmail(
       customerEmail,
-      `📦 Order Confirmation - #${orderData._id || orderData.orderId} - ${BUSINESS_NAME}`,
+      `Order Confirmation - #${orderData._id || orderData.orderId} - ${BUSINESS_NAME}`,
       htmlContent
     );
 
@@ -42,9 +45,6 @@ export const sendOrderConfirmationEmail = async (
   }
 };
 
-// ============================================
-// 2. PAYMENT SUCCESS EMAIL
-// ============================================
 export const sendPaymentSuccessEmail = async (
   customerEmail: string,
   paymentData: {
@@ -54,6 +54,14 @@ export const sendPaymentSuccessEmail = async (
     paymentMethod: string;
     transactionId: string;
     date?: string;
+    customerEmail?: string;
+    items?: InvoiceItem[];
+    shippingAddress?: InvoiceAddress;
+    subtotalAmount?: number;
+    discountAmount?: number;
+    gstAmount?: number;
+    shippingAmount?: number;
+    createdAt?: string | Date;
   }
 ) => {
   try {
@@ -70,10 +78,36 @@ export const sendPaymentSuccessEmail = async (
         }),
     });
 
+    const invoicePdf = generateInvoicePdf({
+      orderId: paymentData.orderId,
+      customerName: paymentData.customerName,
+      customerEmail: paymentData.customerEmail || customerEmail,
+      items: paymentData.items || [],
+      subtotalAmount:
+        typeof paymentData.subtotalAmount === "number"
+          ? paymentData.subtotalAmount
+          : paymentData.amount,
+      discountAmount: paymentData.discountAmount || 0,
+      gstAmount: paymentData.gstAmount || 0,
+      shippingAmount: paymentData.shippingAmount || 0,
+      totalAmount: paymentData.amount,
+      paymentMethod: paymentData.paymentMethod,
+      transactionId: paymentData.transactionId,
+      shippingAddress: paymentData.shippingAddress,
+      createdAt: paymentData.createdAt,
+    });
+
     await sendEmail(
       customerEmail,
-      `✅ Payment Successful - Order #${paymentData.orderId} - ${BUSINESS_NAME}`,
-      htmlContent
+      `Payment Successful - Order #${paymentData.orderId} - ${BUSINESS_NAME}`,
+      htmlContent,
+      [
+        {
+          filename: `${generateInvoiceNumber(paymentData.orderId)}.pdf`,
+          content: invoicePdf,
+          contentType: "application/pdf",
+        },
+      ]
     );
 
     logInfo(`Payment success email sent to ${customerEmail}`);
@@ -82,9 +116,6 @@ export const sendPaymentSuccessEmail = async (
   }
 };
 
-// ============================================
-// 3. PAYMENT FAILED EMAIL
-// ============================================
 export const sendPaymentFailedEmail = async (
   customerEmail: string,
   paymentData: {
@@ -100,7 +131,7 @@ export const sendPaymentFailedEmail = async (
 
     await sendEmail(
       customerEmail,
-      `❌ Payment Failed - Order #${paymentData.orderId} - ${BUSINESS_NAME}`,
+      `Payment Failed - Order #${paymentData.orderId} - ${BUSINESS_NAME}`,
       htmlContent
     );
 
@@ -110,9 +141,6 @@ export const sendPaymentFailedEmail = async (
   }
 };
 
-// ============================================
-// 4. ORDER SHIPPED EMAIL
-// ============================================
 export const sendOrderShippedEmail = async (
   customerEmail: string,
   shippingData: {
@@ -129,7 +157,7 @@ export const sendOrderShippedEmail = async (
 
     await sendEmail(
       customerEmail,
-      `📦 Your Order Shipped - Track #${shippingData.trackingNumber} - ${BUSINESS_NAME}`,
+      `Your Order Shipped - Track #${shippingData.trackingNumber} - ${BUSINESS_NAME}`,
       htmlContent
     );
 
@@ -139,9 +167,6 @@ export const sendOrderShippedEmail = async (
   }
 };
 
-// ============================================
-// 5. ORDER DELIVERED EMAIL
-// ============================================
 export const sendOrderDeliveredEmail = async (
   customerEmail: string,
   deliveryData: {
@@ -156,7 +181,7 @@ export const sendOrderDeliveredEmail = async (
 
     await sendEmail(
       customerEmail,
-      `🎉 Order Delivered - Order #${deliveryData.orderId} - ${BUSINESS_NAME}`,
+      `Order Delivered - Order #${deliveryData.orderId} - ${BUSINESS_NAME}`,
       htmlContent
     );
 
@@ -166,9 +191,6 @@ export const sendOrderDeliveredEmail = async (
   }
 };
 
-// ============================================
-// 6. PASSWORD RESET EMAIL
-// ============================================
 export const sendPasswordResetEmail = async (
   customerEmail: string,
   resetData: {
@@ -182,7 +204,7 @@ export const sendPasswordResetEmail = async (
 
     await sendEmail(
       customerEmail,
-      `🔐 Reset Your Password - ${BUSINESS_NAME}`,
+      `Reset Your Password - ${BUSINESS_NAME}`,
       htmlContent
     );
 
@@ -192,9 +214,6 @@ export const sendPasswordResetEmail = async (
   }
 };
 
-// ============================================
-// 7. PASSWORD RESET SUCCESS EMAIL
-// ============================================
 export const sendPasswordResetSuccessEmail = async (
   customerEmail: string,
   successData: {
@@ -253,9 +272,6 @@ export const sendPasswordResetSuccessEmail = async (
   }
 };
 
-// ============================================
-// 8. PROMOTIONAL EMAIL
-// ============================================
 export const sendPromotionalEmail = async (
   customerEmail: string,
   promoData: {
@@ -274,7 +290,7 @@ export const sendPromotionalEmail = async (
 
     await sendEmail(
       customerEmail,
-      `🎊 ${promoData.title} - ${BUSINESS_NAME}`,
+      `${promoData.title} - ${BUSINESS_NAME}`,
       htmlContent
     );
 
@@ -284,9 +300,6 @@ export const sendPromotionalEmail = async (
   }
 };
 
-// ============================================
-// 9. WELCOME EMAIL (BONUS)
-// ============================================
 export const sendWelcomeEmail = async (
   customerEmail: string,
   customerName: string
@@ -307,7 +320,7 @@ export const sendWelcomeEmail = async (
           <div style="padding: 30px;">
             <p style="font-size: 16px; margin-bottom: 20px;">Hi ${customerName},</p>
             <p style="font-size: 14px; color: #666; margin-bottom: 20px;">
-              Welcome to our family! We're thrilled to have you join us. 
+              Welcome to our family! We're thrilled to have you join us.
               Explore our premium collection of cosmetics and beauty products.
             </p>
             <div style="text-align: center; margin: 30px 0;">
@@ -315,9 +328,6 @@ export const sendWelcomeEmail = async (
                 Start Shopping
               </a>
             </div>
-            <p style="font-size: 13px; color: #999; text-align: center;">
-              Use code <strong>WELCOME10</strong> for 10% off your first order!
-            </p>
           </div>
           <div style="background-color: #f5f5f5; padding: 20px; text-align: center; border-top: 1px solid #eee; font-size: 12px; color: #999;">
             <p style="margin: 0;">© 2026 ${BUSINESS_NAME}. All rights reserved.</p>
@@ -329,7 +339,7 @@ export const sendWelcomeEmail = async (
 
     await sendEmail(
       customerEmail,
-      `👋 Welcome to ${BUSINESS_NAME}!`,
+      `Welcome to ${BUSINESS_NAME}!`,
       welcomeHtml
     );
 
@@ -339,8 +349,5 @@ export const sendWelcomeEmail = async (
   }
 };
 
-// ============================================
-// EXPORT SUMMARY
-// ============================================
 logInfo(`Email service initialized for: ${BUSINESS_NAME}`);
 logInfo(`Sender email: ${BUSINESS_EMAIL}`);
