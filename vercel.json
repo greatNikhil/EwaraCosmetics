@@ -1,6 +1,6 @@
 {
   "env": {
-    "NEXT_PUBLIC_API_URL": "@next_public_api_url",
+    "NEXT_PUBLIC_API_URL": "https://ewara-cosmetics1.onrender.com",
     "NEXT_PUBLIC_APP_URL": "@next_public_app_url",
     "NEXT_PUBLIC_GOOGLE_CLIENT_ID": "@next_public_google_client_id",
     "NEXT_PUBLIC_RAZORPAY_KEY_ID": "@next_public_razorpay_key_id",
