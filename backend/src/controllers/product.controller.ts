@@ -1,5 +1,5 @@
 import { Request, Response } from 'express';
-import mongoose from 'mongoose';
+import { Op } from 'sequelize';
 import Product from '../models/Product';
 import Review from '../models/review';
 
@@ -58,7 +58,7 @@ export const createProduct = async (req: Request, res: Response) => {
     }
 
     // Check existing slug
-    const existingProduct = await Product.findOne({ slug: slug.toLowerCase().trim() });
+    const existingProduct = await Product.findOne({ where: { slug: slug.toLowerCase().trim() } });
 
     if (existingProduct) {
       return res.status(400).json({
@@ -103,7 +103,7 @@ export const getProducts = async (req: Request, res: Response) => {
   try {
     const page = Number(req.query.page) || 1;
     const limit = Number(req.query.limit) || 10;
-    const skip = (page - 1) * limit;
+    const offset = (page - 1) * limit;
 
     const keyword = req.query.keyword ? String(req.query.keyword).trim() : '';
     const category = req.query.category ? String(req.query.category).trim() : '';
@@ -111,50 +111,50 @@ export const getProducts = async (req: Request, res: Response) => {
     const featured = req.query.featured ? String(req.query.featured) : '';
     const published = req.query.published ? String(req.query.published) : '';
 
-    const filter: any = {};
+    const where: any = {};
 
     if (keyword) {
-      filter.name = { $regex: keyword, $options: 'i' };
+      where.name = { [Op.like]: `%${keyword}%` };
     }
 
     if (category) {
-      filter.category = category;
+      where.category = category;
     }
 
     if (brand) {
-      filter.brand = brand;
+      where.brand = brand;
     }
 
     if (featured === 'true') {
-      filter.isFeatured = true;
+      where.isFeatured = true;
     }
 
     if (featured === 'false') {
-      filter.isFeatured = false;
+      where.isFeatured = false;
     }
 
     if (published === 'true') {
-      filter.isPublished = true;
+      where.isPublished = true;
     }
 
     if (published === 'false') {
-      filter.isPublished = false;
+      where.isPublished = false;
     }
 
-    const totalProducts = await Product.countDocuments(filter);
-
-    const products = await Product.find(filter)
-      .sort({ createdAt: -1 })
-      .skip(skip)
-      .limit(limit);
+    const { count, rows } = await Product.findAndCountAll({
+      where,
+      order: [['createdAt', 'DESC']],
+      offset,
+      limit,
+    });
 
     return res.status(200).json({
       success: true,
-      count: products.length,
-      totalProducts,
+      count: rows.length,
+      totalProducts: count,
       currentPage: page,
-      totalPages: Math.ceil(totalProducts / limit),
-      products,
+      totalPages: Math.ceil(count / limit),
+      products: rows,
     });
   } catch (error: any) {
     return res.status(500).json({
@@ -170,15 +170,16 @@ export const getProducts = async (req: Request, res: Response) => {
 export const getProductById = async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
+    const numId = Number(id);
 
-    if (!mongoose.isValidObjectId(id)) {
+    if (isNaN(numId)) {
       return res.status(400).json({
         success: false,
         message: 'Invalid product ID',
       });
     }
 
-    const product = await Product.findById(id);
+    const product = await Product.findByPk(numId);
 
     if (!product) {
       return res.status(404).json({
@@ -187,9 +188,11 @@ export const getProductById = async (req: Request, res: Response) => {
       });
     }
 
-    const reviews = await Review.find({ product: id })
-      .sort({ createdAt: -1 })
-      .select("name rating comment user createdAt updatedAt");
+    const reviews = await Review.findAll({
+      where: { product: numId },
+      order: [['createdAt', 'DESC']],
+      attributes: ['name', 'rating', 'comment', 'user', 'createdAt', 'updatedAt'],
+    });
 
     return res.status(200).json({
       success: true,
@@ -210,15 +213,16 @@ export const getProductById = async (req: Request, res: Response) => {
 export const updateProduct = async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
+    const numId = Number(id);
 
-    if (!mongoose.isValidObjectId(id)) {
+    if (isNaN(numId)) {
       return res.status(400).json({
         success: false,
         message: 'Invalid product ID',
       });
     }
 
-    const existingProduct = await Product.findById(id);
+    const existingProduct = await Product.findByPk(numId);
 
     if (!existingProduct) {
       return res.status(404).json({
@@ -230,8 +234,10 @@ export const updateProduct = async (req: Request, res: Response) => {
     // If slug is being updated, check uniqueness
     if (req.body.slug) {
       const slugExists = await Product.findOne({
-        slug: req.body.slug.toLowerCase().trim(),
-        _id: { $ne: id },
+        where: {
+          slug: req.body.slug.toLowerCase().trim(),
+          id: { [Op.ne]: numId },
+        },
       });
 
       if (slugExists) {
@@ -266,15 +272,12 @@ export const updateProduct = async (req: Request, res: Response) => {
       });
     }
 
-    const updatedProduct = await Product.findByIdAndUpdate(id, updatedData, {
-      new: true,
-      runValidators: true,
-    });
+    await existingProduct.update(updatedData);
 
     return res.status(200).json({
       success: true,
       message: 'Product updated successfully',
-      product: updatedProduct,
+      product: existingProduct,
     });
   } catch (error: any) {
     return res.status(500).json({
@@ -290,15 +293,16 @@ export const updateProduct = async (req: Request, res: Response) => {
 export const deleteProduct = async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
+    const numId = Number(id);
 
-    if (!mongoose.isValidObjectId(id)) {
+    if (isNaN(numId)) {
       return res.status(400).json({
         success: false,
         message: 'Invalid product ID',
       });
     }
 
-    const product = await Product.findById(id);
+    const product = await Product.findByPk(numId);
 
     if (!product) {
       return res.status(404).json({
@@ -307,7 +311,7 @@ export const deleteProduct = async (req: Request, res: Response) => {
       });
     }
 
-    await Product.findByIdAndDelete(id);
+    await product.destroy();
 
     return res.status(200).json({
       success: true,
