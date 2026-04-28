@@ -2,18 +2,23 @@ import { NextRequest } from "next/server";
 import Stripe from "stripe";
 import { errorResponse, successResponse } from "../../_lib/response";
 
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY || "", {
-  apiVersion: "2026-03-25.dahlia",
-});
-
-const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET;
-
 export async function POST(request: NextRequest) {
+  const stripeSecretKey = process.env.STRIPE_SECRET_KEY || "";
+  const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET;
+
+  if (!stripeSecretKey || !webhookSecret) {
+    return errorResponse("Stripe is not configured properly", 500);
+  }
+
+  const stripe = new Stripe(stripeSecretKey, {
+    apiVersion: "2026-03-25.dahlia",
+  });
+
   const body = await request.text();
   const signature = request.headers.get("stripe-signature");
 
-  if (!signature || !webhookSecret) {
-    return errorResponse("Missing signature or secret", 400);
+  if (!signature) {
+    return errorResponse("Missing signature", 400);
   }
 
   let event: Stripe.Event;
