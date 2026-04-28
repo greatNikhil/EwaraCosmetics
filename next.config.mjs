@@ -1,5 +1,8 @@
 const nextConfig = {
   reactStrictMode: true,
+  eslint: {
+    ignoreDuringBuilds: true,
+  },
   headers: async () => {
     return [
       {

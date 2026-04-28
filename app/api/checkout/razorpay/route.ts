@@ -2,14 +2,14 @@ import { NextRequest } from "next/server";
 import Razorpay from "razorpay";
 import { errorResponse, successResponse } from "../../_lib/response";
 
-const razorpayKeyId = process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID || "";
-const razorpayKeySecret = process.env.RAZORPAY_KEY_SECRET || "";
-
 const isConfiguredRazorpayKey = (value: string) =>
   Boolean(value) && !value.includes("YOUR_KEY");
 
 export async function POST(request: NextRequest) {
   try {
+    const razorpayKeyId = process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID || "";
+    const razorpayKeySecret = process.env.RAZORPAY_KEY_SECRET || "";
+
     if (
       !isConfiguredRazorpayKey(razorpayKeyId) ||
       !isConfiguredRazorpayKey(razorpayKeySecret)
