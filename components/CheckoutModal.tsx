@@ -38,6 +38,21 @@ declare global {
   }
 }
 
+const PENDING_RAZORPAY_ORDER_PREFIX = "ewara_pending_razorpay_order_";
+
+const getRazorpayFailureMessage = (error: any) => {
+  const code = error?.code || error?.error_code;
+  const step = error?.step;
+  const reason =
+    error?.description ||
+    error?.reason ||
+    error?.source ||
+    "Payment could not be completed";
+
+  const details = [code, step].filter(Boolean).join(" | ");
+  return details ? `${reason} (${details})` : reason;
+};
+
 export default function CheckoutModal({
   isOpen,
   onClose,
@@ -305,6 +320,42 @@ export default function CheckoutModal({
     setShowExitConfirm(true);
   };
 
+  const redirectToOrderSuccess = (orderId: string | number) => {
+    const successPath = `/order-success/${orderId}`;
+
+    onClose();
+    router.push(successPath);
+
+    window.setTimeout(() => {
+      if (window.location.pathname !== successPath) {
+        window.location.assign(successPath);
+      }
+    }, 250);
+  };
+
+  const persistPendingRazorpayOrder = (
+    razorpayOrderId: string,
+    paymentMethodLabel: string
+  ) => {
+    if (typeof window === "undefined") {
+      return;
+    }
+
+    const pendingOrderPayload = {
+      razorpayOrderId,
+      items: normalizedOrderItems,
+      shippingAddress: normalizedShippingAddress,
+      totalAmount: total,
+      paymentMethod: paymentMethodLabel,
+      couponCode: activeCouponCode,
+    };
+
+    window.sessionStorage.setItem(
+      `${PENDING_RAZORPAY_ORDER_PREFIX}${razorpayOrderId}`,
+      JSON.stringify(pendingOrderPayload)
+    );
+  };
+
   const confirmExit = () => {
     setShowExitConfirm(false);
     onClose();
@@ -352,6 +403,7 @@ export default function CheckoutModal({
       }
 
       const { orderId, amount, key_id } = checkoutData;
+      persistPendingRazorpayOrder(orderId, onlinePaymentLabel);
 
       if (!window.Razorpay) {
         alert("Razorpay is not loaded. Please refresh and try again.");
@@ -365,39 +417,26 @@ export default function CheckoutModal({
         name: "Ewara Cosmetics",
         description: `${onlinePaymentLabel} payment for ${cartItems.length} item${cartItems.length > 1 ? "s" : ""}`,
         order_id: orderId,
+        callback_url: `${window.location.origin}/api/checkout/razorpay/callback`,
+        redirect: true,
         config: checkoutConfig,
         handler: async (response: any) => {
           try {
-            const orderRes = await axios.post(
-              buildApiUrl("/api/orders"),
-              {
-                razorpayPaymentId: response.razorpay_payment_id,
-                razorpayOrderId: response.razorpay_order_id,
-                razorpaySignature: response.razorpay_signature,
-                items: normalizedOrderItems,
-                shippingAddress: normalizedShippingAddress,
-                totalAmount: total,
-                paymentMethod: onlinePaymentLabel,
-                couponCode: activeCouponCode,
-              },
-              {
-                headers: {
-                  Authorization: `Bearer ${token}`,
-                },
-              }
-            );
+            const callbackParams = new URLSearchParams({
+              razorpay_payment_id: response.razorpay_payment_id,
+              razorpay_order_id: response.razorpay_order_id,
+              razorpay_signature: response.razorpay_signature,
+            });
 
-            const mongoOrderId = orderRes.data.order._id;
-            clearCart();
-            setIsProcessing(false);
-            onClose();
-            alert("Payment successful! Order created.");
-            router.push(`/order-success/${mongoOrderId}`);
+            window.location.assign(
+              `/checkout/razorpay-return?${callbackParams.toString()}`
+            );
           } catch (error: any) {
             console.error("Order creation error:", error);
             alert(
               error?.response?.data?.message ||
-                "Payment verified but order creation failed. Please contact support."
+                error?.message ||
+                "Payment successful but redirect failed. Please contact support."
             );
             setIsProcessing(false);
           }
@@ -420,14 +459,13 @@ export default function CheckoutModal({
       const rzp = new window.Razorpay(options);
       rzp.on("payment.failed", async (response: any) => {
         console.error("Payment failed:", response.error);
+        const failureMessage = getRazorpayFailureMessage(response.error);
         try {
           await axios.post(
             buildApiUrl("/api/orders/payment-failure"),
             {
               amount: total,
-              reason:
-                response.error?.description ||
-                "Payment gateway reported a failure",
+              reason: failureMessage,
               razorpayOrderId: response.error?.metadata?.order_id,
             },
             {
@@ -439,7 +477,7 @@ export default function CheckoutModal({
         } catch (notifyError) {
           console.error("PAYMENT FAILURE NOTIFY ERROR:", notifyError);
         }
-        alert(`Payment failed: ${response.error.description}`);
+        alert(`Payment failed: ${failureMessage}`);
         setIsProcessing(false);
       });
       rzp.open();
@@ -521,9 +559,8 @@ export default function CheckoutModal({
         const orderId = res.data.order._id;
         clearCart();
         setIsProcessing(false);
-        onClose();
         alert("Order placed successfully.");
-        router.push(`/order-success/${orderId}`);
+        redirectToOrderSuccess(orderId);
       }
     } catch (error: any) {
       console.error("PLACE ORDER ERROR:", error);

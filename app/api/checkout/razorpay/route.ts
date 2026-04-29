@@ -5,10 +5,17 @@ import { errorResponse, successResponse } from "../../_lib/response";
 const isConfiguredRazorpayKey = (value: string) =>
   Boolean(value) && !value.includes("YOUR_KEY");
 
+const isLiveRazorpayKey = (value: string) => value.startsWith("rzp_live_");
+
+const isLocalAppUrl = (value: string) =>
+  value.includes("localhost") || value.includes("127.0.0.1");
+
 export async function POST(request: NextRequest) {
   try {
     const razorpayKeyId = process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID || "";
     const razorpayKeySecret = process.env.RAZORPAY_KEY_SECRET || "";
+    const appUrl = process.env.NEXT_PUBLIC_APP_URL || "";
+    const isDevelopmentMode = process.env.NODE_ENV !== "production";
 
     if (
       !isConfiguredRazorpayKey(razorpayKeyId) ||
@@ -17,6 +24,17 @@ export async function POST(request: NextRequest) {
       return errorResponse(
         "Razorpay is not configured. Add valid NEXT_PUBLIC_RAZORPAY_KEY_ID and RAZORPAY_KEY_SECRET values.",
         500
+      );
+    }
+
+    if (
+      isDevelopmentMode &&
+      isLiveRazorpayKey(razorpayKeyId) &&
+      isLocalAppUrl(appUrl)
+    ) {
+      return errorResponse(
+        "Live Razorpay keys are configured on a local development app. Use test keys that start with rzp_test_ while testing on localhost.",
+        400
       );
     }
 
