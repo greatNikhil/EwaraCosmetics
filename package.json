@@ -16,7 +16,6 @@
     "test:phase9": "npm run audit:deploy && npm run type-check && npm run build"
   },
   "dependencies": {
-    "@stripe/react-stripe-js": "^6.2.0",
     "axios": "^1.15.2",
     "clsx": "^2.1.1",
     "lucide-react": "^1.8.0",
@@ -25,7 +24,6 @@
     "react": "18.3.1",
     "react-dom": "18.3.1",
     "react-hot-toast": "^2.6.0",
-    "stripe": "^22.0.2",
     "zustand": "^5.0.12"
   },
   "devDependencies": {

@@ -29,7 +29,6 @@ A full-stack cosmetics e-commerce project built with a Next.js storefront and an
 
 ### Payments in the Codebase
 - Razorpay is the active checkout path in the UI
-- Stripe route handlers also exist, but they should only be used if you complete that flow
 
 ## Installation
 
@@ -61,10 +60,7 @@ NEXT_PUBLIC_API_URL=http://localhost:5000
 NEXT_PUBLIC_APP_URL=http://localhost:3000
 NEXT_PUBLIC_GOOGLE_CLIENT_ID=your_google_client_id_here
 NEXT_PUBLIC_RAZORPAY_KEY_ID=rzp_test_your_key_id_here
-NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY=pk_test_xxx
 RAZORPAY_KEY_SECRET=your_razorpay_key_secret_here
-STRIPE_SECRET_KEY=sk_test_xxx
-STRIPE_WEBHOOK_SECRET=whsec_xxx
 ```
 
 ### Backend: `backend/.env`
@@ -103,12 +99,6 @@ Required for the current checkout flow:
 Required if Google login is enabled:
 - `NEXT_PUBLIC_GOOGLE_CLIENT_ID`
 
-### Stripe
-Only needed if you plan to use the existing Stripe route handlers:
-- `NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY`
-- `STRIPE_SECRET_KEY`
-- `STRIPE_WEBHOOK_SECRET`
-
 ## Deployment Notes
 
 ### Frontend
@@ -118,10 +108,7 @@ Only needed if you plan to use the existing Stripe route handlers:
   - `NEXT_PUBLIC_APP_URL`
   - `NEXT_PUBLIC_GOOGLE_CLIENT_ID`
   - `NEXT_PUBLIC_RAZORPAY_KEY_ID`
-  - `NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY`
   - `RAZORPAY_KEY_SECRET`
-  - `STRIPE_SECRET_KEY`
-  - `STRIPE_WEBHOOK_SECRET`
 
 ### Backend
 - Deploy the Express app separately
@@ -188,7 +175,7 @@ npm run test
 - ensure MongoDB is running or Atlas network access is configured
 
 ### Payment Key Issues
-- verify the correct Razorpay/Stripe keys are set in the correct env file
+- verify the correct Razorpay keys are set in the correct env file
 - restart the app after changing env files
 
 ## API Documentation
