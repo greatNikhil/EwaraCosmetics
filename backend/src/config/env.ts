@@ -14,6 +14,21 @@ const recommendedEnvVars = [
 
 const normalizeOrigin = (value: string) => value.trim().replace(/\/+$/, "");
 
+const expandConfiguredOrigin = (value: string): string[] => {
+  const normalized = normalizeOrigin(value);
+  if (!normalized) {
+    return [];
+  }
+
+  if (/^https?:\/\//i.test(normalized)) {
+    return [normalized];
+  }
+
+  // Accept host-only env values like "my-app.vercel.app" by expanding them
+  // into concrete browser origins. This makes deployment env mistakes less fatal.
+  return [`https://${normalized}`, `http://${normalized}`];
+};
+
 export const getAllowedOrigins = () => {
   const configuredOrigins = [
     process.env.NEXT_PUBLIC_APP_URL,
@@ -22,7 +37,7 @@ export const getAllowedOrigins = () => {
   ]
     .filter(Boolean)
     .flatMap((value) => String(value).split(","))
-    .map(normalizeOrigin)
+    .flatMap(expandConfiguredOrigin)
     .filter(Boolean);
 
   if (configuredOrigins.length > 0) {
