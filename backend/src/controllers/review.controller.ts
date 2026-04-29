@@ -1,45 +1,47 @@
 import { Request, Response } from "express";
-import mongoose from "mongoose";
 import Product from "../models/Product";
 import Review from "../models/review";
 import User from "../models/user";
 
-const recalculateProductReviews = async (productId: string) => {
-  const stats = await Review.aggregate([
-    {
-      $match: {
-        product: new mongoose.Types.ObjectId(productId),
-      },
-    },
-    {
-      $group: {
-        _id: "$product",
-        averageRating: { $avg: "$rating" },
-        totalReviews: { $sum: 1 },
-      },
-    },
+const serializeModel = <T extends { get: (options?: unknown) => any }>(model: T) => {
+  const plain = model.get({ plain: true });
+  return { ...plain, _id: plain.id };
+};
+
+const recalculateProductReviews = async (productId: number) => {
+  const [totalReviews, totalRating] = await Promise.all([
+    Review.count({ where: { product: productId } }),
+    Review.sum("rating", { where: { product: productId } }),
   ]);
 
-  const reviewStats = stats[0];
-
-  await Product.findByIdAndUpdate(productId, {
-    rating: reviewStats ? Number(reviewStats.averageRating.toFixed(1)) : 0,
-    numReviews: reviewStats ? reviewStats.totalReviews : 0,
-  });
+  await Product.update(
+    {
+      rating:
+        totalReviews > 0
+          ? Number((Number(totalRating || 0) / totalReviews).toFixed(1))
+          : 0,
+      numReviews: totalReviews,
+    },
+    {
+      where: { id: productId },
+    }
+  );
 };
 
 export const getProductReviews = async (req: Request, res: Response) => {
   try {
-    const { id } = req.params;
+    const productId = Number(req.params.id);
 
-    if (!mongoose.isValidObjectId(id)) {
+    if (!productId || Number.isNaN(productId)) {
       return res.status(400).json({
         success: false,
         message: "Invalid product ID",
       });
     }
 
-    const product = await Product.findById(id).select("_id name");
+    const product = await Product.findByPk(productId, {
+      attributes: ["id", "name"],
+    });
 
     if (!product) {
       return res.status(404).json({
@@ -48,14 +50,16 @@ export const getProductReviews = async (req: Request, res: Response) => {
       });
     }
 
-    const reviews = await Review.find({ product: id })
-      .sort({ createdAt: -1 })
-      .select("name rating comment user createdAt updatedAt");
+    const reviews = await Review.findAll({
+      where: { product: productId },
+      order: [["createdAt", "DESC"]],
+      attributes: ["id", "name", "rating", "comment", "user", "createdAt", "updatedAt"],
+    });
 
     return res.status(200).json({
       success: true,
       count: reviews.length,
-      reviews,
+      reviews: reviews.map((review) => serializeModel(review)),
     });
   } catch (error: any) {
     return res.status(500).json({
@@ -67,9 +71,9 @@ export const getProductReviews = async (req: Request, res: Response) => {
 
 export const createOrUpdateReview = async (req: any, res: Response) => {
   try {
-    const { id } = req.params;
+    const productId = Number(req.params.id);
     const { rating, comment } = req.body;
-    const userId = req.user?.id;
+    const userId = Number(req.user?.id);
 
     if (!userId) {
       return res.status(401).json({
@@ -78,7 +82,7 @@ export const createOrUpdateReview = async (req: any, res: Response) => {
       });
     }
 
-    if (!mongoose.isValidObjectId(id)) {
+    if (!productId || Number.isNaN(productId)) {
       return res.status(400).json({
         success: false,
         message: "Invalid product ID",
@@ -102,8 +106,12 @@ export const createOrUpdateReview = async (req: any, res: Response) => {
     }
 
     const [product, user] = await Promise.all([
-      Product.findById(id).select("_id isPublished"),
-      User.findById(userId).select("name"),
+      Product.findByPk(productId, {
+        attributes: ["id", "isPublished"],
+      }),
+      User.findByPk(userId, {
+        attributes: ["id", "name"],
+      }),
     ]);
 
     if (!product || !product.isPublished) {
@@ -120,29 +128,32 @@ export const createOrUpdateReview = async (req: any, res: Response) => {
       });
     }
 
-    const review = await Review.findOneAndUpdate(
-      { product: id, user: userId },
-      {
-        product: id,
+    let review = await Review.findOne({
+      where: { product: productId, user: userId },
+    });
+
+    if (review) {
+      await review.update({
+        name: user.name || "Customer",
+        rating: parsedRating,
+        comment: String(comment).trim(),
+      });
+    } else {
+      review = await Review.create({
+        product: productId,
         user: userId,
         name: user.name || "Customer",
         rating: parsedRating,
         comment: String(comment).trim(),
-      },
-      {
-        new: true,
-        upsert: true,
-        runValidators: true,
-        setDefaultsOnInsert: true,
-      }
-    );
+      });
+    }
 
-    await recalculateProductReviews(id);
+    await recalculateProductReviews(productId);
 
     return res.status(200).json({
       success: true,
       message: "Review saved successfully",
-      review,
+      review: serializeModel(review),
     });
   } catch (error: any) {
     return res.status(500).json({
@@ -152,17 +163,44 @@ export const createOrUpdateReview = async (req: any, res: Response) => {
   }
 };
 
-export const getAllReviews = async (req: Request, res: Response) => {
+export const getAllReviews = async (_req: Request, res: Response) => {
   try {
-    const reviews = await Review.find()
-      .populate("product", "name slug")
-      .populate("user", "name email")
-      .sort({ createdAt: -1 });
+    const reviews = await Review.findAll({
+      order: [["createdAt", "DESC"]],
+    });
+
+    const productIds = Array.from(new Set(reviews.map((review) => review.product)));
+    const userIds = Array.from(new Set(reviews.map((review) => review.user)));
+    const [products, users] = await Promise.all([
+      productIds.length
+        ? Product.findAll({
+            where: { id: productIds },
+            attributes: ["id", "name", "slug"],
+          })
+        : [],
+      userIds.length
+        ? User.findAll({
+            where: { id: userIds },
+            attributes: ["id", "name", "email"],
+          })
+        : [],
+    ]);
+
+    const productMap = new Map(products.map((product) => [product.id, product]));
+    const userMap = new Map(users.map((user) => [user.id, user]));
 
     return res.status(200).json({
       success: true,
       count: reviews.length,
-      reviews,
+      reviews: reviews.map((review) => ({
+        ...serializeModel(review),
+        product: productMap.get(review.product)
+          ? serializeModel(productMap.get(review.product)!)
+          : review.product,
+        user: userMap.get(review.user)
+          ? serializeModel(userMap.get(review.user)!)
+          : review.user,
+      })),
     });
   } catch (error: any) {
     return res.status(500).json({
@@ -174,16 +212,16 @@ export const getAllReviews = async (req: Request, res: Response) => {
 
 export const deleteReview = async (req: Request, res: Response) => {
   try {
-    const { id } = req.params;
+    const reviewId = Number(req.params.id);
 
-    if (!mongoose.isValidObjectId(id)) {
+    if (!reviewId || Number.isNaN(reviewId)) {
       return res.status(400).json({
         success: false,
         message: "Invalid review ID",
       });
     }
 
-    const review = await Review.findById(id);
+    const review = await Review.findByPk(reviewId);
 
     if (!review) {
       return res.status(404).json({
@@ -192,9 +230,8 @@ export const deleteReview = async (req: Request, res: Response) => {
       });
     }
 
-    const productId = review.product.toString();
-
-    await Review.findByIdAndDelete(id);
+    const productId = review.product;
+    await review.destroy();
     await recalculateProductReviews(productId);
 
     return res.status(200).json({

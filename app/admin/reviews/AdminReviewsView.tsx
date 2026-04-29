@@ -112,8 +112,6 @@ export function AdminReviewsView({
   if (!isAuthorized) return null;
 
   const handleDelete = async (id: string) => {
-    const token = localStorage.getItem("token");
-
     if (!token) {
       alert("Please login again.");
       return;

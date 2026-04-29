@@ -30,6 +30,7 @@ export default function EditProductPage() {
     images: "",
     isFeatured: false,
     isPublished: true,
+    showInNewArrivals: false,
   });
 
   const parsedImageList = form.images
@@ -73,6 +74,7 @@ export default function EditProductPage() {
           images: Array.isArray(product.images) ? product.images.join("\n") : "",
           isFeatured: !!product.isFeatured,
           isPublished: !!product.isPublished,
+          showInNewArrivals: !!product.showInNewArrivals,
         });
       } catch (error) {
         console.error("Load product error:", error);
@@ -147,6 +149,7 @@ export default function EditProductPage() {
           images: parsedImages,
           isFeatured: form.isFeatured,
           isPublished: form.isPublished,
+          showInNewArrivals: form.showInNewArrivals,
         },
         token
       );
@@ -365,6 +368,20 @@ export default function EditProductPage() {
                     className="h-4 w-4 rounded border-[#7a1f2b] text-[#7a1f2b] focus:ring-[#7a1f2b]"
                   />
                   <span className="text-sm text-[#4a2c2a]">Published</span>
+                </label>
+
+                <label className="inline-flex items-center gap-2">
+                  <input
+                    type="checkbox"
+                    checked={form.showInNewArrivals}
+                    onChange={(e) =>
+                      setForm({ ...form, showInNewArrivals: e.target.checked })
+                    }
+                    className="h-4 w-4 rounded border-[#7a1f2b] text-[#7a1f2b] focus:ring-[#7a1f2b]"
+                  />
+                  <span className="text-sm text-[#4a2c2a]">
+                    Show in New Arrivals
+                  </span>
                 </label>
               </div>
             </div>

@@ -18,6 +18,7 @@ export interface Product {
   images: string[];
   isFeatured: boolean;
   isPublished: boolean;
+  showInNewArrivals: boolean;
   rating: number;
   numReviews: number;
   createdAt: string;
@@ -62,6 +63,42 @@ export interface DeleteProductResponse {
 
 const FALLBACK_PRODUCT_IMAGE = "/favicon/product.jpeg";
 
+const normalizeNumber = (value: unknown, fallback = 0): number => {
+  if (typeof value === "number" && Number.isFinite(value)) {
+    return value;
+  }
+
+  if (typeof value === "string" && value.trim() !== "") {
+    const parsed = Number(value);
+    return Number.isFinite(parsed) ? parsed : fallback;
+  }
+
+  return fallback;
+};
+
+const normalizeBoolean = (value: unknown, fallback = false): boolean => {
+  if (typeof value === "boolean") {
+    return value;
+  }
+
+  if (typeof value === "number") {
+    return value !== 0;
+  }
+
+  if (typeof value === "string") {
+    const normalized = value.trim().toLowerCase();
+    if (normalized === "true" || normalized === "1") {
+      return true;
+    }
+
+    if (normalized === "false" || normalized === "0") {
+      return false;
+    }
+  }
+
+  return fallback;
+};
+
 const normalizeProduct = (product: any): Product => {
   const images = Array.isArray(product?.images)
     ? product.images.map((image: unknown) => String(image).trim()).filter(Boolean)
@@ -71,9 +108,31 @@ const normalizeProduct = (product: any): Product => {
 
   return {
     ...product,
+    _id: String(product?._id ?? product?.id ?? ""),
+    price: normalizeNumber(product?.price),
+    originalPrice:
+      product?.originalPrice !== undefined
+        ? normalizeNumber(product.originalPrice)
+        : undefined,
+    discountPercent:
+      product?.discountPercent !== undefined
+        ? normalizeNumber(product.discountPercent)
+        : undefined,
+    countInStock: normalizeNumber(product?.countInStock),
+    rating: normalizeNumber(product?.rating),
+    numReviews: normalizeNumber(product?.numReviews),
+    isFeatured: normalizeBoolean(product?.isFeatured),
+    isPublished: normalizeBoolean(product?.isPublished, true),
+    showInNewArrivals: normalizeBoolean(product?.showInNewArrivals),
     images: images.length > 0 ? images : [FALLBACK_PRODUCT_IMAGE],
   };
 };
+
+const normalizeReview = (review: any): ProductReview => ({
+  ...review,
+  _id: String(review?._id ?? review?.id ?? ""),
+  rating: normalizeNumber(review?.rating),
+});
 
 export const getAllProducts = async (): Promise<GetProductsResponse> => {
   const response = await axios.get(API_BASE_URL);
@@ -92,6 +151,9 @@ export const getProductById = async (
   return {
     ...response.data,
     product: normalizeProduct(response.data?.product),
+    reviews: Array.isArray(response.data?.reviews)
+      ? response.data.reviews.map(normalizeReview)
+      : [],
   };
 };
 

@@ -8,9 +8,9 @@ export interface ICoupon {
   value: number;
   minOrderAmount: number;
   isActive: boolean;
-  maxUses?: number;
+  maxUses?: number | null;
   usedCount: number;
-  expiresAt?: Date;
+  expiresAt?: Date | null;
   createdAt?: Date;
   updatedAt?: Date;
 }
@@ -24,9 +24,9 @@ export class Coupon extends Model<ICoupon, CouponCreationAttributes> implements 
   declare value: number;
   declare minOrderAmount: number;
   declare isActive: boolean;
-  declare maxUses: number;
+  declare maxUses: number | null;
   declare usedCount: number;
-  declare expiresAt: Date;
+  declare expiresAt: Date | null;
   declare createdAt: Date;
   declare updatedAt: Date;
 }

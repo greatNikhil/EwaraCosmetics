@@ -115,7 +115,6 @@ export function AdminCouponsView({
 
   const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    const token = localStorage.getItem("token");
 
     if (!token) {
       alert("Please login again.");
@@ -183,8 +182,6 @@ export function AdminCouponsView({
   };
 
   const handleDelete = async (id: string) => {
-    const token = localStorage.getItem("token");
-
     if (!token) {
       alert("Please login again.");
       return;

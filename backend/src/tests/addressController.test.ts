@@ -7,46 +7,54 @@ import {
 import { createMockRequest, createMockResponse } from "./helpers/mockExpress";
 
 const originalAddressFind = (Address as any).find;
+const originalAddressFindAll = (Address as any).findAll;
 const originalAddressFindOne = (Address as any).findOne;
 
 export const runAddressControllerTests = async () => {
   try {
-    let findFilter: any = null;
-    (Address as any).find = (filter: any) => {
-      findFilter = filter;
-      return {
-        sort: async () => [],
-      };
+    let findAllOptions: any = null;
+    (Address as any).findAll = async (options: any) => {
+      findAllOptions = options;
+      return [];
     };
 
     const myAddressesReq = createMockRequest({
-      user: { id: "507f1f77bcf86cd799439021" } as any,
+      user: { id: "101" } as any,
     });
     const myAddressesRes = createMockResponse();
 
     await getMyAddresses(myAddressesReq as any, myAddressesRes as any);
 
     assert.equal(myAddressesRes.statusCode, 200);
-    assert.deepEqual(findFilter, { user: "507f1f77bcf86cd799439021" });
+    assert.deepEqual(findAllOptions, {
+      where: { user: 101 },
+      order: [
+        ["default", "DESC"],
+        ["updatedAt", "DESC"],
+        ["createdAt", "DESC"],
+      ],
+    });
 
-    let findOneFilter: any = null;
-    (Address as any).findOne = async (filter: any) => {
-      findOneFilter = filter;
+    let findOneOptions: any = null;
+    (Address as any).findOne = async (options: any) => {
+      findOneOptions = options;
       return null;
     };
 
     const otherUserReq = createMockRequest({
-      params: { id: "507f1f77bcf86cd799439022" } as any,
-      user: { id: "507f1f77bcf86cd799439023" } as any,
+      params: { id: "202" } as any,
+      user: { id: "303" } as any,
     });
     const otherUserRes = createMockResponse();
 
     await getAddressById(otherUserReq as any, otherUserRes as any);
 
     assert.equal(otherUserRes.statusCode, 404);
-    assert.deepEqual(findOneFilter, {
-      _id: "507f1f77bcf86cd799439022",
-      user: "507f1f77bcf86cd799439023",
+    assert.deepEqual(findOneOptions, {
+      where: {
+        id: 202,
+        user: 303,
+      },
     });
     assert.deepEqual(otherUserRes.body, {
       success: false,
@@ -54,6 +62,7 @@ export const runAddressControllerTests = async () => {
     });
   } finally {
     (Address as any).find = originalAddressFind;
+    (Address as any).findAll = originalAddressFindAll;
     (Address as any).findOne = originalAddressFindOne;
   }
 };

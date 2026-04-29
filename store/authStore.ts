@@ -52,6 +52,9 @@ export const useAuthStore = create<AuthStore>()(
     }),
     {
       name: 'auth-storage',
+      partialize: (state) => ({
+        token: state.token,
+      }),
     }
   )
 );

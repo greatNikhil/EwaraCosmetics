@@ -28,12 +28,23 @@ const authMiddleware = async (
       process.env.JWT_SECRET as string
     ) as any;
 
-    const user = await User.findById(decoded?.id).select("_id googleId password");
+    const user = await User.findByPk(Number(decoded?.id), {
+      attributes: ["id", "googleId", "password", "isBlocked", "isDeleted"],
+    });
 
     if (!user) {
       return res.status(401).json({
         success: false,
         message: "Token invalid or expired",
+      });
+    }
+
+    if (user.isDeleted || user.isBlocked) {
+      return res.status(403).json({
+        success: false,
+        message: user.isDeleted
+          ? "This account is no longer available"
+          : "Your account has been blocked. Please contact support.",
       });
     }
 

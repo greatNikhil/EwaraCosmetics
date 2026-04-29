@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { Star } from "lucide-react";
 import { buildApiUrl } from "@/utils/api";
+import { getClientToken } from "@/utils/clientAuth";
 
 interface ReviewFormProps {
   productId?: string;
@@ -32,7 +33,7 @@ export default function ReviewForm({ productId, onSubmitted }: ReviewFormProps) 
       return;
     }
 
-    const token = localStorage.getItem("token");
+    const token = getClientToken();
 
     if (!token) {
       alert("Please login first to submit a review.");

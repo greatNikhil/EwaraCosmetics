@@ -36,12 +36,12 @@ export interface IOrder {
   shippingAddress?: IShippingAddress;
   razorpayPaymentId?: string;
   razorpayOrderId?: string;
-  stockRestored: boolean;
+  stockRestored?: boolean;
   createdAt?: Date;
   updatedAt?: Date;
 }
 
-interface OrderCreationAttributes extends Optional<IOrder, "id"> {}
+interface OrderCreationAttributes extends Optional<IOrder, "id" | "stockRestored"> {}
 
 export class Order extends Model<IOrder, OrderCreationAttributes> implements IOrder {
   declare id: number;

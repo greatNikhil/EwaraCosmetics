@@ -9,6 +9,7 @@ import { useCartStore } from "@/store/cartStore";
 import { buildApiUrl } from "@/utils/api";
 import { clearClientAuth, persistClientAuth } from "@/utils/clientAuth";
 import { syncWishlistFromBackend } from "@/utils/wishlist";
+import { mergeGuestCartIntoBackend } from "@/utils/cart";
 
 export default function LoginPage() {
   const router = useRouter();
@@ -38,11 +39,20 @@ export default function LoginPage() {
     }
   };
 
-  const hydrateUserSession = async (user: any, token: string) => {
+  const hydrateUserSession = async (
+    user: any,
+    token: string,
+    guestCartItems: ReturnType<typeof useCartStore.getState>["items"]
+  ) => {
     persistClientAuth(user, token);
+
+    if (guestCartItems.length > 0) {
+      await mergeGuestCartIntoBackend(token, guestCartItems);
+    }
+
     await Promise.all([
       fetchUserAddresses(token),
-      syncCartFromBackend(token),
+      guestCartItems.length === 0 ? syncCartFromBackend(token) : Promise.resolve(),
       syncWishlistFromBackend(token),
     ]);
     window.dispatchEvent(new Event("userChanged"));
@@ -50,12 +60,10 @@ export default function LoginPage() {
 
   const routeAfterLogin = (normalizedUser: any) => {
     if (normalizedUser.role === "admin") {
-      localStorage.setItem("isAdmin", "true");
       router.push("/admin");
       return;
     }
 
-    localStorage.removeItem("isAdmin");
     router.push("/profile");
   };
 
@@ -64,11 +72,12 @@ export default function LoginPage() {
       ...data.user,
       id: data.user?._id || data.user?.id,
     };
+    const guestCartItems = [...useCartStore.getState().items];
 
     clearClientAuth();
     setToken(data.token);
     setUser(normalizedUser);
-    await hydrateUserSession(normalizedUser, data.token);
+    await hydrateUserSession(normalizedUser, data.token, guestCartItems);
     routeAfterLogin(normalizedUser);
   };
 

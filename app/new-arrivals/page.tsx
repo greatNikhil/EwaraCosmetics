@@ -19,7 +19,8 @@ export default function NewArrivalsPage() {
 
         const productsList = Array.isArray(data) ? data : data.products || [];
         const publishedProducts = productsList.filter(
-          (product: Product) => product.isPublished === true
+          (product: Product) =>
+            product.isPublished === true && product.showInNewArrivals === true
         );
 
         setProducts(publishedProducts);
@@ -83,7 +84,7 @@ export default function NewArrivalsPage() {
           ) : products.length === 0 ? (
             <div className="rounded-[18px] border border-[#e7ddd6] bg-white px-6 py-16 text-center">
               <p className="text-lg font-medium text-[#2f211d]">
-                No products available.
+                No new arrival products available.
               </p>
             </div>
           ) : (

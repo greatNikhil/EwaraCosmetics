@@ -46,7 +46,7 @@ Offer.init(
     tableName: "offers",
     timestamps: true,
     indexes: [
-      { fields: ["isActive", "displayOrder", "createdAt"] },
+      { fields: ["is_active", "display_order", "created_at"] },
     ],
   }
 );

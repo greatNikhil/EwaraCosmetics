@@ -5,15 +5,15 @@ export type CouponSource = {
   type: "percent" | "flat";
   value: number;
   minOrderAmount: number;
-  maxUses?: number;
+  maxUses?: number | null;
   usedCount?: number;
-  expiresAt?: Date;
+  expiresAt?: Date | null;
 };
 
 export const getCouponSource = async (
   code: string
 ): Promise<CouponSource | null> => {
-  const coupon = await Coupon.findOne({ code, isActive: true });
+  const coupon = await Coupon.findOne({ where: { code, isActive: true } });
 
   if (coupon) {
     return {
@@ -78,12 +78,20 @@ export const resolveCouponDiscount = async ({
   };
 };
 
-export const incrementCouponUsage = async (code?: string | null) => {
+export const incrementCouponUsage = async (
+  code?: string | null,
+  transaction?: any
+) => {
   if (!code) return;
 
   const normalizedCode = String(code).trim().toUpperCase();
-  await Coupon.findOneAndUpdate(
-    { code: normalizedCode, isActive: true },
-    { $inc: { usedCount: 1 } }
-  );
+  const coupon = await Coupon.findOne({
+    where: { code: normalizedCode, isActive: true },
+    transaction,
+  });
+
+  if (coupon) {
+    coupon.usedCount = Number(coupon.usedCount || 0) + 1;
+    await coupon.save({ transaction });
+  }
 };

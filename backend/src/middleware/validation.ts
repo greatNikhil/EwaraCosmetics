@@ -1,5 +1,4 @@
 import { NextFunction, Request, Response } from "express";
-import mongoose from "mongoose";
 
 const badRequest = (res: Response, message: string) =>
   res.status(400).json({
@@ -13,7 +12,7 @@ export const validateObjectIdParam = (paramName = "id") => {
   return (req: Request, res: Response, next: NextFunction) => {
     const value = req.params[paramName];
 
-    if (!value || !mongoose.isValidObjectId(value)) {
+    if (!value || Number.isNaN(Number(value))) {
       return badRequest(res, `Invalid ${paramName}`);
     }
 

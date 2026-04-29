@@ -3,6 +3,7 @@ import type { Metadata } from "next";
 import type { ReactNode } from "react";
 import Script from "next/script";
 import { Providers } from "./providers";
+import { AuthBootstrap } from "@/components/AuthBootstrap";
 import { Navbar } from "@/components/Navbar";
 import Footer from "@/components/Footer";
 import { StatsSection } from "@/components/StatsSection ";
@@ -16,6 +17,11 @@ export const metadata: Metadata = {
   title: "Ewara Cosmetics",
   description:
     "Luxury beauty products built for modern skincare and self-care experiences.",
+  icons: {
+    icon: "/logoewara.jpeg",
+    shortcut: "/logoewara.jpeg",
+    apple: "/logoewara.jpeg",
+  },
 };
 
 export default function RootLayout({ children }: { children: ReactNode }) {
@@ -31,6 +37,7 @@ export default function RootLayout({ children }: { children: ReactNode }) {
       </head>
       <body className={montage.className}>
         <Providers>
+          <AuthBootstrap />
           <div className="min-h-screen bg-[#f3ede7] text-[#4a2c2a]">
             <Navbar />
             <main>{children}</main>

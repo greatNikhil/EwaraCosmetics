@@ -1,43 +1,98 @@
-import Link from "next/link";
-import OfferCard from "@/components/offer/OfferCard";
+"use client";
 
-const offers = [
+import Link from "next/link";
+import { useEffect, useMemo, useState } from "react";
+import OfferCard from "@/components/offer/OfferCard";
+import { buildApiUrl } from "@/utils/api";
+
+interface ActiveOffer {
+  _id: string;
+  text: string;
+  isActive: boolean;
+  displayOrder: number;
+}
+
+const fallbackImages = [
+  "/slider/skin.jpg",
+  "/slider/l5.jpeg",
+  "/slider/d1.jpeg",
+  "/hero/e1.jpeg",
+];
+
+const fallbackOffers: ActiveOffer[] = [
   {
-    id: 1,
-    title: "Summer Radiance Set",
-    description:
-      "Save up to 40% on premium skincare rituals crafted for glowing skin.",
-    image: "/slider/skin.jpg",
+    _id: "fallback-1",
+    text: "First Order: Get Extra 10% Off on Rs. 700+",
+    isActive: true,
+    displayOrder: 0,
   },
   {
-    id: 2,
-    title: "Velvet Glow Fragrance",
-    description:
-      "Discover limited-edition scents and enjoy lavish savings on every bottle.",
-    image: "/slider/l5.jpeg",
+    _id: "fallback-2",
+    text: "Up to 50% Off + Surprise Gifts",
+    isActive: true,
+    displayOrder: 1,
   },
   {
-    id: 3,
-    title: "Hair Luxe Essentials",
-    description:
-      "Refresh your haircare routine with nourishing salon-quality treatments.",
-    image: "/slider/d1.jpeg",
-  },
-  {
-    id: 4,
-    title: "Premium Gift Edit",
-    description:
-      "Curated luxury bundles for a beautifully elevated self-care ritual.",
-    image: "/hero/e1.jpeg",
+    _id: "fallback-3",
+    text: "Free Shipping on Orders Above Rs. 999",
+    isActive: true,
+    displayOrder: 2,
   },
 ];
 
 export default function OffersPage() {
+  const [offers, setOffers] = useState<ActiveOffer[]>(fallbackOffers);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    let isMounted = true;
+
+    const loadOffers = async () => {
+      try {
+        const response = await fetch(buildApiUrl("/api/offers"), {
+          cache: "no-store",
+        });
+        const data = await response.json();
+
+        if (!response.ok || !data.success || !Array.isArray(data.offers)) {
+          return;
+        }
+
+        if (isMounted) {
+          setOffers(data.offers);
+        }
+      } catch (error) {
+        console.error("Failed to load offers page data:", error);
+      } finally {
+        if (isMounted) {
+          setLoading(false);
+        }
+      }
+    };
+
+    loadOffers();
+
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
+  const offerCards = useMemo(
+    () =>
+      offers.map((offer, index) => ({
+        id: offer._id,
+        title: `Offer ${index + 1}`,
+        description: offer.text,
+        image: fallbackImages[index % fallbackImages.length],
+      })),
+    [offers]
+  );
+
   return (
     <main className="min-h-screen bg-[#fdf8f6] text-[#4a2c2a]">
       <section className="relative overflow-hidden bg-[#f3ece8]">
         <video
-          className="h-[70vh] w-full object-cover opacity-40 scale-105"
+          className="h-[70vh] w-full scale-105 object-cover opacity-40"
           autoPlay
           muted
           loop
@@ -48,7 +103,7 @@ export default function OffersPage() {
           className="absolute inset-0 bg-gradient-to-b 
             from-[#7a1f2b]/30 via-transparent to-[#fdf8f6]"
         />
-        <div className="absolute inset-0 flex flex-col items-center justify-center px-6 text-center ... animate-fadeUp delay-200">
+        <div className="absolute inset-0 flex flex-col items-center justify-center px-6 text-center">
           <p className="mb-4 text-sm uppercase tracking-[0.4em] text-white/80">
             Exclusive Offers
           </p>
@@ -64,7 +119,7 @@ export default function OffersPage() {
 
       <section className="mx-auto max-w-7xl px-4 pb-20 pt-12 sm:pt-16">
         <div className="-mt-20 grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
-          {offers.map((offer) => (
+          {offerCards.map((offer) => (
             <OfferCard
               key={offer.id}
               title={offer.title}
@@ -73,25 +128,24 @@ export default function OffersPage() {
             />
           ))}
         </div>
+
+        {!loading && offerCards.length === 0 ? (
+          <p className="mt-8 text-center text-sm text-[#7d6d62]">
+            No active offers available right now.
+          </p>
+        ) : null}
       </section>
 
-      <section className="flex justify-center pb-24 px-4">
+      <section className="flex justify-center px-4 pb-24">
         <Link
           href="/shop"
-          className="relative overflow-hidden inline-flex items-center justify-center 
-             rounded-full px-10 py-4 text-base font-semibold 
-             text-[#7a1f2b] border border-[#7a1f2b] 
-             group"
+          className="group relative inline-flex items-center justify-center overflow-hidden rounded-full border border-[#7a1f2b] px-10 py-4 text-base font-semibold text-[#7a1f2b]"
         >
           <span className="relative z-10 transition duration-300 group-hover:text-white">
             Shop Now →
           </span>
 
-          <span
-            className="absolute inset-0 bg-[#7a1f2b] 
-                   translate-y-full group-hover:translate-y-0 
-                   transition-transform duration-300"
-          ></span>
+          <span className="absolute inset-0 translate-y-full bg-[#7a1f2b] transition-transform duration-300 group-hover:translate-y-0" />
         </Link>
       </section>
     </main>

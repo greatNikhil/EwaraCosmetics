@@ -39,6 +39,7 @@ export const createProduct = async (req: Request, res: Response) => {
       images,
       isFeatured,
       isPublished,
+      showInNewArrivals,
     } = req.body;
     const normalizedImages = normalizeProductImages(images);
 
@@ -81,6 +82,7 @@ export const createProduct = async (req: Request, res: Response) => {
       images: normalizedImages,
       isFeatured: isFeatured || false,
       isPublished: isPublished !== undefined ? isPublished : true,
+      showInNewArrivals: showInNewArrivals === true,
     });
 
     return res.status(201).json({

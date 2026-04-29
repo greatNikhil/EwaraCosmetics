@@ -92,8 +92,6 @@ export function AdminProductsView({
   if (!isAuthorized) return null;
 
   const handleDelete = async (id: string) => {
-    const token = localStorage.getItem("token");
-
     if (!token) {
       alert("Please login again.");
       router.push("/login");
@@ -412,6 +410,16 @@ export function AdminProductsView({
                           }`}
                         >
                           {product.isPublished ? "Published" : "Hidden"}
+                        </span>
+
+                        <span
+                          className={`rounded-full px-3 py-1 text-xs font-medium ${
+                            product.showInNewArrivals
+                              ? "bg-[#f7e7ea] text-[#7a1f2b]"
+                              : "bg-gray-100 text-gray-600"
+                          }`}
+                        >
+                          {product.showInNewArrivals ? "New Arrival" : "Not in New Arrivals"}
                         </span>
 
                         <span className="rounded-full bg-[#f7e7ea] px-3 py-1 text-xs font-medium text-[#7a1f2b]">

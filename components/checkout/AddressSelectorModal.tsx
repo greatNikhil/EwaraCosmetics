@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { X } from "lucide-react";
 import { useAuthStore } from "@/store/authStore";
 import { buildApiUrl } from "@/utils/api";
+import { getClientToken } from "@/utils/clientAuth";
 
 interface Address {
   _id?: string;
@@ -52,7 +53,7 @@ export default function AddressSelectorModal({
         );
       }
 
-      const token = localStorage.getItem("token");
+      const token = getClientToken();
 
       if (!token) {
         return;
@@ -93,7 +94,7 @@ export default function AddressSelectorModal({
 
     setIsSaving(true);
 
-    const token = localStorage.getItem("token");
+    const token = getClientToken();
 
     if (!token) {
       alert("User information missing.");

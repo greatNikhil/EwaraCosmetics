@@ -1,83 +1,68 @@
-/**
- * Seed Test Orders for Step 2.1 Testing
- * 
- * Usage (from backend directory):
- * ts-node scripts/seed-test-orders.ts
- * or
- * npx ts-node scripts/seed-test-orders.ts
- * 
- * This script creates test orders in MongoDB without requiring payment processing
- */
-
-import mongoose from "mongoose";
 import dotenv from "dotenv";
+import bcrypt from "bcryptjs";
+import connectDB, { sequelize } from "../src/config/db";
 import User from "../src/models/user";
 import Order from "../src/models/order.model";
-import connectDB from "../src/config/db";
 
 dotenv.config();
 
-// Test data
 const testProducts = [
   {
+    productId: 101,
     name: "Vitamin C Serum",
     price: 1299,
     image: "https://via.placeholder.com/200?text=Vitamin+C",
   },
   {
+    productId: 102,
     name: "Moisturizing Cream",
     price: 899,
     image: "https://via.placeholder.com/200?text=Moisturizer",
   },
   {
+    productId: 103,
     name: "Face Wash",
     price: 499,
     image: "https://via.placeholder.com/200?text=Face+Wash",
   },
 ];
 
-// Seed orders
 async function seedTestOrders() {
   try {
-    console.log("\n🌱 Seeding test orders for Step 2.1...\n");
+    console.log("\nSeeding test orders...\n");
 
-    // Connect to DB
     await connectDB();
-    console.log("✅ Connected to MongoDB\n");
+    console.log("Connected to MySQL\n");
 
-    // Get or create test user
-    let testUser = await User.findOne({ email: "test@ewara.com" });
+    let testUser = await User.findOne({ where: { email: "test@ewara.com" } });
 
     if (!testUser) {
-      console.log("📝 Creating test user...");
+      console.log("Creating test user...");
       testUser = await User.create({
         name: "Test Customer",
         email: "test@ewara.com",
         phone: "9876543210",
-        password: "$2a$10$dummy_hash_password", // Dummy hash
+        password: await bcrypt.hash("password", 10),
         role: "user",
       });
-      console.log("✅ Test user created:", testUser._id);
+      console.log(`Test user created: ${testUser.id}`);
     } else {
-      console.log("✅ Using existing test user:", testUser._id);
+      console.log(`Using existing test user: ${testUser.id}`);
     }
 
     console.log("");
 
-    // Clear old test orders
-    const deleteResult = await Order.deleteMany({
-      "shippingAddress.fullName": "Test Delivery Address",
+    const deletedCount = await Order.destroy({
+      where: { user: testUser.id },
     });
-    console.log(`🗑️  Cleared ${deleteResult.deletedCount} old test orders\n`);
+    console.log(`Cleared ${deletedCount} old test orders\n`);
 
-    // Create 3 test orders with different statuses
     const testOrders = [
       {
-        // Order 1: Razorpay - Processing (most recent)
-        user: testUser._id,
+        user: testUser.id,
         items: [
           {
-            productId: new mongoose.Types.ObjectId(),
+            productId: testProducts[0].productId,
             name: testProducts[0].name,
             price: testProducts[0].price,
             quantity: 1,
@@ -107,13 +92,13 @@ async function seedTestOrders() {
         razorpayOrderId: "order_test_001",
         stockRestored: false,
         createdAt: new Date(),
+        updatedAt: new Date(),
       },
       {
-        // Order 2: COD - Pending (2 days ago)
-        user: testUser._id,
+        user: testUser.id,
         items: [
           {
-            productId: new mongoose.Types.ObjectId(),
+            productId: testProducts[1].productId,
             name: testProducts[1].name,
             price: testProducts[1].price,
             quantity: 2,
@@ -144,21 +129,21 @@ async function seedTestOrders() {
           country: "India",
         },
         stockRestored: false,
-        createdAt: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000), // 2 days ago
+        createdAt: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000),
+        updatedAt: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000),
       },
       {
-        // Order 3: Razorpay - Shipped (5 days ago)
-        user: testUser._id,
+        user: testUser.id,
         items: [
           {
-            productId: new mongoose.Types.ObjectId(),
+            productId: testProducts[0].productId,
             name: testProducts[0].name,
             price: testProducts[0].price,
             quantity: 1,
             image: testProducts[0].image,
           },
           {
-            productId: new mongoose.Types.ObjectId(),
+            productId: testProducts[2].productId,
             name: testProducts[2].name,
             price: testProducts[2].price,
             quantity: 1,
@@ -174,9 +159,7 @@ async function seedTestOrders() {
         totalAmount:
           testProducts[0].price +
           testProducts[2].price +
-          Math.round(
-            (testProducts[0].price + testProducts[2].price) * 0.18
-          ),
+          Math.round((testProducts[0].price + testProducts[2].price) * 0.18),
         paymentMethod: "Razorpay",
         paymentStatus: "Completed",
         status: "Shipped",
@@ -193,43 +176,34 @@ async function seedTestOrders() {
         razorpayPaymentId: "pay_test_002",
         razorpayOrderId: "order_test_002",
         stockRestored: false,
-        createdAt: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000), // 5 days ago
+        createdAt: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000),
+        updatedAt: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000),
       },
     ];
 
-    // Create orders
-    const createdOrders = await Order.insertMany(testOrders);
-    console.log("✅ Created 3 test orders:\n");
+    const createdOrders = await Order.bulkCreate(testOrders as any);
+    console.log("Created 3 test orders:\n");
 
     createdOrders.forEach((order, index) => {
-      console.log(`   📦 Order ${index + 1}: ${order._id}`);
+      console.log(`   Order ${index + 1}: ${order.id}`);
       console.log(`      Status: ${order.status}`);
       console.log(`      Payment: ${order.paymentMethod} (${order.paymentStatus})`);
       console.log(`      Total: Rs. ${order.totalAmount}`);
       console.log(`      Items: ${order.items.length}`);
-      console.log(
-        `      Created: ${order.createdAt?.toDateString() || "Today"}`
-      );
+      console.log(`      Created: ${order.createdAt?.toDateString() || "Today"}`);
       console.log("");
     });
 
-    console.log("📋 Test User ID:", testUser._id);
-    console.log("📧 Test Email: test@ewara.com\n");
+    console.log(`Test User ID: ${testUser.id}`);
+    console.log("Test Email: test@ewara.com\n");
 
-    console.log("✅ Seeding complete!\n");
-    console.log("Next steps:");
-    console.log("1. Start backend: cd backend && npm run dev");
-    console.log("2. Start frontend: npm run dev (from root)");
-    console.log("3. Login with: test@ewara.com / password");
-    console.log("4. Navigate to /orders to see test orders\n");
-
+    await sequelize.close();
     process.exit(0);
   } catch (error) {
-    console.error("\n❌ Seeding error:", (error as Error).message);
+    console.error("\nSeeding error:", (error as Error).message);
     console.error((error as Error).stack);
     process.exit(1);
   }
 }
 
-// Run seeding
 seedTestOrders();

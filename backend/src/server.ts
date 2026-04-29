@@ -14,6 +14,7 @@ import promoRoutes from "./routes/promo.routes";
 import offerRoutes from "./routes/offer.routes";
 import wishlistRoutes from "./routes/wishlist.routes";
 import cartRoutes from "./routes/cart.routes";
+import newsletterRoutes from "./routes/newsletter.routes";
 import emailTestRoutes from "./routes/emailTest";
 import { errorHandler, notFoundHandler } from "./middleware/error";
 import { logInfo } from "./utils/logger";
@@ -82,6 +83,7 @@ app.use("/api/promo", promoRoutes);
 app.use("/api/offers", offerRoutes);
 app.use("/api/wishlist", wishlistRoutes);
 app.use("/api/cart", cartRoutes);
+app.use("/api/newsletter", newsletterRoutes);
 app.use("/api/email-test", emailTestRoutes);
 
 // Error handlers

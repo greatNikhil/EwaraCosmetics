@@ -1,7 +1,1 @@
-"use client";
-
-import { AdminProductsView } from "./AdminProductsView";
-
-export default function AdminProductsPage() {
-  return <AdminProductsView />;
-}
+export { default } from "../page";

@@ -1,46 +1,121 @@
 const fs = require("fs");
 const path = require("path");
-const mongoose = require("mongoose");
 const dotenv = require("dotenv");
+const { DataTypes, Sequelize } = require("sequelize");
 
 dotenv.config({ path: path.join(__dirname, "..", ".env") });
 
 const FALLBACK_IMAGE = "/favicon/product.jpeg";
+const PUBLIC_DIR = path.resolve(__dirname, "..", "..", "public");
+const IMAGE_TOKEN_BLACKLIST = new Set([
+  "ewara",
+  "product",
+  "products",
+  "image",
+  "img",
+  "jpeg",
+  "jpg",
+  "png",
+  "webp",
+  "wa",
+]);
 
-const productSchema = new mongoose.Schema(
+const sequelize = new Sequelize(
+  process.env.DB_NAME,
+  process.env.DB_USER,
+  process.env.DB_PASSWORD,
   {
-    name: { type: String, required: true, trim: true },
-    slug: { type: String, required: true, trim: true, lowercase: true, unique: true },
-    description: { type: String, required: true, trim: true },
-    shortDescription: { type: String, trim: true, default: "" },
-    brand: { type: String, trim: true, default: "" },
-    category: { type: String, required: true, trim: true },
-    price: { type: Number, required: true, min: 0 },
-    originalPrice: { type: Number, default: 0, min: 0 },
-    discountPercent: { type: Number, default: 0, min: 0, max: 100 },
-    countInStock: { type: Number, required: true, min: 0, default: 0 },
-    images: {
-      type: [String],
-      required: true,
-      default: [FALLBACK_IMAGE],
-    },
-    isFeatured: { type: Boolean, default: false },
-    isPublished: { type: Boolean, default: true },
-    rating: { type: Number, default: 0, min: 0, max: 5 },
-    numReviews: { type: Number, default: 0, min: 0 },
-  },
-  { timestamps: true }
+    host: process.env.DB_HOST,
+    port: Number(process.env.DB_PORT || 3306),
+    dialect: "mysql",
+    logging: false,
+  }
 );
 
-const Product =
-  mongoose.models.ProductImport ||
-  mongoose.model("ProductImport", productSchema, "products");
+const Product = sequelize.define(
+  "ProductImport",
+  {
+    id: {
+      type: DataTypes.INTEGER,
+      primaryKey: true,
+      autoIncrement: true,
+    },
+    name: {
+      type: DataTypes.STRING(200),
+      allowNull: false,
+    },
+    slug: {
+      type: DataTypes.STRING(255),
+      allowNull: false,
+      unique: true,
+    },
+    description: {
+      type: DataTypes.TEXT,
+      allowNull: false,
+    },
+    shortDescription: {
+      type: DataTypes.STRING(300),
+      defaultValue: "",
+    },
+    brand: {
+      type: DataTypes.STRING(255),
+      defaultValue: "",
+    },
+    category: {
+      type: DataTypes.STRING(255),
+      allowNull: false,
+    },
+    price: {
+      type: DataTypes.DECIMAL(10, 2),
+      allowNull: false,
+    },
+    originalPrice: {
+      type: DataTypes.DECIMAL(10, 2),
+      defaultValue: 0,
+    },
+    discountPercent: {
+      type: DataTypes.INTEGER,
+      defaultValue: 0,
+    },
+    countInStock: {
+      type: DataTypes.INTEGER,
+      allowNull: false,
+      defaultValue: 0,
+    },
+    images: {
+      type: DataTypes.TEXT,
+      allowNull: false,
+    },
+    isFeatured: {
+      type: DataTypes.BOOLEAN,
+      defaultValue: false,
+    },
+    isPublished: {
+      type: DataTypes.BOOLEAN,
+      defaultValue: true,
+    },
+    rating: {
+      type: DataTypes.DECIMAL(3, 2),
+      defaultValue: 0,
+    },
+    numReviews: {
+      type: DataTypes.INTEGER,
+      defaultValue: 0,
+    },
+  },
+  {
+    tableName: "products",
+    timestamps: true,
+    underscored: true,
+  }
+);
 
 const parseArgs = () => {
   const args = process.argv.slice(2);
   const parsed = {
     file: "",
     mode: "upsert",
+    validateOnly: false,
   };
 
   for (let index = 0; index < args.length; index += 1) {
@@ -55,6 +130,11 @@ const parseArgs = () => {
     if (arg === "--mode") {
       parsed.mode = args[index + 1] || "upsert";
       index += 1;
+      continue;
+    }
+
+    if (arg === "--validate-only") {
+      parsed.validateOnly = true;
     }
   }
 
@@ -173,7 +253,51 @@ const normalizeProductRow = (row) => ({
   images: normalizeImages(row.images),
   isFeatured: normalizeBoolean(row.isFeatured, false),
   isPublished: normalizeBoolean(row.isPublished, true),
+  rating: 0,
+  numReviews: 0,
 });
+
+const toComparableTokens = (value) =>
+  String(value || "")
+    .toLowerCase()
+    .split(/[^a-z0-9]+/)
+    .map((token) => token.trim())
+    .filter((token) => token.length >= 3 && !IMAGE_TOKEN_BLACKLIST.has(token));
+
+const validateImageMappings = (product) => {
+  const warnings = [];
+  const slugTokens = toComparableTokens(product.slug);
+
+  for (const image of product.images) {
+    if (!image || image === FALLBACK_IMAGE) {
+      continue;
+    }
+
+    const relativeImagePath = image.replace(/^\/+/, "").replace(/\//g, path.sep);
+    const absoluteImagePath = path.resolve(PUBLIC_DIR, relativeImagePath);
+
+    if (!absoluteImagePath.startsWith(PUBLIC_DIR)) {
+      warnings.push(`image path escapes public directory: ${image}`);
+      continue;
+    }
+
+    if (!fs.existsSync(absoluteImagePath)) {
+      warnings.push(`image file not found: ${image}`);
+      continue;
+    }
+
+    const imageTokens = toComparableTokens(image);
+    const hasTokenMatch =
+      slugTokens.length === 0 ||
+      slugTokens.some((token) => imageTokens.includes(token));
+
+    if (!hasTokenMatch) {
+      warnings.push(`possible mismatch between slug "${product.slug}" and image "${image}"`);
+    }
+  }
+
+  return warnings;
+};
 
 const validateProduct = (product) => {
   const missing = [];
@@ -189,16 +313,20 @@ const validateProduct = (product) => {
 };
 
 async function main() {
-  const { file, mode } = parseArgs();
+  const { file, mode, validateOnly } = parseArgs();
 
   if (!file) {
     console.error("Missing --file argument");
     process.exit(1);
   }
 
-  const mongoUri = process.env.MONGO_URI;
-  if (!mongoUri) {
-    console.error("Missing MONGO_URI in backend/.env");
+  const requiredEnvVars = ["DB_HOST", "DB_PORT", "DB_USER", "DB_NAME"];
+  const missingEnvVars = requiredEnvVars.filter(
+    (name) => !process.env[name] || !String(process.env[name]).trim()
+  );
+
+  if (missingEnvVars.length > 0) {
+    console.error(`Missing database env vars in backend/.env: ${missingEnvVars.join(", ")}`);
     process.exit(1);
   }
 
@@ -216,16 +344,21 @@ async function main() {
     process.exit(1);
   }
 
-  await mongoose.connect(mongoUri);
-
   let created = 0;
   let updated = 0;
   let skipped = 0;
+  let warned = 0;
+
+  if (!validateOnly) {
+    await sequelize.authenticate();
+    await Product.sync();
+  }
 
   try {
     for (const row of rows) {
       const product = normalizeProductRow(row);
       const missing = validateProduct(product);
+      const imageWarnings = validateImageMappings(product);
 
       if (missing.length > 0) {
         skipped += 1;
@@ -235,7 +368,21 @@ async function main() {
         continue;
       }
 
-      const existing = await Product.findOne({ slug: product.slug });
+      if (imageWarnings.length > 0) {
+        warned += 1;
+        console.warn(`Image warnings for slug "${product.slug}": ${imageWarnings.join("; ")}`);
+      }
+
+      if (validateOnly) {
+        continue;
+      }
+
+      const payload = {
+        ...product,
+        images: JSON.stringify(product.images),
+      };
+
+      const existing = await Product.findOne({ where: { slug: product.slug } });
 
       if (existing && mode === "insert") {
         skipped += 1;
@@ -244,10 +391,10 @@ async function main() {
       }
 
       if (existing) {
-        await Product.updateOne({ slug: product.slug }, { $set: product });
+        await existing.update(payload);
         updated += 1;
       } else {
-        await Product.create(product);
+        await Product.create(payload);
         created += 1;
       }
     }
@@ -260,13 +407,17 @@ async function main() {
           created,
           updated,
           skipped,
+          warned,
+          validateOnly,
         },
         null,
         2
       )
     );
   } finally {
-    await mongoose.disconnect();
+    if (!validateOnly) {
+      await sequelize.close();
+    }
   }
 }
 

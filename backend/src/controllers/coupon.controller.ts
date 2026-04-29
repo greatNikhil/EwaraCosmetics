@@ -1,6 +1,12 @@
 import { Request, Response } from "express";
+import { Op } from "sequelize";
 import Coupon from "../models/coupon";
 import { resolveCouponDiscount } from "../utils/coupon";
+
+const serializeCoupon = (coupon: Coupon) => {
+  const plain = coupon.get({ plain: true });
+  return { ...plain, _id: plain.id };
+};
 
 export const validateCoupon = async (req: Request, res: Response) => {
   try {
@@ -69,14 +75,16 @@ export const validateCoupon = async (req: Request, res: Response) => {
   }
 };
 
-export const getCoupons = async (req: Request, res: Response) => {
+export const getCoupons = async (_req: Request, res: Response) => {
   try {
-    const coupons = await Coupon.find().sort({ createdAt: -1 });
+    const coupons = await Coupon.findAll({
+      order: [["createdAt", "DESC"]],
+    });
 
     return res.status(200).json({
       success: true,
       count: coupons.length,
-      coupons,
+      coupons: coupons.map((coupon) => serializeCoupon(coupon)),
     });
   } catch (error: any) {
     return res.status(500).json({
@@ -99,7 +107,9 @@ export const createCoupon = async (req: Request, res: Response) => {
     }
 
     const normalizedCode = String(code).trim().toUpperCase();
-    const existingCoupon = await Coupon.findOne({ code: normalizedCode });
+    const existingCoupon = await Coupon.findOne({
+      where: { code: normalizedCode },
+    });
 
     if (existingCoupon) {
       return res.status(400).json({
@@ -114,7 +124,8 @@ export const createCoupon = async (req: Request, res: Response) => {
       value: Number(value),
       minOrderAmount: Number(minOrderAmount || 0),
       isActive: isActive !== undefined ? Boolean(isActive) : true,
-      maxUses: maxUses !== undefined && maxUses !== null ? Number(maxUses) : undefined,
+      maxUses:
+        maxUses !== undefined && maxUses !== null ? Number(maxUses) : undefined,
       usedCount: 0,
       expiresAt: expiresAt ? new Date(expiresAt) : undefined,
     });
@@ -122,7 +133,7 @@ export const createCoupon = async (req: Request, res: Response) => {
     return res.status(201).json({
       success: true,
       message: "Coupon created successfully",
-      coupon,
+      coupon: serializeCoupon(coupon),
     });
   } catch (error: any) {
     return res.status(500).json({
@@ -134,11 +145,11 @@ export const createCoupon = async (req: Request, res: Response) => {
 
 export const updateCoupon = async (req: Request, res: Response) => {
   try {
-    const { id } = req.params;
+    const couponId = Number(req.params.id);
     const { code, type, value, minOrderAmount, isActive, expiresAt, maxUses } =
       req.body;
 
-    const existingCoupon = await Coupon.findById(id);
+    const existingCoupon = await Coupon.findByPk(couponId);
 
     if (!existingCoupon) {
       return res.status(404).json({
@@ -150,8 +161,10 @@ export const updateCoupon = async (req: Request, res: Response) => {
     if (code !== undefined) {
       const normalizedCode = String(code).trim().toUpperCase();
       const duplicateCoupon = await Coupon.findOne({
-        code: normalizedCode,
-        _id: { $ne: id },
+        where: {
+          code: normalizedCode,
+          id: { [Op.ne]: couponId },
+        },
       });
 
       if (duplicateCoupon) {
@@ -182,13 +195,11 @@ export const updateCoupon = async (req: Request, res: Response) => {
 
     if (maxUses !== undefined) {
       existingCoupon.maxUses =
-        maxUses === null || maxUses === ""
-          ? undefined
-          : Number(maxUses);
+        maxUses === null || maxUses === "" ? null : Number(maxUses);
     }
 
     if (expiresAt !== undefined) {
-      existingCoupon.expiresAt = expiresAt ? new Date(expiresAt) : undefined;
+      existingCoupon.expiresAt = expiresAt ? new Date(expiresAt) : null;
     }
 
     await existingCoupon.save();
@@ -196,7 +207,7 @@ export const updateCoupon = async (req: Request, res: Response) => {
     return res.status(200).json({
       success: true,
       message: "Coupon updated successfully",
-      coupon: existingCoupon,
+      coupon: serializeCoupon(existingCoupon),
     });
   } catch (error: any) {
     return res.status(500).json({
@@ -208,8 +219,8 @@ export const updateCoupon = async (req: Request, res: Response) => {
 
 export const deleteCoupon = async (req: Request, res: Response) => {
   try {
-    const { id } = req.params;
-    const coupon = await Coupon.findById(id);
+    const couponId = Number(req.params.id);
+    const coupon = await Coupon.findByPk(couponId);
 
     if (!coupon) {
       return res.status(404).json({
@@ -218,7 +229,7 @@ export const deleteCoupon = async (req: Request, res: Response) => {
       });
     }
 
-    await Coupon.findByIdAndDelete(id);
+    await coupon.destroy();
 
     return res.status(200).json({
       success: true,

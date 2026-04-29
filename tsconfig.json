@@ -1,7 +1,11 @@
 {
   "compilerOptions": {
     "target": "ES6",
-    "lib": ["dom", "dom.iterable", "esnext"],
+    "lib": [
+      "dom",
+      "dom.iterable",
+      "esnext"
+    ],
     "allowJs": true,
     "skipLibCheck": true,
     "strict": true,
@@ -16,7 +20,9 @@
     "ignoreDeprecations": "5.0",
     "baseUrl": ".",
     "paths": {
-      "@/*": ["./*"]
+      "@/*": [
+        "./*"
+      ]
     },
     "plugins": [
       {
@@ -34,7 +40,12 @@
     "lib/**/*.ts",
     "utils/**/*.ts",
     "store/**/*.ts",
-    ".next/types/**/*.ts"
+    ".next/types/**/*.ts",
+    "out/types/**/*.ts"
   ],
-  "exclude": ["node_modules", "backend", ".next"]
+  "exclude": [
+    "node_modules",
+    "backend",
+    ".next"
+  ]
 }

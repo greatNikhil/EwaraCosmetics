@@ -2,6 +2,8 @@ import { Router } from "express";
 import {
   getAllUsers,
   getDashboardSummary,
+  softDeleteUser,
+  toggleUserBlocked,
   updateUserRole,
 } from "../controllers/admin.controller";
 import { deleteReview, getAllReviews } from "../controllers/review.controller";
@@ -24,6 +26,20 @@ router.put(
   validateObjectIdParam(),
   validateAdminUserRoleRequest,
   updateUserRole
+);
+router.patch(
+  "/users/:id/block",
+  authMiddleware,
+  adminMiddleware,
+  validateObjectIdParam(),
+  toggleUserBlocked
+);
+router.delete(
+  "/users/:id",
+  authMiddleware,
+  adminMiddleware,
+  validateObjectIdParam(),
+  softDeleteUser
 );
 router.delete(
   "/reviews/:id",

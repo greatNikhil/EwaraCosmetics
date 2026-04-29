@@ -70,9 +70,9 @@ aside input[type="radio"][name="skinType"]:checked {
 ::selection {
   background: rgba(59, 130, 246, 0.25);
 }
-@keyframes marquee {
+@keyframes marqueePrimary {
   0% {
-    transform: translateX(100%);
+    transform: translateX(0);
   }
   100% {
     transform: translateX(-100%);
@@ -80,7 +80,20 @@ aside input[type="radio"][name="skinType"]:checked {
 }
 
 .animate-marquee {
-  animation: marquee 30s linear infinite;
+  animation: marqueePrimary 16s linear infinite;
+}
+
+@keyframes marqueeSecondary {
+  0% {
+    transform: translateX(100%);
+  }
+  100% {
+    transform: translateX(0);
+  }
+}
+
+.animate-marquee-secondary {
+  animation: marqueeSecondary 16s linear infinite;
 }
 @keyframes slideIn {
   from {

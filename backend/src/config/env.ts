@@ -1,4 +1,10 @@
-const requiredEnvVars = ["MONGO_URI", "JWT_SECRET"];
+const requiredEnvVars = [
+  "DB_HOST",
+  "DB_PORT",
+  "DB_USER",
+  "DB_NAME",
+  "JWT_SECRET",
+];
 const recommendedEnvVars = [
   "EMAIL_USER",
   "EMAIL_PASS",

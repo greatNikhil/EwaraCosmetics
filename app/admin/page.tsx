@@ -72,6 +72,17 @@ interface DashboardResponse {
   summary: DashboardSummary;
 }
 
+const getOrderDisplayId = (order: any) => {
+  const rawId = order?._id ?? order?.id ?? "";
+  const normalizedId = String(rawId).trim();
+
+  if (!normalizedId) {
+    return "UNKNOWN";
+  }
+
+  return normalizedId.slice(-8).toUpperCase();
+};
+
 export default function AdminPage() {
   const router = useRouter();
   const {
@@ -627,7 +638,7 @@ export default function AdminPage() {
                         }`}
                       >
                         <p className="w-[70px] text-[11px] font-medium text-[#3a1a22]">
-                          {order._id.slice(-8).toUpperCase()}
+                          {getOrderDisplayId(order)}
                         </p>
                         <p className="flex-1 truncate text-[11px] text-[#7a5060]">
                           {order.user?.name || "Guest"}

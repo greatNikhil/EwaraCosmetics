@@ -6,6 +6,7 @@ import { buildApiUrl } from "@/utils/api";
 import OrderTracker from "@/components/orders/OrderTracker";
 import { ArrowLeft } from "lucide-react";
 import { addToCart } from "@/utils/cart";
+import { getClientToken } from "@/utils/clientAuth";
 
 export default function OrderDetailsPage() {
   const { id } = useParams();
@@ -17,7 +18,7 @@ export default function OrderDetailsPage() {
 
   useEffect(() => {
     const fetchOrder = async () => {
-      const token = localStorage.getItem("token");
+      const token = getClientToken();
 
       if (!token) {
         router.push("/login");

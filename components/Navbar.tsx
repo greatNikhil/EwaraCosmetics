@@ -1,10 +1,11 @@
-"use client";
+﻿"use client";
 
 import Link from "next/link";
 import { useState, useEffect, useRef } from "react";
 import { Search, Menu, X, Sparkles } from "lucide-react";
 import { usePathname, useRouter } from "next/navigation";
 import BagDrawer from "@/components/BagDrawer";
+import { buildApiUrl } from "@/utils/api";
 import { useAuthStore } from "@/store/authStore";
 import { useCartStore } from "@/store/cartStore";
 import {
@@ -12,6 +13,13 @@ import {
   wishlistChangedEvent,
 } from "@/utils/wishlist";
 import { clearClientAuth } from "@/utils/clientAuth";
+
+interface ActiveOffer {
+  _id: string;
+  text: string;
+  isActive: boolean;
+  displayOrder: number;
+}
 
 export function Navbar() {
   const [bagOpen, setBagOpen] = useState(false);
@@ -26,10 +34,48 @@ export function Navbar() {
   const { items: cartItems, getTotalItems } = useCartStore();
   const [isAdmin, setIsAdmin] = useState(false);
   const [cartCount, setCartCount] = useState(0);
+  const [marqueeOffers, setMarqueeOffers] = useState<string[]>([
+    "First Order: Get Extra 10% Off on Rs. 700+",
+    "Up to 50% Off + Surprise Gifts",
+    "Free Shipping on Orders Above Rs. 999",
+  ]);
 
   useEffect(() => {
     setIsAdmin(user?.role === "admin");
   }, [user]);
+
+  useEffect(() => {
+    let isMounted = true;
+
+    const loadOffers = async () => {
+      try {
+        const response = await fetch(buildApiUrl("/api/offers"), {
+          cache: "no-store",
+        });
+        const data = await response.json();
+
+        if (!response.ok || !data.success || !Array.isArray(data.offers)) {
+          return;
+        }
+
+        const nextOffers = data.offers
+          .map((offer: ActiveOffer) => String(offer?.text || "").trim())
+          .filter(Boolean);
+
+        if (isMounted && nextOffers.length > 0) {
+          setMarqueeOffers(nextOffers);
+        }
+      } catch (error) {
+        console.error("Failed to load marquee offers:", error);
+      }
+    };
+
+    loadOffers();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [pathname]);
 
   useEffect(() => {
     const syncWishlistCount = () => {
@@ -42,7 +88,7 @@ export function Navbar() {
     };
 
     const handleStorage = (event: StorageEvent) => {
-      // ✅ No longer needed - wishlist is backend-driven
+      // âœ… No longer needed - wishlist is backend-driven
       // Wishlist changes are now handled by wishlistChangedEvent
     };
 
@@ -89,15 +135,15 @@ export function Navbar() {
   const getNavLinkClassName = (href: string) =>
     `rounded-lg px-4 py-2 text-sm font-medium transition-all duration-200 ${
       isActivePath(href)
-        ? "bg-[#f7e7ea] text-[#7a1f2b]"
-        : "text-[#4a2c2a] hover:bg-[#f7e7ea] hover:text-[#7a1f2b]"
+        ? "bg-[#f7e7ea] text-[#5a3030]"
+        : "text-[#5a3030] hover:bg-[#f7e7ea] hover:text-[#5a3030]"
     }`;
 
   const getMobileNavLinkClassName = (href: string) =>
     `block rounded-lg px-4 py-3 text-base font-medium transition-all duration-200 ${
       isActivePath(href)
-        ? "bg-[#f7e7ea] text-[#7a1f2b]"
-        : "text-[#4a2c2a] hover:bg-[#f7e7ea] hover:text-[#7a1f2b]"
+        ? "bg-[#f7e7ea] text-[#5a3030]"
+        : "text-[#5a3030] hover:bg-[#f7e7ea] hover:text-[#5a3030]"
     }`;
 
   const handleSearchSubmit = (event: React.FormEvent<HTMLFormElement>) => {
@@ -114,15 +160,34 @@ export function Navbar() {
     setIsMenuOpen(false);
   };
 
+  const marqueeItems = [...marqueeOffers, ...marqueeOffers];
+
   return (
     <>
-      <div className="overflow-hidden whitespace-nowrap border-b border-[#ead2d8]/50 bg-gradient-to-r from-[#f7e7ea]/90 via-[#f3ede7]/90 to-[#e8d5c4]/90 backdrop-blur-md">
-        <div className="animate-marquee inline-block px-4 py-2.5 text-xs font-medium text-[#4a2c2a] md:text-sm">
-          First Order: Get Extra 10% Off on Rs. 700+ &nbsp;&nbsp;•&nbsp;&nbsp; Up to 50% Off + Surprise Gifts &nbsp;&nbsp;•&nbsp;&nbsp; Free Shipping on Orders Above Rs. 999
+      <div
+        className="overflow-hidden border-b border-[#ead2d8]/50 bg-[#f9f0ed]"
+        style={{ height: "36px", display: "flex", alignItems: "center" }}
+      >
+        <div
+          className="announcement-marquee"
+          style={{ display: "flex", whiteSpace: "nowrap" }}
+        >
+          {marqueeItems.map((offer, index) => (
+            <span
+              key={`${offer}-${index}`}
+              style={{ padding: "0 2.5rem", fontSize: "13px", color: "#5a2a2a" }}
+            >
+              {offer}
+              <span style={{ opacity: 0.3, marginLeft: "2.5rem" }}>✦</span>
+            </span>
+          ))}
         </div>
       </div>
 
-      <header className="sticky top-0 z-50 border-b border-[#ead2d8]/50 bg-white/95 shadow-[0_2px_12px_rgba(0,0,0,0.06)] backdrop-blur-md transition-all duration-300">
+      <header
+        className="sticky top-0 z-50 border-b shadow-[0_2px_12px_rgba(0,0,0,0.06)] backdrop-blur-md transition-all duration-300"
+        style={{ background: "#fdf6f0", borderBottomColor: "#f0e4dc" }}
+      >
         <div className="mx-auto max-w-7xl px-4 md:px-6 lg:px-8">
           <div className="flex items-center justify-between py-4">
             <Link
@@ -130,11 +195,12 @@ export function Navbar() {
               className={`group flex-shrink-0 rounded-lg transition-all duration-200 ${
                 pathname === "/" ? "ring-2 ring-[#7a1f2b]/15 ring-offset-2 ring-offset-white" : ""
               }`}
+              aria-label="Go to homepage"
             >
               <img
-                src="/favicon/WhatsApp Image 2026-04-25 at 3.42.39 PM.jpeg"
+                src="/logoewara.jpeg"
                 alt="Ewara Logo"
-                className="h-8 w-auto object-contain transition-transform duration-300 group-hover:scale-105 md:h-10"
+                className="h-12 w-auto object-contain transition-transform duration-300 group-hover:scale-105"
               />
             </Link>
 
@@ -295,7 +361,10 @@ export function Navbar() {
             </div>
           </div>
 
-          <div className="hidden items-center justify-center gap-1 border-t border-[#ead2d8]/30 py-3 md:flex">
+          <div
+            className="hidden items-center justify-center gap-1 border-t py-3 md:flex"
+            style={{ borderTopColor: "#f0e4dc" }}
+          >
             <Link
               href="/new-arrivals"
               className={getNavLinkClassName("/new-arrivals")}
@@ -356,14 +425,20 @@ export function Navbar() {
             onClick={() => setIsMenuOpen(false)}
           />
 
-          <div className="absolute left-0 top-0 flex h-full w-full max-w-xs flex-col bg-white shadow-2xl">
-            <div className="flex items-center justify-between border-b border-[#ead2d8] px-6 py-5">
-              <h2 className="text-lg font-bold text-[#4a2c2a]">Menu</h2>
+          <div
+            className="absolute left-0 top-0 flex h-full w-full max-w-xs flex-col shadow-2xl"
+            style={{ background: "#fdf6f0" }}
+          >
+            <div
+              className="flex items-center justify-between border-b px-6 py-5"
+              style={{ borderBottomColor: "#f0e4dc" }}
+            >
+              <h2 className="text-lg font-bold text-[#3d1a1a]">Menu</h2>
               <button
                 onClick={() => setIsMenuOpen(false)}
                 className="rounded-lg p-2 transition-colors duration-200 hover:bg-[#f7e7ea]"
               >
-                <X className="h-5 w-5 text-[#4a2c2a]" />
+                <X className="h-5 w-5 text-[#5a3030]" />
               </button>
             </div>
 
@@ -420,7 +495,7 @@ export function Navbar() {
                 Services
               </Link>
 
-              <div className="my-4 border-t border-[#ead2d8]" />
+              <div className="my-4 border-t" style={{ borderTopColor: "#f0e4dc" }} />
 
               <Link
                 href="/profile"
@@ -438,7 +513,7 @@ export function Navbar() {
                 Help & Support
               </Link>
 
-              <div className="my-4 border-t border-[#ead2d8]" />
+              <div className="my-4 border-t" style={{ borderTopColor: "#f0e4dc" }} />
 
               <Link
                 href="/offers"
@@ -455,7 +530,7 @@ export function Navbar() {
               </Link>
             </div>
 
-            <div className="border-t border-[#ead2d8] px-6 py-5">
+            <div className="border-t px-6 py-5" style={{ borderTopColor: "#f0e4dc" }}>
               <button
                 onClick={() => {
                   if (!user) {
@@ -476,6 +551,21 @@ export function Navbar() {
       )}
 
       <BagDrawer open={bagOpen} setOpen={setBagOpen} />
+      <style jsx>{`
+        .announcement-marquee {
+          animation: marquee 18s linear infinite;
+        }
+
+        @keyframes marquee {
+          0% {
+            transform: translateX(0);
+          }
+          100% {
+            transform: translateX(-50%);
+          }
+        }
+      `}</style>
     </>
   );
 }
+

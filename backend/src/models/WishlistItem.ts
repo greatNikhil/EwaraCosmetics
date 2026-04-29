@@ -70,8 +70,8 @@ WishlistItem.init(
     tableName: "wishlist_items",
     timestamps: false,
     indexes: [
-      { fields: ["userId", "productId"], unique: true },
-      { fields: ["addedAt"] },
+      { fields: ["user_id", "product_id"], unique: true },
+      { fields: ["added_at"] },
     ],
   }
 );

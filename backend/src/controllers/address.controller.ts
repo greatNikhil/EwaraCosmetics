@@ -1,23 +1,28 @@
 import { Response } from "express";
-import mongoose from "mongoose";
+import { Op } from "sequelize";
 import Address from "../models/address";
 
-const clearExistingDefault = async (userId: string, excludeId?: string) => {
-  const filter: Record<string, unknown> = {
+const serializeAddress = (address: Address) => {
+  const plain = address.get({ plain: true });
+  return { ...plain, _id: plain.id };
+};
+
+const clearExistingDefault = async (userId: number, excludeId?: number) => {
+  const where: Record<string, unknown> = {
     user: userId,
     default: true,
   };
 
   if (excludeId) {
-    filter._id = { $ne: excludeId };
+    where.id = { [Op.ne]: excludeId };
   }
 
-  await Address.updateMany(filter, { $set: { default: false } });
+  await Address.update({ default: false }, { where });
 };
 
 export const getMyAddresses = async (req: any, res: Response) => {
   try {
-    const userId = req.user?.id;
+    const userId = Number(req.user?.id);
 
     if (!userId) {
       return res.status(401).json({
@@ -26,16 +31,19 @@ export const getMyAddresses = async (req: any, res: Response) => {
       });
     }
 
-    const addresses = await Address.find({ user: userId }).sort({
-      default: -1,
-      updatedAt: -1,
-      createdAt: -1,
+    const addresses = await Address.findAll({
+      where: { user: userId },
+      order: [
+        ["default", "DESC"],
+        ["updatedAt", "DESC"],
+        ["createdAt", "DESC"],
+      ],
     });
 
     return res.status(200).json({
       success: true,
       count: addresses.length,
-      addresses,
+      addresses: addresses.map((address) => serializeAddress(address)),
     });
   } catch (error: any) {
     console.error("GET ADDRESSES ERROR:", error);
@@ -49,8 +57,8 @@ export const getMyAddresses = async (req: any, res: Response) => {
 
 export const getAddressById = async (req: any, res: Response) => {
   try {
-    const userId = req.user?.id;
-    const { id } = req.params;
+    const userId = Number(req.user?.id);
+    const addressId = Number(req.params.id);
 
     if (!userId) {
       return res.status(401).json({
@@ -59,14 +67,16 @@ export const getAddressById = async (req: any, res: Response) => {
       });
     }
 
-    if (!mongoose.isValidObjectId(id)) {
+    if (!addressId || Number.isNaN(addressId)) {
       return res.status(400).json({
         success: false,
         message: "Invalid address ID",
       });
     }
 
-    const address = await Address.findOne({ _id: id, user: userId });
+    const address = await Address.findOne({
+      where: { id: addressId, user: userId },
+    });
 
     if (!address) {
       return res.status(404).json({
@@ -77,7 +87,7 @@ export const getAddressById = async (req: any, res: Response) => {
 
     return res.status(200).json({
       success: true,
-      address,
+      address: serializeAddress(address),
     });
   } catch (error: any) {
     console.error("GET ADDRESS BY ID ERROR:", error);
@@ -91,7 +101,7 @@ export const getAddressById = async (req: any, res: Response) => {
 
 export const createAddress = async (req: any, res: Response) => {
   try {
-    const userId = req.user?.id;
+    const userId = Number(req.user?.id);
     const {
       name,
       lastname,
@@ -118,7 +128,7 @@ export const createAddress = async (req: any, res: Response) => {
       });
     }
 
-    const existingCount = await Address.countDocuments({ user: userId });
+    const existingCount = await Address.count({ where: { user: userId } });
     const shouldSetDefault = Boolean(isDefault) || existingCount === 0;
 
     if (shouldSetDefault) {
@@ -127,21 +137,21 @@ export const createAddress = async (req: any, res: Response) => {
 
     const newAddress = await Address.create({
       user: userId,
-      name: name.trim(),
-      lastname: lastname?.trim() || "",
-      address: address.trim(),
-      phone: phone.trim(),
-      pincode: pincode.trim(),
-      flat: flat?.trim() || "",
-      city: city.trim(),
-      state: state.trim(),
+      name: String(name).trim(),
+      lastname: String(lastname || "").trim(),
+      address: String(address).trim(),
+      phone: String(phone).trim(),
+      pincode: String(pincode).trim(),
+      flat: String(flat || "").trim(),
+      city: String(city).trim(),
+      state: String(state).trim(),
       default: shouldSetDefault,
     });
 
     return res.status(201).json({
       success: true,
       message: "Address created successfully",
-      address: newAddress,
+      address: serializeAddress(newAddress),
     });
   } catch (error: any) {
     console.error("CREATE ADDRESS ERROR:", error);
@@ -155,8 +165,8 @@ export const createAddress = async (req: any, res: Response) => {
 
 export const updateAddress = async (req: any, res: Response) => {
   try {
-    const userId = req.user?.id;
-    const { id } = req.params;
+    const userId = Number(req.user?.id);
+    const addressId = Number(req.params.id);
 
     if (!userId) {
       return res.status(401).json({
@@ -165,14 +175,16 @@ export const updateAddress = async (req: any, res: Response) => {
       });
     }
 
-    if (!mongoose.isValidObjectId(id)) {
+    if (!addressId || Number.isNaN(addressId)) {
       return res.status(400).json({
         success: false,
         message: "Invalid address ID",
       });
     }
 
-    const existingAddress = await Address.findOne({ _id: id, user: userId });
+    const existingAddress = await Address.findOne({
+      where: { id: addressId, user: userId },
+    });
 
     if (!existingAddress) {
       return res.status(404).json({
@@ -212,16 +224,16 @@ export const updateAddress = async (req: any, res: Response) => {
       });
     }
 
-    const shouldSetDefault = req.body.default === true;
-
-    if (shouldSetDefault) {
-      await clearExistingDefault(userId, id);
+    if (req.body.default === true) {
+      await clearExistingDefault(userId, addressId);
       existingAddress.default = true;
     } else if (req.body.default === false) {
       const otherDefault = await Address.findOne({
-        user: userId,
-        default: true,
-        _id: { $ne: id },
+        where: {
+          user: userId,
+          default: true,
+          id: { [Op.ne]: addressId },
+        },
       });
 
       existingAddress.default = Boolean(otherDefault) ? false : true;
@@ -233,7 +245,7 @@ export const updateAddress = async (req: any, res: Response) => {
     return res.status(200).json({
       success: true,
       message: "Address updated successfully",
-      address: existingAddress,
+      address: serializeAddress(existingAddress),
     });
   } catch (error: any) {
     console.error("UPDATE ADDRESS ERROR:", error);
@@ -247,8 +259,8 @@ export const updateAddress = async (req: any, res: Response) => {
 
 export const deleteAddress = async (req: any, res: Response) => {
   try {
-    const userId = req.user?.id;
-    const { id } = req.params;
+    const userId = Number(req.user?.id);
+    const addressId = Number(req.params.id);
 
     if (!userId) {
       return res.status(401).json({
@@ -257,14 +269,16 @@ export const deleteAddress = async (req: any, res: Response) => {
       });
     }
 
-    if (!mongoose.isValidObjectId(id)) {
+    if (!addressId || Number.isNaN(addressId)) {
       return res.status(400).json({
         success: false,
         message: "Invalid address ID",
       });
     }
 
-    const address = await Address.findOne({ _id: id, user: userId });
+    const address = await Address.findOne({
+      where: { id: addressId, user: userId },
+    });
 
     if (!address) {
       return res.status(404).json({
@@ -274,13 +288,15 @@ export const deleteAddress = async (req: any, res: Response) => {
     }
 
     const wasDefault = address.default;
-
-    await Address.deleteOne({ _id: id, user: userId });
+    await address.destroy();
 
     if (wasDefault) {
-      const nextAddress = await Address.findOne({ user: userId }).sort({
-        updatedAt: -1,
-        createdAt: -1,
+      const nextAddress = await Address.findOne({
+        where: { user: userId },
+        order: [
+          ["updatedAt", "DESC"],
+          ["createdAt", "DESC"],
+        ],
       });
 
       if (nextAddress) {

@@ -3,7 +3,11 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { buildApiUrl } from "@/utils/api";
-import { clearClientAuth, persistClientAuth } from "@/utils/clientAuth";
+import {
+  clearClientAuth,
+  getClientToken,
+  persistClientAuth,
+} from "@/utils/clientAuth";
 
 interface ProtectedUser {
   _id?: string;
@@ -52,7 +56,7 @@ export function useProtectedRoute(options?: UseProtectedRouteOptions) {
     let isActive = true;
 
     const verifyUser = async () => {
-      const storedToken = localStorage.getItem("token");
+      const storedToken = getClientToken();
 
       if (!storedToken) {
         clearClientAuth();

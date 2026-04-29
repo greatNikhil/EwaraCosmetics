@@ -20,7 +20,15 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const { items, customerEmail, customerPhone, total, totalAmount } =
+    const {
+      items,
+      customerEmail,
+      customerPhone,
+      total,
+      totalAmount,
+      paymentOption,
+      paymentMethodLabel,
+    } =
       await request.json();
     const payableTotal = totalAmount ?? total;
 
@@ -38,8 +46,14 @@ export async function POST(request: NextRequest) {
     const orderData = {
       amount: Math.round(payableTotal * 100),
       currency: "INR",
-      receipt: `order_${Date.now()}`,
+      receipt: `ewara_${Date.now()}`,
       payment_capture: 1,
+      notes: {
+        payment_option: String(paymentOption || "online"),
+        payment_method_label: String(paymentMethodLabel || "Razorpay"),
+        customer_email: String(customerEmail || ""),
+        customer_phone: String(customerPhone || ""),
+      },
     };
 
     const razorpay = new Razorpay({

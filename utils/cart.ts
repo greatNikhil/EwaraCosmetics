@@ -1,5 +1,7 @@
 import { useCartStore } from "@/store/cartStore";
+import { cartApi } from "@/utils/cartApi";
 import { getAllProducts } from "@/utils/productApi";
+import { getClientToken } from "@/utils/clientAuth";
 
 export interface CartProduct {
   _id: string;
@@ -44,9 +46,32 @@ const mapStoreItemToCartItem = (
 });
 
 // ✅ Helper function to get token for backend sync
-const getToken = (): string | null => {
-  if (typeof window === "undefined") return null;
-  return localStorage.getItem("token");
+const getToken = (): string | null => getClientToken();
+
+export const mergeGuestCartIntoBackend = async (
+  token: string,
+  guestItems: ReturnType<typeof useCartStore.getState>["items"]
+) => {
+  if (!token || guestItems.length === 0) {
+    await useCartStore.getState().syncFromBackend(token);
+    return;
+  }
+
+  for (const item of guestItems) {
+    await cartApi.add(
+      token,
+      {
+        productId: item.id,
+        productName: item.name,
+        price: item.price,
+        image: item.image,
+        category: item.category || "General",
+      },
+      item.quantity
+    );
+  }
+
+  await useCartStore.getState().syncFromBackend(token);
 };
 
 export const getCartItems = (): CartItem[] => {

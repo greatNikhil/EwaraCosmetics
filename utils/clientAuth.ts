@@ -23,18 +23,15 @@ export function persistClientAuth(user: ClientUser, token: string) {
   };
 
   localStorage.setItem("token", token);
-  localStorage.setItem("userData", JSON.stringify(normalizedUser));
-  localStorage.setItem("isLoggedIn", "true");
 
-  if (normalizedUser.role === "admin") {
-    localStorage.setItem("isAdmin", "true");
-  } else {
-    localStorage.removeItem("isAdmin");
-  }
-
-  // ✅ Use authStore for user data (no localStorage)
   useAuthStore.getState().setUser(normalizedUser as any);
   useAuthStore.getState().setToken(token);
+}
+
+export function getClientToken() {
+  if (typeof window === "undefined") return null;
+
+  return useAuthStore.getState().token || localStorage.getItem("token");
 }
 
 export function clearClientAuth(options?: { dispatchEvent?: boolean }) {

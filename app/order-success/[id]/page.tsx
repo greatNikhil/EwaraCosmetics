@@ -5,6 +5,7 @@ import { useParams, useRouter } from "next/navigation";
 import axios from "axios";
 import { Package, Truck, ArrowRight, Home } from "lucide-react";
 import { buildApiUrl } from "@/utils/api";
+import { getClientToken } from "@/utils/clientAuth";
 
 export default function OrderSuccessPage() {
   const params = useParams();
@@ -18,7 +19,7 @@ export default function OrderSuccessPage() {
   useEffect(() => {
     const fetchOrder = async () => {
       try {
-        const token = localStorage.getItem("token");
+        const token = getClientToken();
 
         if (!token) {
           setError("You are not logged in.");

@@ -1,4 +1,5 @@
 import { wishlistApi } from "./wishlistApi";
+import { getClientToken } from "./clientAuth";
 
 export interface WishlistProduct {
   _id: string;
@@ -41,8 +42,7 @@ const notifyWishlistChanged = () => {
 };
 
 const getToken = (): string | null => {
-  if (typeof window === "undefined") return null;
-  return localStorage.getItem("token");
+  return getClientToken();
 };
 
 export const clearWishlistCache = () => {

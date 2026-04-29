@@ -339,6 +339,8 @@ export default function CheckoutModal({
         customerPhone: user?.phone,
         totalAmount: total,
         shippingAddress: normalizedShippingAddress,
+        paymentOption: selectedPayment,
+        paymentMethodLabel: onlinePaymentLabel,
       });
 
       const checkoutData = response.data?.data;

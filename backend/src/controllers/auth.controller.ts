@@ -10,6 +10,18 @@ import {
   sendWelcomeEmail,
 } from "../utils/emailService";
 
+const getAccountAccessError = (user: any) => {
+  if (user?.isDeleted) {
+    return "This account is no longer available";
+  }
+
+  if (user?.isBlocked) {
+    return "Your account has been blocked. Please contact support.";
+  }
+
+  return null;
+};
+
 const buildAuthSuccessResponse = (user: any) => {
   const token = jwt.sign(
     {
@@ -159,6 +171,7 @@ export const register = async (req: Request, res: Response) => {
       email: normalizedEmail,
       phone: trimmedPhone,
       password: hashedPassword,
+      role: "user",
     });
 
     await Otp.destroy({ where: { email: normalizedEmail } });
@@ -212,6 +225,14 @@ export const login = async (req: Request, res: Response) => {
       });
     }
 
+    const accountAccessError = getAccountAccessError(user);
+    if (accountAccessError) {
+      return res.status(403).json({
+        success: false,
+        message: accountAccessError,
+      });
+    }
+
     if (!user.password) {
       return res.status(400).json({
         success: false,
@@ -251,6 +272,14 @@ export const getMe = async (req: any, res: Response) => {
       return res.status(404).json({
         success: false,
         message: "User not found",
+      });
+    }
+
+    const accountAccessError = getAccountAccessError(user);
+    if (accountAccessError) {
+      return res.status(403).json({
+        success: false,
+        message: accountAccessError,
       });
     }
 
@@ -309,10 +338,21 @@ export const googleLogin = async (req: Request, res: Response) => {
         googleId: String(tokenInfo.sub).trim(),
         avatar: String(tokenInfo.picture || "").trim(),
         password: null,
+        role: "user",
       });
 
       await sendWelcomeEmail(normalizedEmail, normalizedName);
-    } else if (!user.googleId) {
+    } else {
+      const accountAccessError = getAccountAccessError(user);
+      if (accountAccessError) {
+        return res.status(403).json({
+          success: false,
+          message: accountAccessError,
+        });
+      }
+    }
+
+    if (user && !user.googleId) {
       user.googleId = String(tokenInfo.sub).trim();
       user.avatar = String(tokenInfo.picture || user.avatar || "").trim();
       await user.save();

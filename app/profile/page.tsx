@@ -20,7 +20,7 @@ import {
 import { useOrders } from "@/hooks/useOrders";
 import { useAuthStore } from "@/store/authStore";
 import { buildApiUrl } from "@/utils/api";
-import { clearClientAuth } from "@/utils/clientAuth";
+import { clearClientAuth, getClientToken } from "@/utils/clientAuth";
 import {
   getWishlistItems,
   removeFromWishlist,
@@ -115,7 +115,7 @@ export default function ProfilePage() {
 
   useEffect(() => {
     const loadUser = async () => {
-      const token = localStorage.getItem("token");
+      const token = getClientToken();
 
       if (!token) {
         clearClientAuth();
@@ -240,7 +240,7 @@ export default function ProfilePage() {
   const saveProfile = async () => {
     if (!user) return;
 
-    const token = localStorage.getItem("token");
+    const token = getClientToken();
 
     if (!token) {
       alert("Please login again.");
@@ -292,7 +292,7 @@ export default function ProfilePage() {
 
   const saveAddress = async () => {
     if (!validateForm()) return;
-    const token = localStorage.getItem("token");
+    const token = getClientToken();
 
     if (!token || !user) {
       alert("Please login again.");
@@ -371,7 +371,7 @@ export default function ProfilePage() {
   };
 
   const deleteAddress = async (index: number) => {
-    const token = localStorage.getItem("token");
+    const token = getClientToken();
     const targetAddress = addresses[index];
 
     if (!token || !targetAddress?._id || !user) return;

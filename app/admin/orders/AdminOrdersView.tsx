@@ -105,8 +105,6 @@ export function AdminOrdersView({
   if (!isAuthorized) return null;
 
   const handleStatusChange = async (orderId: string, status: string) => {
-    const token = localStorage.getItem("token");
-
     if (!token) {
       alert("Please login again.");
       return;
@@ -151,8 +149,6 @@ export function AdminOrdersView({
     orderId: string,
     paymentStatus: string
   ) => {
-    const token = localStorage.getItem("token");
-
     if (!token) {
       alert("Please login again.");
       return;

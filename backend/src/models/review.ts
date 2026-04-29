@@ -69,7 +69,7 @@ Review.init(
       { fields: ["product"] },
       { fields: ["user"] },
       { fields: ["product", "user"], unique: true },
-      { fields: ["createdAt"] },
+      { fields: ["created_at"] },
     ],
   }
 );

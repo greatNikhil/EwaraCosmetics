@@ -11,6 +11,8 @@ export interface IUser {
   googleId?: string;
   avatar?: string;
   role: string;
+  isBlocked?: boolean;
+  isDeleted?: boolean;
   createdAt?: Date;
   updatedAt?: Date;
 }
@@ -27,6 +29,8 @@ export class User extends Model<IUser, UserCreationAttributes> implements IUser 
   declare googleId: string;
   declare avatar: string;
   declare role: string;
+  declare isBlocked: boolean;
+  declare isDeleted: boolean;
   declare createdAt: Date;
   declare updatedAt: Date;
 }
@@ -74,6 +78,16 @@ User.init(
     role: {
       type: DataTypes.STRING(50),
       defaultValue: "user",
+    },
+    isBlocked: {
+      type: DataTypes.BOOLEAN,
+      allowNull: false,
+      defaultValue: false,
+    },
+    isDeleted: {
+      type: DataTypes.BOOLEAN,
+      allowNull: false,
+      defaultValue: false,
     },
   },
   {

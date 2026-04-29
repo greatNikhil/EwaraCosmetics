@@ -13,16 +13,17 @@ export interface IProduct {
   originalPrice?: number;
   discountPercent?: number;
   countInStock: number;
-  images: string;
+  images: string[];
   isFeatured: boolean;
   isPublished: boolean;
-  rating: number;
-  numReviews: number;
+  showInNewArrivals: boolean;
+  rating?: number;
+  numReviews?: number;
   createdAt?: Date;
   updatedAt?: Date;
 }
 
-interface ProductCreationAttributes extends Optional<IProduct, "id"> {}
+interface ProductCreationAttributes extends Optional<IProduct, "id" | "rating" | "numReviews"> {}
 
 
 export class Product extends Model<IProduct, ProductCreationAttributes> implements IProduct {
@@ -37,9 +38,10 @@ export class Product extends Model<IProduct, ProductCreationAttributes> implemen
   declare originalPrice: number;
   declare discountPercent: number;
   declare countInStock: number;
-  declare images: string;
+  declare images: string[];
   declare isFeatured: boolean;
   declare isPublished: boolean;
+  declare showInNewArrivals: boolean;
   declare rating: number;
   declare numReviews: number;
   declare createdAt: Date;
@@ -104,7 +106,10 @@ Product.init(
         return typeof value === "string" ? JSON.parse(value) : value;
       },
       set(value: string | string[]) {
-        this.setDataValue("images", typeof value === "string" ? value : JSON.stringify(value));
+        this.setDataValue(
+          "images",
+          (typeof value === "string" ? value : JSON.stringify(value)) as any
+        );
       },
     },
     isFeatured: {
@@ -114,6 +119,10 @@ Product.init(
     isPublished: {
       type: DataTypes.BOOLEAN,
       defaultValue: true,
+    },
+    showInNewArrivals: {
+      type: DataTypes.BOOLEAN,
+      defaultValue: false,
     },
     rating: {
       type: DataTypes.DECIMAL(3, 2),
@@ -132,9 +141,10 @@ Product.init(
       { fields: ["slug"], unique: true },
       { fields: ["category"] },
       { fields: ["brand"] },
-      { fields: ["isFeatured"] },
-      { fields: ["isPublished"] },
-      { fields: ["createdAt"] },
+      { fields: ["is_featured"] },
+      { fields: ["is_published"] },
+      { fields: ["show_in_new_arrivals"] },
+      { fields: ["created_at"] },
     ],
   }
 );

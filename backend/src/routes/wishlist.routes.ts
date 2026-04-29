@@ -1,16 +1,17 @@
 import { Router } from "express";
 import authMiddleware from "../middleware/auth";
 import { WishlistItem } from "../models/WishlistItem";
-import mongoose from "mongoose";
 
 const router = Router();
 
-// ============================================
-// 1. GET ALL WISHLIST ITEMS FOR USER
-// ============================================
-router.get("/", authMiddleware, async (req, res) => {
+const serializeWishlistItem = (item: WishlistItem) => {
+  const plain = item.get({ plain: true });
+  return { ...plain, _id: plain.id };
+};
+
+router.get("/", authMiddleware, async (req: any, res) => {
   try {
-    const userId = req.user?.id;
+    const userId = Number(req.user?.id);
 
     if (!userId) {
       return res.status(401).json({
@@ -19,13 +20,14 @@ router.get("/", authMiddleware, async (req, res) => {
       });
     }
 
-    const wishlist = await WishlistItem.find({ userId }).sort({
-      addedAt: -1,
+    const wishlist = await WishlistItem.findAll({
+      where: { userId },
+      order: [["addedAt", "DESC"]],
     });
 
     res.json({
       success: true,
-      wishlist,
+      wishlist: wishlist.map((item) => serializeWishlistItem(item)),
       count: wishlist.length,
     });
   } catch (error) {
@@ -38,12 +40,9 @@ router.get("/", authMiddleware, async (req, res) => {
   }
 });
 
-// ============================================
-// 2. ADD ITEM TO WISHLIST
-// ============================================
-router.post("/add", authMiddleware, async (req, res) => {
+router.post("/add", authMiddleware, async (req: any, res) => {
   try {
-    const userId = req.user?.id;
+    const userId = Number(req.user?.id);
     const { productId, productName, price, image, category } = req.body;
 
     if (!userId) {
@@ -60,36 +59,34 @@ router.post("/add", authMiddleware, async (req, res) => {
       });
     }
 
-    // Check if already in wishlist
     const existing = await WishlistItem.findOne({
-      userId,
-      productId,
+      where: {
+        userId,
+        productId: String(productId),
+      },
     });
 
     if (existing) {
       return res.status(400).json({
         success: false,
         message: "Item already in wishlist",
-        item: existing,
+        item: serializeWishlistItem(existing),
       });
     }
 
-    // Create new wishlist item
-    const item = new WishlistItem({
+    const savedItem = await WishlistItem.create({
       userId,
-      productId,
-      productName,
-      price,
-      image,
-      category,
+      productId: String(productId),
+      productName: String(productName),
+      price: Number(price),
+      image: String(image),
+      category: String(category),
     });
-
-    const savedItem = await item.save();
 
     res.status(201).json({
       success: true,
       message: "Item added to wishlist",
-      item: savedItem,
+      item: serializeWishlistItem(savedItem),
     });
   } catch (error) {
     console.error("Error adding to wishlist:", error);
@@ -101,13 +98,10 @@ router.post("/add", authMiddleware, async (req, res) => {
   }
 });
 
-// ============================================
-// 3. REMOVE ITEM FROM WISHLIST
-// ============================================
-router.delete("/:itemId", authMiddleware, async (req, res) => {
+router.delete("/:itemId", authMiddleware, async (req: any, res) => {
   try {
-    const userId = req.user?.id;
-    const { itemId } = req.params;
+    const userId = Number(req.user?.id);
+    const itemId = Number(req.params.itemId);
 
     if (!userId) {
       return res.status(401).json({
@@ -123,13 +117,11 @@ router.delete("/:itemId", authMiddleware, async (req, res) => {
       });
     }
 
-    // Verify ownership and delete
-    const result = await WishlistItem.findOneAndDelete({
-      _id: itemId,
-      userId,
+    const deletedCount = await WishlistItem.destroy({
+      where: { id: itemId, userId },
     });
 
-    if (!result) {
+    if (!deletedCount) {
       return res.status(404).json({
         success: false,
         message: "Wishlist item not found",
@@ -150,12 +142,9 @@ router.delete("/:itemId", authMiddleware, async (req, res) => {
   }
 });
 
-// ============================================
-// 4. REMOVE ITEM BY PRODUCT ID
-// ============================================
-router.delete("/product/:productId", authMiddleware, async (req, res) => {
+router.delete("/product/:productId", authMiddleware, async (req: any, res) => {
   try {
-    const userId = req.user?.id;
+    const userId = Number(req.user?.id);
     const { productId } = req.params;
 
     if (!userId) {
@@ -172,13 +161,11 @@ router.delete("/product/:productId", authMiddleware, async (req, res) => {
       });
     }
 
-    // Delete by product ID
-    const result = await WishlistItem.findOneAndDelete({
-      userId,
-      productId,
+    const deletedCount = await WishlistItem.destroy({
+      where: { userId, productId: String(productId) },
     });
 
-    if (!result) {
+    if (!deletedCount) {
       return res.status(404).json({
         success: false,
         message: "Product not in wishlist",
@@ -199,12 +186,9 @@ router.delete("/product/:productId", authMiddleware, async (req, res) => {
   }
 });
 
-// ============================================
-// 5. CHECK IF PRODUCT IS IN WISHLIST
-// ============================================
-router.get("/check/:productId", authMiddleware, async (req, res) => {
+router.get("/check/:productId", authMiddleware, async (req: any, res) => {
   try {
-    const userId = req.user?.id;
+    const userId = Number(req.user?.id);
     const { productId } = req.params;
 
     if (!userId) {
@@ -214,15 +198,14 @@ router.get("/check/:productId", authMiddleware, async (req, res) => {
       });
     }
 
-    const exists = await WishlistItem.findOne({
-      userId,
-      productId,
+    const item = await WishlistItem.findOne({
+      where: { userId, productId: String(productId) },
     });
 
     res.json({
       success: true,
-      inWishlist: !!exists,
-      item: exists || null,
+      inWishlist: !!item,
+      item: item ? serializeWishlistItem(item) : null,
     });
   } catch (error) {
     console.error("Error checking wishlist:", error);
@@ -234,12 +217,9 @@ router.get("/check/:productId", authMiddleware, async (req, res) => {
   }
 });
 
-// ============================================
-// 6. CLEAR ALL WISHLIST ITEMS
-// ============================================
-router.delete("/", authMiddleware, async (req, res) => {
+router.delete("/", authMiddleware, async (req: any, res) => {
   try {
-    const userId = req.user?.id;
+    const userId = Number(req.user?.id);
 
     if (!userId) {
       return res.status(401).json({
@@ -248,12 +228,12 @@ router.delete("/", authMiddleware, async (req, res) => {
       });
     }
 
-    const result = await WishlistItem.deleteMany({ userId });
+    const deletedCount = await WishlistItem.destroy({ where: { userId } });
 
     res.json({
       success: true,
       message: "Wishlist cleared",
-      deletedCount: result.deletedCount,
+      deletedCount,
     });
   } catch (error) {
     console.error("Error clearing wishlist:", error);

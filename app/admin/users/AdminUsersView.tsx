@@ -12,14 +12,8 @@ interface AdminUser {
   email: string;
   phone?: string | null;
   role: "user" | "admin";
+  isBlocked?: boolean;
   createdAt: string;
-}
-
-const USER_ADMIN_STATE_STORAGE_KEY = "ewara-admin-user-management-state";
-
-interface UserManagementState {
-  blockedUserIds: string[];
-  deletedUserIds: string[];
 }
 
 export interface AdminUsersPageProps {
@@ -41,8 +35,6 @@ export function AdminUsersView({
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
   const [roleFilter, setRoleFilter] = useState("All");
-  const [blockedUserIds, setBlockedUserIds] = useState<string[]>([]);
-  const [deletedUserIds, setDeletedUserIds] = useState<string[]>([]);
   const [feedback, setFeedback] = useState<{
     type: "success" | "error";
     message: string;
@@ -96,45 +88,11 @@ export function AdminUsersView({
   }, [isAuthorized, isChecking, token]);
 
   useEffect(() => {
-    try {
-      const storedState = localStorage.getItem(USER_ADMIN_STATE_STORAGE_KEY);
-
-      if (!storedState) {
-        return;
-      }
-
-      const parsedState = JSON.parse(storedState) as Partial<UserManagementState>;
-      setBlockedUserIds(Array.isArray(parsedState.blockedUserIds) ? parsedState.blockedUserIds : []);
-      setDeletedUserIds(Array.isArray(parsedState.deletedUserIds) ? parsedState.deletedUserIds : []);
-    } catch (error) {
-      console.error("LOAD USER MANAGEMENT STATE ERROR:", error);
-    }
-  }, []);
-
-  useEffect(() => {
     setSearchTerm(externalSearchTerm);
   }, [externalSearchTerm]);
 
-  const persistUserManagementState = (
-    nextBlockedUserIds: string[],
-    nextDeletedUserIds: string[]
-  ) => {
-    localStorage.setItem(
-      USER_ADMIN_STATE_STORAGE_KEY,
-      JSON.stringify({
-        blockedUserIds: nextBlockedUserIds,
-        deletedUserIds: nextDeletedUserIds,
-      })
-    );
-  };
-
-  const visibleUsers = useMemo(
-    () => users.filter((user) => !deletedUserIds.includes(user._id)),
-    [deletedUserIds, users]
-  );
-
   const filteredUsers = useMemo(() => {
-    return visibleUsers.filter((user) => {
+    return users.filter((user) => {
       const fullName = `${user.name} ${user.lastname || ""}`.trim().toLowerCase();
       const matchesSearch =
         fullName.includes(searchTerm.toLowerCase()) ||
@@ -145,7 +103,7 @@ export function AdminUsersView({
 
       return matchesSearch && matchesRole;
     });
-  }, [visibleUsers, searchTerm, roleFilter]);
+  }, [users, searchTerm, roleFilter]);
 
   if (isChecking) {
     return (
@@ -167,63 +125,109 @@ export function AdminUsersView({
   };
 
   const handleToggleBlocked = (userId: string) => {
-    const targetUser = users.find((user) => user._id === userId);
+    void (async () => {
+      const targetUser = users.find((user) => user._id === userId);
 
-    if (!targetUser) {
-      setFeedback({
-        type: "error",
-        message: "User not found in the current list.",
-      });
-      return;
-    }
+      if (!targetUser || !token) {
+        setFeedback({
+          type: "error",
+          message: targetUser
+            ? "Please login again."
+            : "User not found in the current list.",
+        });
+        return;
+      }
 
-    const isBlocked = blockedUserIds.includes(userId);
-    const nextBlockedUserIds = isBlocked
-      ? blockedUserIds.filter((id) => id !== userId)
-      : [...blockedUserIds, userId];
+      try {
+        const res = await fetch(buildApiUrl(`/api/admin/users/${userId}/block`), {
+          method: "PATCH",
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        });
+        const data = await res.json();
 
-    setBlockedUserIds(nextBlockedUserIds);
-    persistUserManagementState(nextBlockedUserIds, deletedUserIds);
-    setFeedback({
-      type: "success",
-      message: `${
-        [targetUser.name, targetUser.lastname].filter(Boolean).join(" ") || targetUser.email
-      } is now ${isBlocked ? "active" : "blocked"}.`,
-    });
+        if (!res.ok || !data.success || !data.user) {
+          setFeedback({
+            type: "error",
+            message: data.message || "Failed to update user status.",
+          });
+          return;
+        }
+
+        setUsers((prev) =>
+          prev.map((user) => (user._id === userId ? data.user : user))
+        );
+        setFeedback({
+          type: "success",
+          message: data.message || "User status updated successfully.",
+        });
+      } catch (error) {
+        console.error("TOGGLE USER BLOCK ERROR:", error);
+        setFeedback({
+          type: "error",
+          message: "Failed to update user status.",
+        });
+      }
+    })();
   };
 
   const handleDeleteUser = (userId: string) => {
-    const targetUser = users.find((user) => user._id === userId);
+    void (async () => {
+      const targetUser = users.find((user) => user._id === userId);
 
-    if (!targetUser) {
-      setFeedback({
-        type: "error",
-        message: "User not found in the current list.",
-      });
-      return;
-    }
+      if (!targetUser || !token) {
+        setFeedback({
+          type: "error",
+          message: targetUser
+            ? "Please login again."
+            : "User not found in the current list.",
+        });
+        return;
+      }
 
-    const userDisplayName =
-      [targetUser.name, targetUser.lastname].filter(Boolean).join(" ") || targetUser.email;
+      const userDisplayName =
+        [targetUser.name, targetUser.lastname].filter(Boolean).join(" ") || targetUser.email;
 
-    if (!window.confirm(`Delete ${userDisplayName} from the User Management list?`)) {
-      return;
-    }
+      if (!window.confirm(`Delete ${userDisplayName} from the User Management list?`)) {
+        return;
+      }
 
-    const nextDeletedUserIds = [...deletedUserIds, userId];
-    const nextBlockedUserIds = blockedUserIds.filter((id) => id !== userId);
+      try {
+        const res = await fetch(buildApiUrl(`/api/admin/users/${userId}`), {
+          method: "DELETE",
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        });
+        const data = await res.json();
 
-    setDeletedUserIds(nextDeletedUserIds);
-    setBlockedUserIds(nextBlockedUserIds);
-    persistUserManagementState(nextBlockedUserIds, nextDeletedUserIds);
-    setFeedback({
-      type: "success",
-      message: `${userDisplayName} has been removed from the User Management list.`,
-    });
+        if (!res.ok || !data.success) {
+          setFeedback({
+            type: "error",
+            message: data.message || "Failed to delete user.",
+          });
+          return;
+        }
+
+        setUsers((prev) => prev.filter((user) => user._id !== userId));
+        setFeedback({
+          type: "success",
+          message:
+            data.message || `${userDisplayName} has been removed from the User Management list.`,
+        });
+      } catch (error) {
+        console.error("DELETE USER ERROR:", error);
+        setFeedback({
+          type: "error",
+          message: "Failed to delete user.",
+        });
+      }
+    })();
   };
 
-  const totalAdmins = visibleUsers.filter((user) => user.role === "admin").length;
-  const totalCustomers = visibleUsers.length - totalAdmins;
+  const totalAdmins = users.filter((user) => user.role === "admin").length;
+  const totalCustomers = users.length - totalAdmins;
 
   return (
       <div className="min-h-screen bg-[#fdf8f6] px-4 py-10 md:px-8">
@@ -242,7 +246,7 @@ export function AdminUsersView({
               <p className="text-sm uppercase tracking-[0.18em] text-[#7a1f2b]/70">
                 Total Users
               </p>
-              <p className="mt-3 text-3xl font-semibold text-[#3e2f2b]">{visibleUsers.length}</p>
+              <p className="mt-3 text-3xl font-semibold text-[#3e2f2b]">{users.length}</p>
             </div>
 
             <div className="rounded-3xl border border-[#ead2d8] bg-white p-5 shadow-sm">
@@ -301,7 +305,7 @@ export function AdminUsersView({
               <div className="space-y-4">
                 {filteredUsers.map((user) => {
                   const isCurrentAdmin = currentAdminId === user._id;
-                  const isBlocked = blockedUserIds.includes(user._id);
+                  const isBlocked = Boolean(user.isBlocked);
                   const userDisplayName =
                     [user.name, user.lastname].filter(Boolean).join(" ") || user.email;
 
@@ -381,7 +385,7 @@ export function AdminUsersView({
                     </div>
                     {!isCurrentAdmin && isBlocked && (
                       <p className="mt-3 text-right text-xs text-[#8a7f7b]">
-                        {userDisplayName} is hidden from active access in this admin view.
+                        {userDisplayName} currently cannot access the storefront account.
                       </p>
                     )}
                     </div>

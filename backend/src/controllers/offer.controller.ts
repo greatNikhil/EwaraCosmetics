@@ -1,17 +1,25 @@
 import { Request, Response } from "express";
 import Offer from "../models/offer";
 
+const serializeOffer = (offer: Offer) => {
+  const plain = offer.get({ plain: true });
+  return { ...plain, _id: plain.id };
+};
+
 export const getActiveOffers = async (_req: Request, res: Response) => {
   try {
-    const offers = await Offer.find({ isActive: true }).sort({
-      displayOrder: 1,
-      createdAt: -1,
+    const offers = await Offer.findAll({
+      where: { isActive: true },
+      order: [
+        ["displayOrder", "ASC"],
+        ["createdAt", "DESC"],
+      ],
     });
 
     return res.status(200).json({
       success: true,
       count: offers.length,
-      offers,
+      offers: offers.map((offer) => serializeOffer(offer)),
     });
   } catch (error: any) {
     return res.status(500).json({
@@ -23,15 +31,17 @@ export const getActiveOffers = async (_req: Request, res: Response) => {
 
 export const getAdminOffers = async (_req: Request, res: Response) => {
   try {
-    const offers = await Offer.find().sort({
-      displayOrder: 1,
-      createdAt: -1,
+    const offers = await Offer.findAll({
+      order: [
+        ["displayOrder", "ASC"],
+        ["createdAt", "DESC"],
+      ],
     });
 
     return res.status(200).json({
       success: true,
       count: offers.length,
-      offers,
+      offers: offers.map((offer) => serializeOffer(offer)),
     });
   } catch (error: any) {
     return res.status(500).json({
@@ -54,7 +64,7 @@ export const createOffer = async (req: Request, res: Response) => {
     return res.status(201).json({
       success: true,
       message: "Offer created successfully",
-      offer,
+      offer: serializeOffer(offer),
     });
   } catch (error: any) {
     return res.status(500).json({
@@ -66,10 +76,10 @@ export const createOffer = async (req: Request, res: Response) => {
 
 export const updateOffer = async (req: Request, res: Response) => {
   try {
-    const { id } = req.params;
+    const offerId = Number(req.params.id);
     const { text, isActive, displayOrder } = req.body;
 
-    const offer = await Offer.findById(id);
+    const offer = await Offer.findByPk(offerId);
 
     if (!offer) {
       return res.status(404).json({
@@ -95,7 +105,7 @@ export const updateOffer = async (req: Request, res: Response) => {
     return res.status(200).json({
       success: true,
       message: "Offer updated successfully",
-      offer,
+      offer: serializeOffer(offer),
     });
   } catch (error: any) {
     return res.status(500).json({
@@ -107,8 +117,8 @@ export const updateOffer = async (req: Request, res: Response) => {
 
 export const deleteOffer = async (req: Request, res: Response) => {
   try {
-    const { id } = req.params;
-    const offer = await Offer.findById(id);
+    const offerId = Number(req.params.id);
+    const offer = await Offer.findByPk(offerId);
 
     if (!offer) {
       return res.status(404).json({
@@ -117,7 +127,7 @@ export const deleteOffer = async (req: Request, res: Response) => {
       });
     }
 
-    await Offer.findByIdAndDelete(id);
+    await offer.destroy();
 
     return res.status(200).json({
       success: true,
