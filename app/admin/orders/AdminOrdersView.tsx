@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { Suspense, useEffect, useMemo, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { buildApiUrl } from "@/utils/api";
 import { useProtectedRoute } from "@/hooks/useProtectedRoute";
@@ -13,7 +13,7 @@ export interface AdminOrdersPageProps {
   inventoryMode?: boolean;
 }
 
-export function AdminOrdersView({
+function AdminOrdersViewContent({
   externalSearchTerm = "",
 }: AdminOrdersPageProps) {
   const router = useRouter();
@@ -354,6 +354,20 @@ export function AdminOrdersView({
           )}
         </div>
       </div>
+  );
+}
+
+export function AdminOrdersView(props: AdminOrdersPageProps) {
+  return (
+    <Suspense
+      fallback={
+        <div className="flex min-h-screen items-center justify-center bg-[#fdf8f6]">
+          <p className="text-[#7a1f2b]">Loading orders...</p>
+        </div>
+      }
+    >
+      <AdminOrdersViewContent {...props} />
+    </Suspense>
   );
 }
 

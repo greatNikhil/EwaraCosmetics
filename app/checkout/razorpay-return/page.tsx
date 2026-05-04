@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { Suspense, useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import axios from "axios";
 import { AlertCircle, Loader2 } from "lucide-react";
@@ -35,7 +35,7 @@ type PendingOrderPayload = {
   couponCode?: string;
 };
 
-export default function RazorpayReturnPage() {
+function RazorpayReturnContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const clearCart = useCartStore((state) => state.clearCart);
@@ -180,5 +180,29 @@ export default function RazorpayReturnPage() {
         )}
       </div>
     </div>
+  );
+}
+
+export default function RazorpayReturnPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="flex min-h-screen items-center justify-center bg-[var(--blush-bg)] px-4 py-10">
+          <div className="w-full max-w-md rounded-[14px] border border-[var(--blush-border)] bg-[var(--blush-bg)] p-8 text-center">
+            <div className="mb-5 inline-flex h-16 w-16 items-center justify-center rounded-full bg-[var(--blush-light)]">
+              <Loader2 className="h-8 w-8 animate-spin text-[var(--blush-brand)]" />
+            </div>
+            <h1 className="mb-3 text-[20px] font-medium text-[var(--blush-dark)]">
+              Processing payment
+            </h1>
+            <p className="text-[12px] leading-[1.7] text-[var(--blush-muted)]">
+              Finalizing your payment...
+            </p>
+          </div>
+        </div>
+      }
+    >
+      <RazorpayReturnContent />
+    </Suspense>
   );
 }
