@@ -14,6 +14,14 @@ const recommendedEnvVars = [
 
 const normalizeOrigin = (value: string) => value.trim().replace(/\/+$/, "");
 
+const isPrivateNetworkOrigin = (value: string) => {
+  const normalized = normalizeOrigin(value);
+
+  return /^https?:\/\/(localhost|127\.0\.0\.1|192\.168\.\d{1,3}\.\d{1,3}|10\.\d{1,3}\.\d{1,3}\.\d{1,3}|172\.(1[6-9]|2\d|3[0-1])\.\d{1,3}\.\d{1,3})(:\d+)?$/i.test(
+    normalized
+  );
+};
+
 const expandConfiguredOrigin = (value: string): string[] => {
   const normalized = normalizeOrigin(value);
   if (!normalized) {
@@ -41,7 +49,21 @@ export const getAllowedOrigins = () => {
     .filter(Boolean);
 
   if (configuredOrigins.length > 0) {
-    return Array.from(new Set(configuredOrigins));
+    const defaults =
+      process.env.NODE_ENV === "development"
+        ? [
+            "http://localhost:3000",
+            "http://localhost:3001",
+            "http://localhost:3002",
+            "http://localhost:3003",
+            "http://127.0.0.1:3000",
+            "http://127.0.0.1:3001",
+            "http://127.0.0.1:3002",
+            "http://127.0.0.1:3003",
+          ]
+        : [];
+
+    return Array.from(new Set([...configuredOrigins, ...defaults]));
   }
 
   // ✅ Allow common development ports for localhost
@@ -56,6 +78,9 @@ export const getAllowedOrigins = () => {
     "http://127.0.0.1:3003",
   ];
 };
+
+export const isDevelopmentOriginAllowed = (origin: string) =>
+  process.env.NODE_ENV === "development" && isPrivateNetworkOrigin(origin);
 
 export const validateEnv = () => {
   const missingRequired = requiredEnvVars.filter(

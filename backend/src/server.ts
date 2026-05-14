@@ -3,7 +3,11 @@ import cors from "cors";
 import dotenv from "dotenv";
 
 import connectDB from "./config/db";
-import { getAllowedOrigins, validateEnv } from "./config/env";
+import {
+  getAllowedOrigins,
+  isDevelopmentOriginAllowed,
+  validateEnv,
+} from "./config/env";
 import authRoutes from "./routes/auth.routes";
 import adminRoutes from "./routes/admin.routes";
 import addressRoutes from "./routes/address.routes";
@@ -14,10 +18,18 @@ import promoRoutes from "./routes/promo.routes";
 import offerRoutes from "./routes/offer.routes";
 import wishlistRoutes from "./routes/wishlist.routes";
 import cartRoutes from "./routes/cart.routes";
+import userRoutes from "./routes/user.routes";
 import newsletterRoutes from "./routes/newsletter.routes";
 import emailTestRoutes from "./routes/emailTest";
+import exchangeRoutes from "./routes/exchange.routes";
+import returnRoutes from "./routes/return.routes";
+import refundRoutes from "./routes/refund.routes";
+import refundRequestRoutes from "./routes/refundRequest.routes";
 import { errorHandler, notFoundHandler } from "./middleware/error";
 import { logInfo } from "./utils/logger";
+
+// Import models to ensure they're registered
+import RefundRequest from "./models/RefundRequest";
 
 dotenv.config();
 validateEnv();
@@ -38,11 +50,15 @@ app.use(
       }
 
       const normalizedOrigin = origin.replace(/\/+$/, "");
-      if (allowedOrigins.includes(normalizedOrigin)) {
+      if (
+        allowedOrigins.includes(normalizedOrigin) ||
+        isDevelopmentOriginAllowed(normalizedOrigin)
+      ) {
         callback(null, true);
         return;
       }
 
+      console.error(`CORS rejected origin: ${normalizedOrigin}`);
       callback(new Error("Not allowed by CORS"));
     },
     methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
@@ -83,8 +99,13 @@ app.use("/api/promo", promoRoutes);
 app.use("/api/offers", offerRoutes);
 app.use("/api/wishlist", wishlistRoutes);
 app.use("/api/cart", cartRoutes);
+app.use("/api/user", userRoutes);
 app.use("/api/newsletter", newsletterRoutes);
 app.use("/api/email-test", emailTestRoutes);
+app.use("/api/exchanges", exchangeRoutes);
+app.use("/api/returns", returnRoutes);
+app.use("/api/refunds", refundRoutes);
+app.use("/api/refund-requests", refundRequestRoutes);
 
 // Error handlers
 app.use(notFoundHandler);

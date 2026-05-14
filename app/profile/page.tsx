@@ -1,10 +1,11 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
+import { useEffect, useRef, useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import {
   Bell,
+  Camera,
   ChevronRight,
   Heart,
   Lock,
@@ -16,8 +17,15 @@ import {
   Phone,
   Star,
   User,
+  X,
 } from "lucide-react";
 import { useOrders } from "@/hooks/useOrders";
+import MyAddress from "@/components/profile/MyAddress";
+import HelpSupport from "@/components/profile/HelpSupport";
+import MyOrders from "@/components/profile/MyOrders";
+import Notifications from "@/components/profile/Notifications";
+import MyReviews from "@/components/profile/MyReviews";
+import MyWishlist from "@/components/profile/MyWishlist";
 import { useAuthStore } from "@/store/authStore";
 import { buildApiUrl } from "@/utils/api";
 import { clearClientAuth, getClientToken } from "@/utils/clientAuth";
@@ -34,6 +42,7 @@ export default function ProfilePage() {
   const [pageLoading, setPageLoading] = useState(true);
   const { orders } = useOrders();
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [wishlistItems, setWishlistItems] = useState<WishlistItem[]>([]);
 
   const [activeTab, setActiveTab] = useState("overview");
@@ -62,7 +71,10 @@ export default function ProfilePage() {
 
   const [editIndex, setEditIndex] = useState<number | null>(null);
   const [openMenu, setOpenMenu] = useState<number | null>(null);
+  const [isAvatarUploading, setIsAvatarUploading] = useState(false);
+  const [isAvatarPreviewOpen, setIsAvatarPreviewOpen] = useState(false);
   const [errors, setErrors] = useState<any>({});
+  const avatarInputRef = useRef<HTMLInputElement | null>(null);
   const {
     setUser: setAuthUser,
     setToken: setAuthToken,
@@ -71,10 +83,41 @@ export default function ProfilePage() {
   } = useAuthStore();
 
   const userKey = user?.email || user?.phone;
+  const fullName = `${user?.name || ""} ${user?.lastname || ""}`.trim();
   const defaultAddress = addresses.find((addr) => addr.default) || addresses[0];
   const sortedAddresses = [...addresses].sort(
     (a, b) => Number(b.default) - Number(a.default)
   );
+  const validTabs = [
+    "overview",
+    "profile",
+    "address",
+    "orders",
+    "wishlist",
+    "reviews",
+    "notifications",
+    "helpSupport",
+  ];
+
+  const normalizeTab = (value: string | null) => {
+    if (value === "support") return "helpSupport";
+    return value && validTabs.includes(value) ? value : "overview";
+  };
+
+  const navigateToTab = (nextTab: string) => {
+    const normalizedTab = normalizeTab(nextTab);
+
+    if (normalizedTab !== activeTab) {
+      setActiveTab(normalizedTab);
+    }
+
+    const nextUrl =
+      normalizedTab === "overview"
+        ? "/profile"
+        : `/profile?tab=${normalizedTab}`;
+
+    router.push(nextUrl, { scroll: false });
+  };
 
   const fetchAddresses = async (token: string) => {
     const res = await fetch(buildApiUrl("/api/addresses"), {
@@ -107,7 +150,7 @@ export default function ProfilePage() {
     setAuthUser(mergedUser);
     setAddresses(nextAddresses);
     
-    // ✅ Sync to authStore (no localStorage needed)
+    // Sync to authStore (no localStorage needed)
     setAuthAddresses(nextAddresses);
 
     return mergedUser;
@@ -227,6 +270,14 @@ export default function ProfilePage() {
       window.removeEventListener("storage", handleWishlistChanged);
     };
   }, []);
+
+  useEffect(() => {
+    const nextTab = normalizeTab(searchParams.get("tab"));
+
+    setActiveTab((currentTab) =>
+      currentTab === nextTab ? currentTab : nextTab
+    );
+  }, [searchParams]);
 
   const scrollToProfile = () => {
     const section = document.getElementById("profile-section");
@@ -441,6 +492,76 @@ export default function ProfilePage() {
     return String(user?.email || userKey || "U").slice(0, 2).toUpperCase();
   };
 
+  const getAvatarSrc = () => {
+    if (!user?.avatar_url) return "";
+    return String(user.avatar_url);
+  };
+
+  const openAvatarPicker = () => {
+    avatarInputRef.current?.click();
+  };
+
+  const openAvatarPreview = () => {
+    if (!getAvatarSrc()) return;
+    setIsAvatarPreviewOpen(true);
+  };
+
+  const closeAvatarPreview = () => {
+    setIsAvatarPreviewOpen(false);
+  };
+
+  const handleAvatarUpload = async (
+    event: React.ChangeEvent<HTMLInputElement>
+  ) => {
+    const file = event.target.files?.[0];
+
+    if (!file || !user) return;
+
+    const token = getClientToken();
+
+    if (!token) {
+      alert("Please login again.");
+      router.push("/login");
+      return;
+    }
+
+    const formData = new FormData();
+    formData.append("avatar", file);
+
+    try {
+      setIsAvatarUploading(true);
+
+      const res = await fetch(buildApiUrl("/api/user/update-avatar"), {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+        body: formData,
+      });
+
+      const data = await res.json();
+
+      if (!res.ok || !data.success || !data.avatar_url) {
+        alert(data.message || "Failed to update avatar");
+        return;
+      }
+
+      const nextUser = {
+        ...user,
+        avatar_url: data.avatar_url,
+      };
+
+      syncUserData(nextUser, addresses);
+      window.dispatchEvent(new Event("userChanged"));
+    } catch (error) {
+      console.error("AVATAR UPLOAD ERROR:", error);
+      alert("Failed to update avatar");
+    } finally {
+      event.target.value = "";
+      setIsAvatarUploading(false);
+    }
+  };
+
   const formatDate = (value?: string) => {
     if (!value) return "Not available";
     const parsed = new Date(value);
@@ -602,8 +723,12 @@ export default function ProfilePage() {
     { key: "wishlist", label: "My Wishlist", icon: Heart },
     { key: "reviews", label: "My Reviews", icon: Star },
     { key: "notifications", label: "Notifications", icon: Bell },
-    { key: "support", label: "Help & Support", icon: MessageCircle },
+    { key: "helpSupport", label: "Help & Support", icon: MessageCircle },
   ];
+  const activeSectionLabel =
+    activeTab === "profile"
+      ? "Profile"
+      : navItems.find((item) => item.key === activeTab)?.label || "Overview";
 
   const getStatusBadgeClass = (status?: string) => {
     const normalized = String(status || "").toLowerCase();
@@ -634,7 +759,7 @@ export default function ProfilePage() {
 
   return (
     <div className="overflow-x-hidden bg-[#fdf6f7] px-4 py-6 md:px-6">
-      <div className="mx-auto w-full max-w-7xl">
+      <div className="mx-auto w-full max-w-[1200px]">
         {guestMessage && (
           <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
             <div className="rotate-1 scale-105 transform rounded-lg bg-[#7B2D42] px-6 py-4 text-white shadow-2xl">
@@ -643,22 +768,86 @@ export default function ProfilePage() {
           </div>
         )}
 
-        <div className="grid grid-cols-1 gap-6 lg:grid-cols-[300px_minmax(0,1fr)]">
-          <aside className="flex min-h-full flex-col rounded-[14px] border border-[#f0dde2] bg-white p-6">
+        {isAvatarPreviewOpen && getAvatarSrc() && (
+          <div
+            className="fixed inset-0 z-[70] flex items-center justify-center bg-black/75 px-4 py-6"
+            onClick={closeAvatarPreview}
+          >
+            <div
+              className="relative w-full max-w-xl"
+              onClick={(event) => event.stopPropagation()}
+            >
+              <button
+                type="button"
+                onClick={closeAvatarPreview}
+                className="absolute right-3 top-3 z-10 flex h-9 w-9 items-center justify-center rounded-full bg-black/60 text-white transition hover:bg-black/75"
+                aria-label="Close profile picture preview"
+              >
+                <X size={18} strokeWidth={2} />
+              </button>
+              <img
+                src={getAvatarSrc()}
+                alt={fullName || "Profile picture"}
+                className="max-h-[80vh] w-full rounded-[20px] bg-white object-contain shadow-2xl"
+              />
+            </div>
+          </div>
+        )}
+
+        <div className="flex flex-col gap-6 lg:flex-row lg:items-start">
+          <aside className="lg:sticky lg:top-6 lg:w-[280px] lg:flex-shrink-0">
+          <div className="flex min-h-full flex-col rounded-[14px] border border-[#f0dde2] bg-white p-4 md:p-6">
+            <input
+              ref={avatarInputRef}
+              type="file"
+              accept="image/*"
+              className="hidden"
+              onChange={handleAvatarUpload}
+            />
             <div
               onClick={() => {
-                setActiveTab("profile");
+                navigateToTab("profile");
                 scrollToProfile();
               }}
               className="flex cursor-pointer items-center justify-between gap-4 rounded-xl"
             >
               <div className="flex min-w-0 items-center gap-4">
-                <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-full bg-[#7B2D42] text-base font-semibold text-white">
-                  {getInitials()}
+                <div className="relative h-14 w-14 shrink-0">
+                  <button
+                    type="button"
+                    onClick={(event) => {
+                      event.stopPropagation();
+                      openAvatarPreview();
+                    }}
+                    className="flex h-14 w-14 items-center justify-center overflow-hidden rounded-full bg-[#7B2D42] text-base font-semibold text-white transition hover:opacity-85 disabled:cursor-not-allowed"
+                    aria-label="View profile picture"
+                  >
+                    {getAvatarSrc() ? (
+                      <img
+                        src={getAvatarSrc()}
+                        alt={fullName || "Profile picture"}
+                        className="h-full w-full object-cover"
+                      />
+                    ) : (
+                      getInitials()
+                    )}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={(event) => {
+                      event.stopPropagation();
+                      openAvatarPicker();
+                    }}
+                    disabled={isAvatarUploading}
+                    className="absolute bottom-0 right-0 flex h-6 w-6 items-center justify-center rounded-full border-2 border-white bg-[#2f1f25] text-white shadow-sm transition hover:bg-[#1f1519] disabled:cursor-not-allowed"
+                    aria-label="Upload profile picture"
+                  >
+                    <Camera size={12} strokeWidth={2} />
+                  </button>
                 </div>
                 <div className="min-w-0">
                   <h2 className="truncate text-lg font-semibold text-[#2f1f25]">
-                    Hey, User 👋
+                    {fullName ? `Hey, ${fullName} 👋` : "Hey, User 👋"}
                   </h2>
                   <p className="mt-1 truncate text-sm text-[#8a7780]">
                     {user?.email || user?.phone}
@@ -674,11 +863,11 @@ export default function ProfilePage() {
             </div>
 
             <div className="mt-5 border-t border-[#f0dde2] pt-5">
-              <p className="text-[11px] uppercase tracking-[0.06em] text-[#9a8a91]">
+              <p className="hidden text-[11px] uppercase tracking-[0.06em] text-[#9a8a91] md:block">
                 Account
               </p>
 
-              <div className="mt-4 space-y-1">
+              <div className="mt-4 flex gap-2 overflow-x-auto pb-1 md:block md:space-y-1 md:overflow-visible md:pb-0">
                 {navItems.map((item) => {
                   const Icon = item.icon;
                   return (
@@ -690,21 +879,31 @@ export default function ProfilePage() {
                           showGuestPopup();
                           return;
                         }
-                        setActiveTab(item.key);
+                        navigateToTab(item.key);
                       }}
-                      className={`flex w-full items-center justify-between px-3 py-[11px] text-left text-[13px] transition ${
+                      className={`flex flex-shrink-0 items-center gap-2 whitespace-nowrap rounded-full px-[14px] py-[6px] text-left text-[13px] transition md:w-full md:justify-between md:rounded-[8px] md:px-3 md:py-[11px] ${
                         activeTab === item.key
-                          ? "rounded-r-[8px] border-l-[3px] border-[#7B2D42] bg-[#f5e8eb] pl-[9px] text-[#2f1f25]"
-                          : "rounded-[8px] text-[#56444b] hover:bg-[#f5e8eb]"
+                          ? "bg-[#7a1a2e] font-semibold text-white md:rounded-r-[8px] md:border-l-[3px] md:border-[#7a1a2e] md:bg-[#fdf0f0] md:pl-[9px] md:text-[#7a1a2e]"
+                          : "text-[#444] md:rounded-[8px] md:hover:bg-[#f5e8eb]"
                       }`}
                     >
-                      <span className="flex items-center gap-3">
-                        <Icon size={16} className="text-[#7B2D42]" strokeWidth={1.8} />
+                      <span className="flex items-center gap-2 md:gap-3">
+                        <Icon
+                          size={16}
+                          className={`${
+                            activeTab === item.key
+                              ? "text-white md:text-[#7a1a2e]"
+                              : "text-[#7B2D42]"
+                          }`}
+                          strokeWidth={1.8}
+                        />
                         <span>{item.label}</span>
                       </span>
                       <ChevronRight
                         size={16}
-                        className="shrink-0 text-[#8f6d78]"
+                        className={`hidden shrink-0 md:block ${
+                          activeTab === item.key ? "text-[#7a1a2e]" : "text-[#8f6d78]"
+                        }`}
                         strokeWidth={1.8}
                       />
                     </button>
@@ -713,7 +912,7 @@ export default function ProfilePage() {
               </div>
             </div>
 
-            <div className="mt-auto border-t border-[#f0dde2] pt-3">
+            <div className="mt-5 border-t border-[#f0dde2] pt-3">
               <button
                 type="button"
                 className="flex items-center gap-2 text-xs font-medium text-[#b04040]"
@@ -726,22 +925,55 @@ export default function ProfilePage() {
                 Logout
               </button>
             </div>
+          </div>
           </aside>
 
           <section
             id="profile-section"
-            className="min-h-fit rounded-[14px] border border-[#f0dde2] bg-white p-6"
+            className="min-w-0 flex-1 rounded-[14px] border border-[#f0dde2] bg-white p-6"
           >
+            <div className="mb-6 border-b border-[#f0dde2] pb-4">
+              <p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-[#9a8a91]">
+                Account
+              </p>
+              <h1 className="mt-2 text-[22px] font-semibold text-[#2f1f25]">
+                {activeSectionLabel}
+              </h1>
+            </div>
             {activeTab === "overview" && (
               <div className="space-y-6">
                 <div className="rounded-[12px] border border-[#f0dde2] bg-[#fdf6f7] p-4">
                   <div className="flex flex-col gap-4 sm:flex-row sm:items-center">
-                    <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-full bg-[#7B2D42] text-base font-semibold text-white">
-                      {getInitials()}
+                    <div className="relative h-14 w-14 shrink-0">
+                      <button
+                        type="button"
+                        onClick={openAvatarPreview}
+                        className="flex h-14 w-14 items-center justify-center overflow-hidden rounded-full bg-[#7B2D42] text-base font-semibold text-white transition hover:opacity-85 disabled:cursor-not-allowed"
+                        aria-label="View profile picture"
+                      >
+                        {getAvatarSrc() ? (
+                          <img
+                            src={getAvatarSrc()}
+                            alt={fullName || "Profile picture"}
+                            className="h-full w-full object-cover"
+                          />
+                        ) : (
+                          getInitials()
+                        )}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={openAvatarPicker}
+                        disabled={isAvatarUploading}
+                        className="absolute bottom-0 right-0 flex h-6 w-6 items-center justify-center rounded-full border-2 border-white bg-[#2f1f25] text-white shadow-sm transition hover:bg-[#1f1519] disabled:cursor-not-allowed"
+                        aria-label="Upload profile picture"
+                      >
+                        <Camera size={12} strokeWidth={2} />
+                      </button>
                     </div>
                     <div className="min-w-0">
                       <p className="text-base font-semibold text-[#2f1f25]">
-                        {`${user?.name || "User"} ${user?.lastname || ""}`.trim()}
+                        {fullName || "User"}
                       </p>
                       <p className="truncate text-sm text-[#7f6b73]">
                         {user?.email || user?.phone || "Not available"}
@@ -782,7 +1014,7 @@ export default function ProfilePage() {
                       {orders.length > 0 && (
                         <button
                           type="button"
-                          onClick={() => setActiveTab("orders")}
+                          onClick={() => navigateToTab("orders")}
                           className="text-sm text-[#7B2D42]"
                         >
                           View all
@@ -807,7 +1039,7 @@ export default function ProfilePage() {
                                       "Order"}
                                   </p>
                                   <p className="mt-1 text-xs text-[#8b7680]">
-                                    {formatDate(order.createdAt)} • ₹
+                                    {formatDate(order.createdAt)} - Rs. 
                                     {Number(order.totalAmount || 0).toFixed(2)}
                                   </p>
                                 </div>
@@ -833,7 +1065,7 @@ export default function ProfilePage() {
                       </h2>
                       <button
                         type="button"
-                        onClick={() => setActiveTab("address")}
+                        onClick={() => navigateToTab("address")}
                         className="text-sm text-[#7B2D42]"
                       >
                         Manage
@@ -933,640 +1165,51 @@ export default function ProfilePage() {
             )}
 
             {activeTab === "address" && (
-              <div>
-                <div className="mb-6 flex items-center gap-3">
-                  {showForm && (
-                    <button
-                      type="button"
-                      className="rounded-full border border-[#f0dde2] p-1 text-[#7B2D42]"
-                      onClick={() => {
-                        setShowForm(false);
-                        setEditIndex(null);
-                        setErrors({});
-                        setForm({
-                          name: "",
-                          lastname: "",
-                          address: "",
-                          phone: "",
-                          pincode: "",
-                          flat: "",
-                          city: "",
-                          state: "",
-                          default: false,
-                        });
-                      }}
-                    >
-                      <ChevronRight className="h-4 w-4 rotate-180" />
-                    </button>
-                  )}
-
-                  <h2 className="text-[20px] font-medium text-[#2f1f25]">
-                    {showForm ? "Add New Address" : "My Address"}
-                  </h2>
-                </div>
-
-                {addresses.length === 0 && !showForm && (
-                  <div className="rounded-[10px] border border-[#f0dde2] bg-[#fdf6f7] p-5 text-center">
-                    <p className="text-base font-medium text-[#2f1f25]">
-                      No addresses found
-                    </p>
-                    <button
-                      onClick={() => {
-                        if (!user) {
-                          showGuestPopup();
-                          return;
-                        }
-                        setShowForm(true);
-                      }}
-                      className="mt-4 inline-flex rounded-[10px] border border-dashed border-[#c0a8b0] px-5 py-3 text-sm text-[#7B2D42]"
-                    >
-                      + Add New Address
-                    </button>
-                  </div>
-                )}
-
-                {addresses.length > 0 && !showForm && (
-                  <div className="space-y-4">
-                    {sortedAddresses.map((item, index) => (
-                      <div
-                        key={index}
-                        className="rounded-[10px] border border-[#f0dde2] bg-[#fdf6f7] px-4 py-4"
-                      >
-                        <div className="flex items-start justify-between gap-4">
-                          <div className="text-sm text-[#6f5b63]">
-                            <div className="flex items-center gap-2">
-                              <p className="font-medium text-[#2f1f25]">
-                                {item.name} {item.lastname || ""}
-                              </p>
-                              {item.default && (
-                                <span className="rounded-full bg-[#f5e8eb] px-2.5 py-1 text-[11px] text-[#7B2D42]">
-                                  Default
-                                </span>
-                              )}
-                            </div>
-                            {item.flat && <p className="mt-2">{item.flat}</p>}
-                            <p className={item.flat ? "" : "mt-2"}>{item.address}</p>
-                            <p>
-                              {item.city}, {item.state} {item.pincode}
-                            </p>
-                            <p className="mt-2">{item.phone}</p>
-                          </div>
-                          <div className="relative">
-                            <img
-                              src="/favicon/dots.svg"
-                              className="h-5 w-5 cursor-pointer"
-                              onClick={() =>
-                                setOpenMenu(openMenu === index ? null : index)
-                              }
-                            />
-
-                            {openMenu === index && (
-                              <div className="absolute right-0 z-10 mt-2 w-32 overflow-hidden rounded-lg border border-[#f0dde2] bg-white shadow-md">
-                                <div
-                                  onClick={() => {
-                                    const selected = sortedAddresses[index];
-
-                                    setForm({
-                                      name: selected.name || "",
-                                      lastname: selected.lastname || "",
-                                      address: selected.address || "",
-                                      phone: selected.phone || "",
-                                      pincode: selected.pincode || "",
-                                      flat: selected.flat || "",
-                                      city: selected.city || "",
-                                      state: selected.state || "",
-                                      default: selected.default || false,
-                                    });
-
-                                    const actualIndex = addresses.findIndex(
-                                      (addr) =>
-                                        (selected._id && addr._id === selected._id) ||
-                                        (!selected._id &&
-                                          addr.address === selected.address &&
-                                          addr.phone === selected.phone &&
-                                          addr.pincode === selected.pincode)
-                                    );
-
-                                    setEditIndex(actualIndex);
-                                    setShowForm(true);
-                                    setOpenMenu(null);
-                                  }}
-                                  className="flex cursor-pointer items-center gap-2 px-3 py-2 text-sm text-[#56444b] hover:bg-[#fdf6f7]"
-                                >
-                                  <img src="/favicon/edit.svg" className="h-5 w-5" />
-                                  <span>Edit</span>
-                                </div>
-
-                                <div
-                                  onClick={() => {
-                                    const selected = sortedAddresses[index];
-                                    const actualIndex = addresses.findIndex(
-                                      (addr) =>
-                                        (selected._id && addr._id === selected._id) ||
-                                        (!selected._id &&
-                                          addr.address === selected.address &&
-                                          addr.phone === selected.phone &&
-                                          addr.pincode === selected.pincode)
-                                    );
-                                    deleteAddress(actualIndex);
-                                    setOpenMenu(null);
-                                  }}
-                                  className="flex cursor-pointer items-center gap-2 px-3 py-2 text-sm text-[#b04040] hover:bg-[#fff6f6]"
-                                >
-                                  <img
-                                    src="/favicon/delete.svg"
-                                    className="h-5 w-5 scale-110"
-                                  />
-                                  <span>Delete</span>
-                                </div>
-                              </div>
-                            )}
-                          </div>
-                        </div>
-                      </div>
-                    ))}
-
-                    <button
-                      type="button"
-                      onClick={() => {
-                        if (!user) {
-                          showGuestPopup();
-                          return;
-                        }
-                        setShowForm(true);
-                        setEditIndex(null);
-                        setErrors({});
-                        setForm({
-                          name: "",
-                          lastname: "",
-                          address: "",
-                          phone: "",
-                          pincode: "",
-                          flat: "",
-                          city: "",
-                          state: "",
-                          default: false,
-                        });
-                      }}
-                      className="w-full rounded-[10px] border border-dashed border-[#c0a8b0] px-4 py-[14px] text-center text-[13px] text-[#7B2D42]"
-                    >
-                      + Add New Address
-                    </button>
-                  </div>
-                )}
-
-                {showForm && (
-                  <div className="grid grid-cols-1 gap-5">
-                    <div>
-                      <label className="text-sm font-medium text-[#5a4f4d]">
-                        PIN Code *
-                      </label>
-                      <input
-                        value={form.pincode}
-                        placeholder="Eg: 110001"
-                        className="mt-1 w-full rounded-lg border border-[#f0dde2] bg-[#fdf6f7] p-3 text-[#3e2f2b] outline-none placeholder:text-[#c9ada7] focus:border-[#7B2D42]"
-                        onChange={async (e) => {
-                          const pin = e.target.value.replace(/\D/g, "");
-                          setForm((prev) => ({ ...prev, pincode: pin }));
-
-                          if (pin.length === 6) {
-                            try {
-                              const res = await fetch(
-                                `https://api.postalpincode.in/pincode/${pin}`
-                              );
-                              const data = await res.json();
-
-                              if (data[0].Status === "Success") {
-                                const post = data[0].PostOffice[0];
-
-                                setForm((prev) => ({
-                                  ...prev,
-                                  pincode: pin,
-                                  city: post.District,
-                                  state: post.State,
-                                }));
-                              }
-                            } catch {
-                              console.error("Error fetching pincode");
-                            }
-                          }
-                        }}
-                      />
-                    </div>
-
-                    <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                      <div>
-                        <label className="text-sm font-medium text-[#5a4f4d]">
-                          City
-                        </label>
-                        <input
-                          value={form.city}
-                          disabled
-                          className="mt-1 w-full rounded-lg border border-[#f0dde2] bg-[#f4edef] p-3"
-                        />
-                      </div>
-
-                      <div>
-                        <label className="text-sm font-medium text-[#5a4f4d]">
-                          State
-                        </label>
-                        <input
-                          value={form.state}
-                          disabled
-                          className="mt-1 w-full rounded-lg border border-[#f0dde2] bg-[#f4edef] p-3"
-                        />
-                      </div>
-                    </div>
-
-                    <div>
-                      <label className="text-sm font-medium text-[#5a4f4d]">
-                        Flat / Building No (Optional)
-                      </label>
-                      <input
-                        value={form.flat}
-                        placeholder="Eg: A1, Block D"
-                        className="mt-1 w-full rounded-lg border border-[#f0dde2] bg-[#fdf6f7] p-3 text-[#3e2f2b] outline-none placeholder:text-[#c9ada7] focus:border-[#7B2D42]"
-                        onChange={(e) =>
-                          setForm({ ...form, flat: e.target.value })
-                        }
-                      />
-                    </div>
-
-                    <div>
-                      <label className="text-sm font-medium text-[#5a4f4d]">
-                        Complete Address *
-                      </label>
-                      <input
-                        value={form.address}
-                        placeholder="Eg: Plot no. 401"
-                        className="mt-1 w-full rounded-lg border border-[#f0dde2] bg-[#fdf6f7] p-3 text-[#3e2f2b] outline-none placeholder:text-[#c9ada7] focus:border-[#7B2D42]"
-                        onChange={(e) => {
-                          setForm({ ...form, address: e.target.value });
-
-                          if (errors.address) {
-                            setErrors({ ...errors, address: "" });
-                          }
-                        }}
-                      />
-                      {errors.address && (
-                        <p className="mt-1 text-sm text-red-500">
-                          {errors.address}
-                        </p>
-                      )}
-                    </div>
-
-                    <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                      <div>
-                        <label className="text-sm font-medium text-[#5a4f4d]">
-                          First Name *
-                        </label>
-                        <input
-                          value={form.name}
-                          placeholder="Eg: Om"
-                          className="mt-1 w-full rounded-lg border border-[#f0dde2] bg-[#fdf6f7] p-3 text-[#3e2f2b] outline-none placeholder:text-[#c9ada7] focus:border-[#7B2D42]"
-                          onChange={(e) => {
-                            setForm({ ...form, name: e.target.value });
-
-                            if (errors.name) {
-                              setErrors({ ...errors, name: "" });
-                            }
-                          }}
-                        />
-                        {errors.name && (
-                          <p className="mt-1 text-sm text-red-500">
-                            {errors.name}
-                          </p>
-                        )}
-                      </div>
-
-                      <div>
-                        <label className="text-sm font-medium text-[#5a4f4d]">
-                          Last Name (Optional)
-                        </label>
-                        <input
-                          value={form.lastname}
-                          placeholder="Eg: Sharma"
-                          className="mt-1 w-full rounded-lg border border-[#f0dde2] bg-[#fdf6f7] p-3 text-[#3e2f2b] outline-none placeholder:text-[#c9ada7] focus:border-[#7B2D42]"
-                          onChange={(e) =>
-                            setForm({ ...form, lastname: e.target.value })
-                          }
-                        />
-                      </div>
-                    </div>
-
-                    <div>
-                      <label className="text-sm font-medium text-[#5a4f4d]">
-                        Mobile Number *
-                      </label>
-                      <input
-                        value={form.phone}
-                        maxLength={10}
-                        placeholder="Eg: 9876543210"
-                        className="mt-1 w-full rounded-lg border border-[#f0dde2] bg-[#fdf6f7] p-3 text-[#3e2f2b] outline-none placeholder:text-[#c9ada7] focus:border-[#7B2D42]"
-                        onChange={(e) => {
-                          const value = e.target.value.replace(/\D/g, "");
-                          setForm({ ...form, phone: value });
-
-                          if (errors.phone) {
-                            setErrors({ ...errors, phone: "" });
-                          }
-                        }}
-                      />
-                      {errors.phone && (
-                        <p className="mt-1 text-sm text-red-500">
-                          {errors.phone}
-                        </p>
-                      )}
-                    </div>
-
-                    <div className="mt-1 flex items-center gap-2">
-                      <input
-                        type="checkbox"
-                        checked={form.default}
-                        onChange={(e) =>
-                          setForm({ ...form, default: e.target.checked })
-                        }
-                      />
-                      <span className="text-sm text-[#5a4f4d]">
-                        Set as my default address
-                      </span>
-                    </div>
-
-                    <button
-                      onClick={saveAddress}
-                      className="mt-2 rounded-[10px] bg-[#7B2D42] py-3 text-white transition hover:opacity-90"
-                    >
-                      Save Address
-                    </button>
-                  </div>
-                )}
-              </div>
+              <MyAddress
+                showForm={showForm}
+                setShowForm={setShowForm}
+                user={user}
+                showGuestPopup={showGuestPopup}
+                addresses={addresses}
+                sortedAddresses={sortedAddresses}
+                openMenu={openMenu}
+                setOpenMenu={setOpenMenu}
+                setForm={setForm}
+                form={form}
+                errors={errors}
+                setErrors={setErrors}
+                setEditIndex={setEditIndex}
+                deleteAddress={deleteAddress}
+                saveAddress={saveAddress}
+              />
             )}
 
             {activeTab === "orders" && (
-              <div>
-                <h2 className="mb-6 text-[20px] font-medium text-[#2f1f25]">
-                  My Orders
-                </h2>
-
-                {orders.length === 0 ? (
-                  <div className="rounded-[10px] border border-[#f0dde2] bg-[#fdf6f7] py-12 text-center">
-                    <p className="text-lg font-medium text-[#2f1f25]">
-                      No orders yet
-                    </p>
-                    <p className="mt-2 text-sm text-[#7a6f6b]">
-                      Start shopping to see your orders here.
-                    </p>
-                    <Link
-                      href="/shop"
-                      className="mt-6 inline-block rounded-lg bg-[#7B2D42] px-6 py-3 font-semibold text-white transition hover:shadow-md"
-                    >
-                      Start Shopping
-                    </Link>
-                  </div>
-                ) : (
-                  <div className="space-y-4">
-                    {orders.map((order: any) => (
-                      <Link key={order._id || order.id} href={`/orders/${order._id || order.id}`}>
-                        <div className="rounded-[10px] border border-[#f0dde2] bg-[#fdf6f7] px-4 py-3 transition hover:border-[#e4c4cc]">
-                          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                            <div className="min-w-0">
-                              <p className="text-sm font-medium text-[#2f1f25]">
-                                Order #{String(order._id || order.id).slice(-6)}
-                              </p>
-                              <p className="mt-1 truncate text-sm text-[#6f5b63]">
-                                {order.items
-                                  ?.map((item: any) => item.productName || item.name)
-                                  .filter(Boolean)
-                                  .join(", ") || "Items unavailable"}
-                              </p>
-                              <p className="mt-1 text-xs text-[#8b7680]">
-                                {formatDate(order.createdAt)} • ₹
-                                {Number(order.totalAmount || 0).toFixed(2)}
-                              </p>
-                            </div>
-                            <div className="flex items-center gap-3">
-                              <span
-                                className={`rounded-full px-3 py-1 text-[11px] font-medium ${getStatusBadgeClass(
-                                  order.status
-                                )}`}
-                              >
-                                {order.status}
-                              </span>
-                              <ChevronRight
-                                size={16}
-                                className="text-[#8f6d78]"
-                                strokeWidth={1.8}
-                              />
-                            </div>
-                          </div>
-                        </div>
-                      </Link>
-                    ))}
-                  </div>
-                )}
-              </div>
+              <MyOrders
+                orders={orders}
+                formatDate={formatDate}
+                getStatusBadgeClass={getStatusBadgeClass}
+              />
             )}
 
             {activeTab === "wishlist" && (
-              <div>
-                <h2 className="mb-6 text-[20px] font-medium text-[#2f1f25]">
-                  My Wishlist
-                </h2>
-
-                {wishlistItems.length === 0 ? (
-                  <div className="rounded-[12px] border border-[#f0dde2] bg-[#fdf6f7] p-6 text-sm text-[#7f6b73]">
-                    <p>No wishlist items yet.</p>
-                    <Link
-                      href="/wishlist"
-                      className="mt-4 inline-flex rounded-[8px] border border-[#7B2D42] px-3 py-2 text-xs font-medium text-[#7B2D42] transition hover:bg-[#7B2D42] hover:text-white"
-                    >
-                      Open Wishlist Page
-                    </Link>
-                  </div>
-                ) : (
-                  <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-                    {wishlistItems.map((item) => (
-                      <div
-                        key={item._id}
-                        className="rounded-[12px] border border-[#f0dde2] bg-white p-3"
-                      >
-                        <div className="mb-3 flex items-start gap-3">
-                          <div className="flex h-24 flex-1 items-center justify-center rounded-[10px] bg-[#fdf6f7]">
-                            {item.image ? (
-                              <img
-                                src={item.image}
-                                alt={item.name}
-                                className="h-full w-full rounded-[10px] object-cover"
-                              />
-                            ) : (
-                              <Package size={28} className="text-[#c0a8b0]" />
-                            )}
-                          </div>
-                          <button
-                            type="button"
-                            onClick={() => handleWishlistRemove(item._id)}
-                            className="shrink-0 rounded-full border border-[#f0dde2] p-2 text-[#7B2D42]"
-                          >
-                            <Heart size={14} fill="currentColor" />
-                          </button>
-                        </div>
-                        <p className="text-sm font-medium text-[#2f1f25]">
-                          {item.name}
-                        </p>
-                        <p className="mt-1 text-sm text-[#7B2D42]">
-                          ₹{Number(item.price || 0).toFixed(2)}
-                        </p>
-                        <button
-                          type="button"
-                          onClick={() => handleWishlistMoveToCart(item)}
-                          className="mt-3 rounded-[8px] border border-[#7B2D42] px-3 py-1.5 text-xs font-medium text-[#7B2D42] transition hover:bg-[#7B2D42] hover:text-white"
-                        >
-                          Move to Cart
-                        </button>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
+              <MyWishlist
+                wishlistItems={wishlistItems}
+                handleWishlistRemove={handleWishlistRemove}
+                handleWishlistMoveToCart={handleWishlistMoveToCart}
+              />
             )}
 
             {activeTab === "reviews" && (
-              <div>
-                <h2 className="mb-6 text-[20px] font-medium text-[#2f1f25]">
-                  My Reviews
-                </h2>
-
-                {reviewCards.length === 0 ? (
-                  <div className="rounded-[10px] border border-[#f0dde2] bg-[#fdf6f7] p-6 text-sm text-[#7f6b73]">
-                    <p className="text-sm text-[#2f1f25]">
-                      Review history is not synced to the profile yet.
-                    </p>
-                    <p className="mt-2 leading-6">
-                      You can still leave reviews from eligible product pages after
-                      purchase.
-                    </p>
-                    <div className="mt-4 flex flex-wrap gap-3">
-                      <Link
-                        href="/orders"
-                        className="rounded-[8px] border border-[#7B2D42] px-3 py-2 text-xs font-medium text-[#7B2D42] transition hover:bg-[#7B2D42] hover:text-white"
-                      >
-                        View Orders
-                      </Link>
-                      <Link
-                        href="/shop"
-                        className="rounded-[8px] bg-[#7B2D42] px-3 py-2 text-xs font-medium text-white transition hover:opacity-90"
-                      >
-                        Browse Products
-                      </Link>
-                    </div>
-                  </div>
-                ) : (
-                  <div className="space-y-4">
-                    {reviewCards.map((review) => (
-                      <div
-                        key={review.id}
-                        className="rounded-[10px] border border-[#f0dde2] bg-[#fdf6f7] p-[14px]"
-                      >
-                        <p className="text-sm font-medium text-[#2f1f25]">
-                          {review.name}
-                        </p>
-                        <div className="mt-2 flex items-center gap-1">
-                          {Array.from({ length: 5 }).map((_, index) => (
-                            <Star
-                              key={index}
-                              size={15}
-                              className="text-[#7B2D42]"
-                              fill={index < review.rating ? "#7B2D42" : "none"}
-                              strokeWidth={1.8}
-                            />
-                          ))}
-                        </div>
-                        <p className="mt-3 text-sm leading-6 text-[#6f5b63]">
-                          {review.text}
-                        </p>
-                        <p className="mt-3 text-xs text-[#9a8a91]">
-                          {formatDate(review.date)}
-                        </p>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
+              <MyReviews reviewCards={reviewCards} formatDate={formatDate} />
             )}
 
             {activeTab === "notifications" && (
-              <div>
-                <h2 className="mb-6 text-[20px] font-medium text-[#2f1f25]">
-                  Notifications
-                </h2>
-
-                <div className="overflow-hidden rounded-[10px] border border-[#f0dde2]">
-                  {notificationItems.map((item, index) => (
-                    <div
-                      key={item.id}
-                      className={`flex items-start gap-3 px-4 py-3 ${
-                        item.unread
-                          ? "bg-[#fdf6f7] font-medium"
-                          : "bg-white text-[#8a7780]"
-                      } ${index !== notificationItems.length - 1 ? "border-b border-[#f0dde2]" : ""}`}
-                    >
-                      <span
-                        className={`mt-1 h-2 w-2 rounded-full ${
-                          item.unread ? "bg-[#7B2D42]" : "bg-transparent"
-                        }`}
-                      />
-                      <div>
-                        <p className="text-sm text-[#2f1f25]">{item.title}</p>
-                        <p className="mt-1 text-sm text-[#7f6b73]">
-                          {item.subtitle}
-                        </p>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
+              <Notifications notificationItems={notificationItems} />
             )}
 
-            {activeTab === "support" && (
-              <div>
-                <h2 className="mb-6 text-[20px] font-medium text-[#2f1f25]">
-                  Help & Support
-                </h2>
-
-                <div className="space-y-4">
-                  {supportCards.map((card) => (
-                    <Link
-                      key={card.title}
-                      href={card.href}
-                      target={card.external ? "_blank" : undefined}
-                      rel={card.external ? "noreferrer" : undefined}
-                      className="flex items-center justify-between rounded-[10px] border border-[#f0dde2] bg-[#fdf6f7] px-4 py-[14px]"
-                    >
-                      <div className="flex items-center gap-3">
-                        <card.icon
-                          size={18}
-                          className="text-[#7B2D42]"
-                          strokeWidth={1.8}
-                        />
-                        <div>
-                          <p className="text-sm font-medium text-[#2f1f25]">
-                            {card.title}
-                          </p>
-                          <p className="text-sm text-[#7f6b73]">
-                            {card.subtitle}
-                          </p>
-                        </div>
-                      </div>
-                      <ChevronRight
-                        size={16}
-                        className="text-[#8f6d78]"
-                        strokeWidth={1.8}
-                      />
-                    </Link>
-                  ))}
-                </div>
-              </div>
+            {activeTab === "helpSupport" && (
+              <HelpSupport supportCards={supportCards} />
             )}
           </section>
         </div>

@@ -6,7 +6,7 @@ import axios from "axios";
 import { AlertCircle, Loader2 } from "lucide-react";
 import { buildApiUrl } from "@/utils/api";
 import { getClientToken } from "@/utils/clientAuth";
-import { useCartStore } from "@/store/cartStore";
+import { clearCart as clearStoredCart } from "@/utils/cart";
 
 const PENDING_RAZORPAY_ORDER_PREFIX = "ewara_pending_razorpay_order_";
 const FINALIZED_RAZORPAY_ORDER_PREFIX = "ewara_finalized_razorpay_order_";
@@ -38,7 +38,6 @@ type PendingOrderPayload = {
 function RazorpayReturnContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const clearCart = useCartStore((state) => state.clearCart);
 
   const [message, setMessage] = useState("Finalizing your payment...");
   const [error, setError] = useState("");
@@ -128,7 +127,7 @@ function RazorpayReturnContent() {
 
         window.sessionStorage.setItem(finalizedStorageKey, String(createdOrder._id));
         window.sessionStorage.removeItem(pendingStorageKey);
-        clearCart();
+        await clearStoredCart();
         setMessage("Payment verified. Redirecting to your order...");
         router.replace(`/order-success/${createdOrder._id}`);
       } catch (requestError: any) {
@@ -142,7 +141,7 @@ function RazorpayReturnContent() {
     };
 
     finalizePayment();
-  }, [clearCart, router, searchParams]);
+  }, [router, searchParams]);
 
   return (
     <div className="flex min-h-screen items-center justify-center bg-[var(--blush-bg)] px-4 py-10">

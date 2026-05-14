@@ -10,6 +10,7 @@ export interface IUser {
   password?: string | null;
   googleId?: string;
   avatar?: string;
+  avatar_url?: string | null;
   role: string;
   isBlocked?: boolean;
   isDeleted?: boolean;
@@ -28,6 +29,7 @@ export class User extends Model<IUser, UserCreationAttributes> implements IUser 
   declare password: string | null;
   declare googleId: string;
   declare avatar: string;
+  declare avatar_url: string | null;
   declare role: string;
   declare isBlocked: boolean;
   declare isDeleted: boolean;
@@ -74,6 +76,11 @@ User.init(
     avatar: {
       type: DataTypes.TEXT,
       defaultValue: "",
+    },
+    avatar_url: {
+      type: DataTypes.STRING(500),
+      allowNull: true,
+      defaultValue: null,
     },
     role: {
       type: DataTypes.STRING(50),

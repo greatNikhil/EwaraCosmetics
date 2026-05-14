@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { buildApiUrl } from "@/utils/api";
 import OrderTracker from "@/components/orders/OrderTracker";
+import ReturnExchangeModal from "@/components/orders/ReturnExchangeModal";
 import { ArrowLeft } from "lucide-react";
 import { addToCart } from "@/utils/cart";
 import { getClientToken } from "@/utils/clientAuth";
@@ -15,6 +16,7 @@ export default function OrderDetailsPage() {
   const [order, setOrder] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [showReturnExchangeModal, setShowReturnExchangeModal] = useState(false);
 
   useEffect(() => {
     const fetchOrder = async () => {
@@ -107,14 +109,9 @@ export default function OrderDetailsPage() {
 
   const statusBadge = getStatusBadge(order.status);
   const paymentStatusBadge = getPaymentStatusBadge(order.paymentStatus);
-  const supportBasePath = `/help?orderId=${encodeURIComponent(order._id)}`;
 
   const handleReturn = () => {
-    router.push(`${supportBasePath}&topic=return`);
-  };
-
-  const handleExchange = () => {
-    router.push(`${supportBasePath}&topic=exchange`);
+    setShowReturnExchangeModal(true);
   };
 
   const handleBuyAgain = async () => {
@@ -202,7 +199,6 @@ export default function OrderDetailsPage() {
           <OrderTracker
             order={order}
             onReturn={handleReturn}
-            onExchange={handleExchange}
             onBuyAgain={handleBuyAgain}
           />
         </div>
@@ -336,6 +332,14 @@ export default function OrderDetailsPage() {
           </p>
         </div>
       </div>
+
+      {/* Modals */}
+      <ReturnExchangeModal
+        isOpen={showReturnExchangeModal}
+        onClose={() => setShowReturnExchangeModal(false)}
+        orderId={order._id}
+        productName={order.items?.[0]?.name}
+      />
     </div>
   );
 }

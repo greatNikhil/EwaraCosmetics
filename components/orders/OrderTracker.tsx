@@ -3,14 +3,12 @@
 interface OrderTrackerProps {
   order: any;
   onReturn?: () => void;
-  onExchange?: () => void;
   onBuyAgain?: () => void | Promise<void>;
 }
 
 export default function OrderTracker({
   order,
   onReturn,
-  onExchange,
   onBuyAgain,
 }: OrderTrackerProps) {
   const steps = [
@@ -57,12 +55,6 @@ export default function OrderTracker({
       ? onReturn
       : typeof order?.onReturn === "function"
         ? order.onReturn
-        : () => {};
-  const handleExchange =
-    typeof onExchange === "function"
-      ? onExchange
-      : typeof order?.onExchange === "function"
-        ? order.onExchange
         : () => {};
   const handleBuyAgain =
     typeof onBuyAgain === "function"
@@ -174,20 +166,18 @@ export default function OrderTracker({
           </div>
         </div>
 
-        <div className="mt-6 grid grid-cols-1 gap-3 sm:grid-cols-3">
+        <div className="mt-6 grid grid-cols-1 gap-3 sm:grid-cols-2">
           <button
             type="button"
-            onClick={handleReturn}
+            onClick={() => {
+              // Call onReturn for combined return/exchange
+              if (typeof onReturn === "function") {
+                onReturn();
+              }
+            }}
             className="rounded-2xl border border-[#7b1d3a] bg-white px-4 py-3 text-sm font-semibold text-[#7b1d3a] transition hover:bg-[#fff7f9]"
           >
-            ↩ Return
-          </button>
-          <button
-            type="button"
-            onClick={handleExchange}
-            className="rounded-2xl border border-[#4a1a6b] bg-white px-4 py-3 text-sm font-semibold text-[#4a1a6b] transition hover:bg-[#faf7fd]"
-          >
-            ⇄ Exchange
+            ↩ Return / ⇄ Exchange
           </button>
           <button
             type="button"

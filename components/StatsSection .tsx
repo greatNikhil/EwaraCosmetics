@@ -1,8 +1,10 @@
 "use client";
-import { useState, useEffect } from "react";
+
+import { useEffect, useState } from "react";
 
 export function StatsSection() {
   const [count, setCount] = useState(0);
+
   useEffect(() => {
     let i = 0;
     const interval = setInterval(() => {
@@ -13,28 +15,42 @@ export function StatsSection() {
 
     return () => clearInterval(interval);
   }, []);
+
   return (
-    <section className="bg-[#f8f5f2] py-12 text-center">
-      <h2 className="text-lg md:text-xl font-semibold text-[#3e2f2b] mb-8 tracking-wide">
-        TRUSTED BY OUR FAM!
-      </h2>
+    <section className="section-space-tight text-center">
+      <div className="section-shell px-1">
+        <span className="section-kicker">Trust at a glance</span>
+        <h2 className="mt-5 text-3xl font-semibold tracking-[-0.04em] text-[var(--text-primary)] md:text-4xl">
+          Built for everyday beauty rituals
+        </h2>
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-8 md:gap-16  max-w-4xl mx-auto px-6">
-        <div className="animate-fadeUp">
-          <p className="text-3xl md:text-4xl font-bold text-[#3e2f2b]">2026</p>
-          <p className="text-sm text-[#7a6f6b] mt-2">Founded</p>
-        </div>
+        <div className="mt-10 grid grid-cols-1 gap-5 md:grid-cols-3 md:gap-7">
+          <div className="glass-card animate-fadeUp rounded-[28px] p-8">
+            <p className="text-4xl font-semibold tracking-[-0.04em] text-[var(--text-primary)] md:text-5xl">
+              2026
+            </p>
+            <p className="mt-3 text-sm uppercase tracking-[0.12em] text-[var(--text-muted)]">
+              Founded
+            </p>
+          </div>
 
-        <div className="animate-fadeUp delay-100">
-          <p className="text-3xl md:text-4xl font-bold text-[#3e2f2b]">20+</p>
-          <p className="text-sm text-[#7a6f6b] mt-2">Products</p>
-        </div>
+          <div className="glass-card animate-fadeUp rounded-[28px] p-8 delay-100">
+            <p className="text-4xl font-semibold tracking-[-0.04em] text-[var(--text-primary)] md:text-5xl">
+              20+
+            </p>
+            <p className="mt-3 text-sm uppercase tracking-[0.12em] text-[var(--text-muted)]">
+              Products
+            </p>
+          </div>
 
-        <div className="animate-fadeUp delay-300">
-          <p className="text-3xl md:text-4xl font-bold text-[#3e2f2b]">
-            {count}+
-          </p>
-          <p className="text-sm text-[#7a6f6b] mt-2">Orders Delivered</p>
+          <div className="glass-card animate-fadeUp rounded-[28px] p-8 delay-300">
+            <p className="text-4xl font-semibold tracking-[-0.04em] text-[var(--text-primary)] md:text-5xl">
+              {count}+
+            </p>
+            <p className="mt-3 text-sm uppercase tracking-[0.12em] text-[var(--text-muted)]">
+              Orders Delivered
+            </p>
+          </div>
         </div>
       </div>
     </section>

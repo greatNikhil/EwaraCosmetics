@@ -3,21 +3,27 @@
 @tailwind utilities;
 
 :root {
-  color-scheme: dark;
-  --blush-bg: #fdf6f3;
-  --blush-border: #f0d8cc;
-  --blush-dark: #5c2d1e;
-  --blush-muted: #a07060;
-  --blush-brand: #7b1c2e;
-  --blush-light: #f5e5df;
-  --blush-input-border: #e0c8be;
-  --blush-selected-bg: #fff5f3;
-  --green-bg: #edf7f0;
-  --green-border: #c4e8d4;
-  --green-text: #2d7a4a;
-  --green-sub: #5aaa7a;
+  color-scheme: light;
+  --surface-base: #f7f1eb;
+  --surface-elevated: #fdf9f6;
+  --surface-card: rgba(255, 255, 255, 0.84);
+  --surface-strong: #ffffff;
+  --border-soft: #e7d8cd;
+  --border-muted: rgba(108, 78, 61, 0.12);
+  --text-primary: #2f241f;
+  --text-secondary: #6f6259;
+  --text-muted: #978980;
+  --brand-primary: #7a1f2b;
+  --brand-primary-strong: #5f1521;
+  --brand-accent: #c99b6b;
+  --space-section: clamp(4rem, 7vw, 6.5rem);
+  --space-section-tight: clamp(2.5rem, 5vw, 4rem);
+  --radius-card: 1.5rem;
+  --radius-pill: 999px;
+  --shadow-soft: 0 18px 45px rgba(67, 43, 31, 0.08);
+  --shadow-card: 0 12px 30px rgba(67, 43, 31, 0.06);
   font-family:
-    Inter,
+    var(--font-sans),
     ui-sans-serif,
     system-ui,
     -apple-system,
@@ -30,14 +36,40 @@ html {
   scroll-behavior: smooth;
   height: 100%;
   overflow-x: hidden;
-  overflow-y: hidden;
 }
 
 body {
   margin: 0;
-  height: 100%;
-  background-color: #020617;
+  min-height: 100%;
+  background:
+    radial-gradient(circle at top, rgba(201, 155, 107, 0.1), transparent 30%),
+    linear-gradient(180deg, #fcf8f5 0%, var(--surface-base) 26%, #f6efe8 100%);
+  color: var(--text-primary);
+  font-family: inherit;
+  letter-spacing: -0.01em;
+  line-height: 1.5;
   overflow-x: hidden;
+}
+
+h1,
+h2,
+h3,
+h4,
+h5,
+h6 {
+  letter-spacing: -0.03em;
+}
+
+p {
+  color: var(--text-secondary);
+}
+
+a,
+button,
+input,
+textarea,
+select {
+  font: inherit;
 }
 
 * {
@@ -68,7 +100,7 @@ aside input[type="radio"][name="skinType"]:checked {
 }
 
 ::selection {
-  background: rgba(59, 130, 246, 0.25);
+  background: rgba(122, 31, 43, 0.18);
 }
 @keyframes marqueePrimary {
   0% {
@@ -252,4 +284,46 @@ aside input[type="radio"][name="skinType"]:checked {
 
 .fade-hidden {
   opacity: 0;
+}
+
+.section-shell {
+  width: min(1200px, calc(100vw - 2rem));
+  margin-inline: auto;
+}
+
+.section-space {
+  padding-block: var(--space-section);
+}
+
+.section-space-tight {
+  padding-block: var(--space-section-tight);
+}
+
+.section-heading {
+  font-size: clamp(1.75rem, 2vw + 1rem, 2.6rem);
+  font-weight: 700;
+  line-height: 1.05;
+  color: var(--text-primary);
+}
+
+.section-kicker {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  border: 1px solid var(--border-soft);
+  background: rgba(255, 255, 255, 0.7);
+  color: var(--brand-primary);
+  border-radius: var(--radius-pill);
+  padding: 0.5rem 0.9rem;
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+
+.glass-card {
+  border: 1px solid var(--border-muted);
+  background: var(--surface-card);
+  box-shadow: var(--shadow-card);
+  backdrop-filter: blur(16px);
 }

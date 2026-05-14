@@ -15,7 +15,7 @@ import { useRouter } from "next/navigation";
 import { useCartStore } from "@/store/cartStore";
 import { useAuthStore } from "@/store/authStore";
 import { buildApiUrl } from "@/utils/api";
-import { syncCartWithCatalog } from "@/utils/cart";
+import { clearCart as clearStoredCart, syncCartWithCatalog } from "@/utils/cart";
 import AddressSelectorModal from "./checkout/AddressSelectorModal";
 
 interface CheckoutModalProps {
@@ -58,7 +58,7 @@ export default function CheckoutModal({
   onClose,
 }: CheckoutModalProps) {
   const router = useRouter();
-  const { items: cartItems, getTotalPrice, clearCart } = useCartStore();
+  const { items: cartItems, getTotalPrice } = useCartStore();
   const { user, token, addresses: savedAddresses, setAddresses } = useAuthStore();
 
   const [showExitConfirm, setShowExitConfirm] = useState(false);
@@ -557,7 +557,7 @@ export default function CheckoutModal({
 
       if (res.data.success) {
         const orderId = res.data.order._id;
-        clearCart();
+        await clearStoredCart();
         setIsProcessing(false);
         alert("Order placed successfully.");
         redirectToOrderSuccess(orderId);
@@ -575,53 +575,53 @@ export default function CheckoutModal({
 
   return (
     <>
-      <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/60 p-4 backdrop-blur-sm sm:items-center">
-        <div className="max-h-[90vh] w-full max-w-2xl animate-slideUp overflow-hidden rounded-t-[14px] border border-[var(--blush-border)] bg-[var(--blush-bg)] sm:rounded-[14px]">
-          <div className="sticky top-0 z-10 border-b border-[var(--blush-border)] bg-[var(--blush-bg)] px-[15px] py-3">
+      <div className="fixed inset-0 z-50 flex items-end justify-center bg-[rgba(0,0,0,0.5)] p-4 sm:items-center">
+        <div className="flex h-auto max-h-[92vh] w-full max-w-2xl animate-slideUp flex-col overflow-hidden rounded-[16px] border border-[#e8d5d5] bg-white shadow-[0_8px_40px_rgba(0,0,0,0.18)] sm:max-h-[90vh]">
+          <div className="sticky top-0 z-10 border-b border-[#e8d5d5] bg-white px-[15px] py-3">
             <div className="flex items-center justify-between">
               <button
                 onClick={handleClose}
-                className="-ml-1 flex h-6 w-6 items-center justify-center text-[var(--blush-brand)] transition-colors duration-200"
+                className="-ml-1 flex h-6 w-6 items-center justify-center text-[#7a1a2e] transition-colors duration-200"
               >
                 <ArrowLeft size={18} />
               </button>
-              <h1 className="text-[14px] font-medium text-[var(--blush-dark)]">
+              <h1 className="text-[14px] font-medium text-[#1a1a1a]">
                 Order checkout
               </h1>
               <button
                 onClick={handleClose}
-                className="flex h-[22px] w-[22px] items-center justify-center rounded-full bg-[var(--blush-light)] text-[11px] text-[var(--blush-muted)] transition-colors duration-200"
+                className="flex h-[22px] w-[22px] items-center justify-center rounded-full bg-[#f7ecec] text-[11px] text-[#7a1a2e] transition-colors duration-200"
               >
                 <X size={12} />
               </button>
             </div>
           </div>
 
-          <div className="border-b border-[var(--blush-border)] bg-[var(--blush-bg)] px-[15px] py-[10px]">
+          <div className="flex-shrink-0 border-b border-[#e8d5d5] bg-white px-[15px] py-[10px]">
             <div className="flex items-center">
               <div className="flex items-center gap-1.5">
-                <span className="flex h-5 w-5 items-center justify-center rounded-full bg-[var(--blush-brand)] text-[9px] font-medium text-white">
+                <span className="flex h-5 w-5 items-center justify-center rounded-full bg-[#7a1a2e] text-[9px] font-medium text-white">
                   1
                 </span>
-                <span className="text-[10px] font-medium text-[var(--blush-brand)]">
+                <span className="text-[10px] font-medium text-[#999]">
                   Summary
                 </span>
               </div>
-              <div className="mx-1 h-px flex-1 bg-[var(--blush-border)]" />
+              <div className="mx-1 h-px flex-1 bg-[#e8d5d5]" />
               <div className="flex items-center gap-1.5">
-                <span className="flex h-5 w-5 items-center justify-center rounded-full bg-[var(--blush-brand)] text-[9px] font-medium text-white">
+                <span className="flex h-5 w-5 items-center justify-center rounded-full bg-[#7a1a2e] text-[9px] font-medium text-white">
                   2
                 </span>
-                <span className="text-[10px] font-medium text-[var(--blush-brand)]">
+                <span className="text-[10px] font-medium text-[#999]">
                   Address
                 </span>
               </div>
-              <div className="mx-1 h-px flex-1 bg-[var(--blush-border)]" />
+              <div className="mx-1 h-px flex-1 bg-[#e8d5d5]" />
               <div className="flex items-center gap-1.5">
-                <span className="flex h-5 w-5 items-center justify-center rounded-full bg-[var(--blush-brand)] text-[9px] font-medium text-white">
+                <span className="flex h-5 w-5 items-center justify-center rounded-full bg-[#7a1a2e] text-[9px] font-medium text-white">
                   3
                 </span>
-                <span className="text-[10px] font-medium text-[var(--blush-brand)]">
+                <span className="text-[10px] font-medium text-[#999]">
                   Payment
                 </span>
               </div>
@@ -629,27 +629,28 @@ export default function CheckoutModal({
           </div>
 
           <div
-            className="checkout-scroll-area no-scrollbar max-h-[calc(90vh-140px)] overflow-y-auto"
+            className="checkout-scroll-area flex-1 overflow-y-auto pb-4"
             style={{
-              msOverflowStyle: "none",
-              scrollbarWidth: "none",
+              WebkitOverflowScrolling: "touch",
+              scrollbarWidth: "thin",
+              scrollbarColor: "#c9a0a0 transparent",
             }}
           >
-            <div className="space-y-5 bg-[var(--blush-bg)] px-[15px] py-4">
+            <div className="space-y-5 bg-white px-[15px] py-4">
               <section>
                 <div className="mb-3 flex items-center gap-2">
-                  <Receipt className="h-4 w-4 text-[var(--blush-brand)]" />
-                  <h2 className="text-[11px] font-medium uppercase tracking-[0.05em] text-[var(--blush-brand)]">
+                  <Receipt className="h-4 w-4 text-[#7a1a2e]" />
+                  <h2 className="text-[11px] font-semibold uppercase tracking-[0.08em] text-[#1a1a1a]">
                     Order Summary
                   </h2>
                 </div>
-                <div className="mb-3 rounded-[10px] border border-[var(--blush-border)] bg-white px-3 py-[10px]">
+                <div className="mb-3 rounded-[10px] border border-[#e8d5d5] bg-white px-3 py-[10px]">
                   <div className="space-y-3">
                     <div className="flex items-center justify-between">
-                      <span className="text-[11px] font-normal text-[var(--blush-muted)]">
+                      <span className="text-[11px] font-normal text-[#3d3d3d]">
                         Subtotal ({cartItems.length} items)
                       </span>
-                      <span className="text-[11px] font-normal text-[var(--blush-dark)]">
+                      <span className="text-[11px] font-medium text-[#1a1a1a]">
                         Rs. {subtotal}
                       </span>
                     </div>
@@ -658,39 +659,39 @@ export default function CheckoutModal({
                         <span className="text-[11px] font-normal text-[var(--green-text)]">
                           Discount ({appliedCoupon.code})
                         </span>
-                        <span className="text-[11px] font-normal text-[var(--green-text)]">
+                        <span className="text-[11px] font-medium text-[var(--green-text)]">
                           -Rs. {discount}
                         </span>
                       </div>
                     )}
                     <div className="flex items-center justify-between">
-                      <span className="text-[11px] font-normal text-[var(--blush-muted)]">
+                      <span className="text-[11px] font-normal text-[#3d3d3d]">
                         GST (18%)
                       </span>
-                      <span className="text-[11px] font-normal text-[var(--blush-dark)]">
+                      <span className="text-[11px] font-medium text-[#1a1a1a]">
                         Rs. {gst}
                       </span>
                     </div>
                     <div className="flex items-center justify-between">
-                      <span className="text-[11px] font-normal text-[var(--blush-muted)]">
+                      <span className="text-[11px] font-normal text-[#3d3d3d]">
                         Shipping
                       </span>
                       {shipping > 0 ? (
-                        <span className="text-[11px] font-normal text-[var(--blush-dark)]">
+                        <span className="text-[11px] font-medium text-[#1a1a1a]">
                           Rs. {shipping}
                         </span>
                       ) : (
-                        <span className="rounded-[4px] bg-[var(--green-bg)] px-[7px] py-[2px] text-[10px] font-medium text-[var(--green-text)]">
+                        <span className="rounded-[4px] bg-[var(--green-bg)] px-[7px] py-[2px] text-[10px] font-medium text-[#1a1a1a]">
                           Free
                         </span>
                       )}
                     </div>
-                    <div className="border-t border-[var(--blush-border)] pt-2">
+                    <div className="border-t border-[#e8d5d5] pt-2">
                       <div className="flex items-center justify-between">
-                        <span className="text-[13px] font-medium text-[var(--blush-dark)]">
+                        <span className="text-[16px] font-bold text-[#7a1a2e]">
                           Total Amount
                         </span>
-                        <span className="text-[16px] font-medium text-[var(--blush-brand)]">
+                        <span className="text-[16px] font-bold text-[#7a1a2e]">
                           Rs. {total}
                         </span>
                       </div>
@@ -700,7 +701,7 @@ export default function CheckoutModal({
               </section>
 
               <section>
-                <h3 className="mb-[9px] text-[11px] font-medium uppercase tracking-[0.05em] text-[var(--blush-brand)]">
+                <h3 className="mb-[9px] text-[11px] font-semibold uppercase tracking-[0.08em] text-[#1a1a1a]">
                   Apply Coupon
                 </h3>
                 <div className="flex gap-[6px]">
@@ -709,10 +710,10 @@ export default function CheckoutModal({
                     placeholder="Enter coupon code"
                     value={couponCode}
                     onChange={(e) => setCouponCode(e.target.value.toUpperCase())}
-                    className="min-w-0 flex-1 rounded-[8px] border border-[var(--blush-input-border)] bg-white px-[10px] py-[8px] text-[11px] font-normal text-[var(--blush-dark)] outline-none placeholder:text-[var(--blush-muted)] focus:border-[var(--blush-input-border)]"
+                    className="min-w-0 flex-1 rounded-[8px] border-[1.5px] border-[#d4a0a0] bg-white px-[10px] py-[8px] text-[11px] font-normal text-[#1a1a1a] outline-none placeholder:text-[#8f7a80] focus:border-[#d4a0a0]"
                   />
                   <button
-                    className="rounded-[8px] bg-[var(--blush-brand)] px-3 py-[8px] text-[11px] font-medium text-white transition-colors duration-200 hover:bg-[var(--blush-brand)]"
+                    className="rounded-[8px] bg-[#7a1a2e] px-3 py-[8px] text-[11px] font-medium text-white transition-colors duration-200 hover:bg-[#7a1a2e]"
                     onClick={handleApplyCoupon}
                   >
                     Apply
@@ -723,25 +724,25 @@ export default function CheckoutModal({
               <section>
                 <div className="mb-3 flex items-center justify-between gap-3">
                   <div className="flex items-center gap-2">
-                    <Truck className="h-4 w-4 text-[var(--blush-brand)]" />
-                    <h3 className="text-[11px] font-medium uppercase tracking-[0.05em] text-[var(--blush-brand)]">
+                    <Truck className="h-4 w-4 text-[#7a1a2e]" />
+                    <h3 className="text-[11px] font-semibold uppercase tracking-[0.08em] text-[#1a1a1a]">
                       Delivery Address
                     </h3>
                   </div>
                   <button
                     onClick={() => setShowAddressSelector(true)}
-                    className="ml-auto text-[10px] font-normal text-[var(--blush-brand)] underline underline-offset-2 transition-colors duration-200 hover:text-[var(--blush-brand)]"
+                    className="ml-auto text-[10px] font-normal text-[#7a1a2e] underline underline-offset-2 transition-colors duration-200 hover:text-[#7a1a2e]"
                   >
                     Change
                   </button>
                 </div>
 
                 {userAddress ? (
-                  <div className="mb-2 rounded-[10px] border border-[var(--blush-border)] bg-white px-3 py-[10px]">
-                    <p className="mb-1 text-[12px] font-medium text-[var(--blush-dark)]">
+                  <div className="mb-2 rounded-[10px] border border-[#e8d5d5] bg-[#fdf6f6] px-3 py-[10px]">
+                    <p className="mb-1 text-[12px] font-medium text-[#2d2d2d]">
                       {userAddress.name}
                     </p>
-                    <div className="space-y-1 text-[11px] font-normal leading-[1.6] text-[var(--blush-muted)]">
+                    <div className="space-y-1 text-[11px] font-normal leading-[1.6] text-[#2d2d2d]">
                       <p>{userAddress.address}</p>
                       <p>
                         {userAddress.city}, {userAddress.state} - {userAddress.pincode}
@@ -750,8 +751,8 @@ export default function CheckoutModal({
                     </div>
                   </div>
                 ) : (
-                  <div className="mb-2 rounded-[10px] border border-[var(--blush-border)] bg-white px-3 py-[10px]">
-                    <p className="text-[11px] font-normal text-[var(--blush-muted)]">
+                  <div className="mb-2 rounded-[10px] border border-[#e8d5d5] bg-[#fdf6f6] px-3 py-[10px]">
+                    <p className="text-[11px] font-normal text-[#2d2d2d]">
                       No address added. Please select a delivery address.
                     </p>
                   </div>
@@ -781,8 +782,8 @@ export default function CheckoutModal({
 
               <section>
                 <div className="mb-4 flex items-center gap-2">
-                  <CreditCard className="h-4 w-4 text-[var(--blush-brand)]" />
-                  <h3 className="text-[11px] font-medium uppercase tracking-[0.05em] text-[var(--blush-brand)]">
+                  <CreditCard className="h-4 w-4 text-[#7a1a2e]" />
+                  <h3 className="text-[11px] font-semibold uppercase tracking-[0.08em] text-[#1a1a1a]">
                     Payment Method
                   </h3>
                 </div>
@@ -797,7 +798,7 @@ export default function CheckoutModal({
                         }}
                         className={`flex w-full items-center justify-between rounded-[10px] px-3 py-[10px] text-left transition-colors duration-200 ${
                           selectedPayment === option.id
-                            ? "border border-[var(--blush-brand)] bg-[var(--blush-selected-bg)]"
+                            ? "border border-[#7a1a2e] bg-[#fff8f9]"
                             : "border border-[var(--blush-border)] bg-white hover:bg-white"
                         }`}
                       >
@@ -805,17 +806,17 @@ export default function CheckoutModal({
                           <div
                             className={`flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-[8px] text-[9px] font-medium ${
                               selectedPayment === option.id
-                                ? "bg-[var(--blush-brand)] text-white"
-                                : "bg-[var(--blush-light)] text-[var(--blush-brand)]"
+                                ? "bg-[#7a1a2e] text-white"
+                                : "bg-[#f7ecec] text-[#7a1a2e]"
                             }`}
                           >
                             {option.icon}
                           </div>
                           <div className="min-w-0">
-                            <p className="truncate text-[12px] font-medium text-[var(--blush-dark)]">
+                            <p className="truncate text-[12px] font-medium text-[#1a1a1a]">
                               {option.name}
                             </p>
-                            <p className="truncate text-[10px] font-normal text-[var(--blush-muted)]">
+                            <p className="truncate text-[10px] font-normal text-[#3d3d3d]">
                               {option.id === "cod"
                                 ? "Pay when you receive"
                                 : option.description}
@@ -824,7 +825,7 @@ export default function CheckoutModal({
                         </div>
                         <div className="ml-3 flex items-center gap-2">
                           {selectedPayment === option.id && (
-                            <div className="flex h-[18px] w-[18px] items-center justify-center rounded-full bg-[var(--blush-brand)]">
+                            <div className="flex h-[18px] w-[18px] items-center justify-center rounded-full bg-[#7a1a2e]">
                               <Check size={10} className="text-white" />
                             </div>
                           )}
@@ -833,23 +834,23 @@ export default function CheckoutModal({
                       </button>
 
                       {expandedPayment === option.id && (
-                        <div className="rounded-[10px] border border-[var(--blush-border)] bg-white px-3 py-3">
+                        <div className="rounded-[10px] border border-[#e8d5d5] bg-white px-3 py-3">
                           {option.id === "cod" ? (
                             <div className="py-1 text-center">
-                              <p className="text-[11px] font-normal text-[var(--blush-muted)]">
+                              <p className="text-[11px] font-normal text-[#3d3d3d]">
                                 Pay Rs. {total} in cash when your order is delivered
                               </p>
                             </div>
                           ) : (
                             <div className="space-y-2">
-                              <p className="text-[11px] font-medium text-[var(--blush-dark)]">
+                              <p className="text-[11px] font-medium text-[#1a1a1a]">
                                 {option.name} opens inside Razorpay checkout.
                               </p>
-                              <p className="text-[11px] leading-[1.6] text-[var(--blush-muted)]">
+                              <p className="text-[11px] leading-[1.6] text-[#3d3d3d]">
                                 Only the selected method is shown first for this order, subject to what is enabled on your Razorpay account.
                               </p>
                               {option.id === "upi" && (
-                                <p className="text-[10px] leading-[1.6] text-[var(--blush-muted)]">
+                                <p className="text-[10px] leading-[1.6] text-[#3d3d3d]">
                                   Customers continue with supported UPI apps or QR-based flows inside Razorpay.
                                 </p>
                               )}
@@ -864,11 +865,11 @@ export default function CheckoutModal({
             </div>
           </div>
 
-          <div className="sticky bottom-0 border-t border-[var(--blush-border)] bg-[var(--blush-bg)] px-[15px] py-[11px]">
+          <div className="sticky bottom-0 z-10 flex-shrink-0 border-t border-[#f0e0e0] bg-white p-4">
             <button
               onClick={handlePlaceOrder}
               disabled={isProcessing || !normalizedShippingAddress}
-              className="mb-[5px] flex w-full items-center justify-center gap-2 rounded-[10px] bg-[var(--blush-brand)] px-6 py-3 text-[13px] font-medium text-white transition-colors duration-200 hover:bg-[var(--blush-brand)] disabled:cursor-not-allowed disabled:opacity-50"
+              className="mb-[5px] flex h-12 w-full items-center justify-center gap-2 rounded-[10px] bg-[#7a1a2e] px-6 py-3 text-[13px] font-semibold text-white transition-colors duration-200 hover:bg-[#7a1a2e] disabled:cursor-not-allowed disabled:opacity-50"
             >
               <span className="relative h-[9px] w-[11px] border-[1.5px] border-white">
                 <span className="absolute left-[1px] top-[-5px] h-[5px] w-[5px] rounded-t-[3px] border-[1.5px] border-b-0 border-white content-['']" />
@@ -922,6 +923,30 @@ export default function CheckoutModal({
           setUserAddress(address);
         }}
       />
+      <style jsx global>{`
+        .checkout-scroll-area::-webkit-scrollbar {
+          width: 8px;
+        }
+
+        .checkout-scroll-area::-webkit-scrollbar-track {
+          background: transparent;
+        }
+
+        .checkout-scroll-area::-webkit-scrollbar-thumb {
+          background: #c9a0a0;
+          border-radius: 999px;
+        }
+
+        .checkout-scroll-area::-webkit-scrollbar-thumb:hover {
+          background: #b58989;
+        }
+
+        @media (max-width: 768px) {
+          .checkout-scroll-area {
+            -webkit-overflow-scrolling: touch;
+          }
+        }
+      `}</style>
     </>
   );
 }

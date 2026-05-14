@@ -44,34 +44,38 @@ export function Newsletter() {
   };
 
   return (
-    <section className="bg-[#fdf8f6] py-10 text-center md:py-12">
-      <h2 className="text-xl font-semibold text-[#3e2f2b] md:text-2xl">
-        Don&apos;t miss an update!
-      </h2>
+    <section className="section-space-tight">
+      <div className="section-shell glass-card rounded-[32px] px-6 py-10 text-center md:px-10 md:py-14">
+        <span className="section-kicker">Stay in the loop</span>
+        <h2 className="mt-5 text-3xl font-semibold tracking-[-0.04em] text-[var(--text-primary)] md:text-4xl">
+          Don&apos;t miss an update
+        </h2>
 
-      <p className="mx-auto mt-3 max-w-xl text-sm text-[#7a6f6b] md:text-base">
-        Get latest product drops, offers and updates straight to your inbox
-      </p>
+        <p className="mx-auto mt-4 max-w-2xl text-sm leading-7 text-[var(--text-secondary)] md:text-base">
+          Get the latest product drops, exclusive offers, and beauty updates
+          straight to your inbox.
+        </p>
 
-      <div className="mt-6 flex flex-col items-center justify-center gap-3 md:flex-row">
-        <input
-          type="email"
-          placeholder="Enter your email"
-          className="w-full rounded-xl border border-[#ead2d8] bg-white px-4 py-3 focus:outline-none focus:ring-2 focus:ring-[#7a1f2b]/30 md:w-80"
-          onChange={(e) => setEmail(e.target.value)}
-          value={email}
-        />
+        <div className="mt-8 flex flex-col items-center justify-center gap-3 md:flex-row">
+          <input
+            type="email"
+            placeholder="Enter your email"
+            className="w-full rounded-full border border-[var(--border-soft)] bg-white px-5 py-3.5 text-[var(--text-primary)] focus:outline-none focus:ring-4 focus:ring-[var(--brand-primary)]/10 md:w-[24rem]"
+            onChange={(e) => setEmail(e.target.value)}
+            value={email}
+          />
 
-        <button
-          disabled={isSubmitting}
-          className="rounded-xl bg-gradient-to-r from-[#7a1f2b] to-[#d4a373] px-6 py-3 font-medium text-white transition hover:scale-105 disabled:cursor-not-allowed disabled:opacity-70"
-          onClick={handleSubscribe}
-        >
-          {isSubmitting ? "SUBSCRIBING..." : "SUBSCRIBE"}
-        </button>
+          <button
+            disabled={isSubmitting}
+            className="rounded-full bg-gradient-to-r from-[var(--brand-primary)] to-[#c99b6b] px-7 py-3.5 text-sm font-semibold uppercase tracking-[0.18em] text-white transition hover:scale-[1.02] disabled:cursor-not-allowed disabled:opacity-70"
+            onClick={handleSubscribe}
+          >
+            {isSubmitting ? "SUBSCRIBING..." : "SUBSCRIBE"}
+          </button>
+        </div>
+
+        {message && <p className="mt-4 text-sm text-[var(--brand-primary)]">{message}</p>}
       </div>
-
-      {message && <p className="mt-3 text-sm text-[#7a1f2b]">{message}</p>}
     </section>
   );
 }

@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import Link from "next/link";
 import { useState, useEffect, useRef } from "react";
@@ -8,10 +8,7 @@ import BagDrawer from "@/components/BagDrawer";
 import { buildApiUrl } from "@/utils/api";
 import { useAuthStore } from "@/store/authStore";
 import { useCartStore } from "@/store/cartStore";
-import {
-  getWishlistCount,
-  wishlistChangedEvent,
-} from "@/utils/wishlist";
+import { getWishlistCount, wishlistChangedEvent } from "@/utils/wishlist";
 import { clearClientAuth } from "@/utils/clientAuth";
 
 interface ActiveOffer {
@@ -87,10 +84,7 @@ export function Navbar() {
       }
     };
 
-    const handleStorage = (event: StorageEvent) => {
-      // âœ… No longer needed - wishlist is backend-driven
-      // Wishlist changes are now handled by wishlistChangedEvent
-    };
+    const handleStorage = () => {};
 
     syncWishlistCount();
     window.addEventListener(wishlistChangedEvent, syncWishlistCount);
@@ -116,7 +110,10 @@ export function Navbar() {
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
-      if (profileRef.current && !profileRef.current.contains(event.target as Node)) {
+      if (
+        profileRef.current &&
+        !profileRef.current.contains(event.target as Node)
+      ) {
         setIsProfileOpen(false);
       }
     };
@@ -133,17 +130,17 @@ export function Navbar() {
   const displayName = user?.name || user?.email?.split("@")[0] || "Profile";
 
   const getNavLinkClassName = (href: string) =>
-    `rounded-lg px-4 py-2 text-sm font-medium transition-all duration-200 ${
+    `rounded-full px-4 py-2.5 text-sm font-medium tracking-[-0.01em] transition-all duration-200 ${
       isActivePath(href)
-        ? "bg-[#f7e7ea] text-[#5a3030]"
-        : "text-[#5a3030] hover:bg-[#f7e7ea] hover:text-[#5a3030]"
+        ? "bg-white text-[var(--brand-primary)] shadow-card"
+        : "text-[var(--text-secondary)] hover:bg-white/80 hover:text-[var(--text-primary)]"
     }`;
 
   const getMobileNavLinkClassName = (href: string) =>
-    `block rounded-lg px-4 py-3 text-base font-medium transition-all duration-200 ${
+    `block rounded-2xl px-4 py-3 text-base font-medium tracking-[-0.01em] transition-all duration-200 ${
       isActivePath(href)
-        ? "bg-[#f7e7ea] text-[#5a3030]"
-        : "text-[#5a3030] hover:bg-[#f7e7ea] hover:text-[#5a3030]"
+        ? "bg-white text-[var(--brand-primary)] shadow-card"
+        : "text-[var(--text-secondary)] hover:bg-white/80 hover:text-[var(--text-primary)]"
     }`;
 
   const handleSearchSubmit = (event: React.FormEvent<HTMLFormElement>) => {
@@ -164,36 +161,29 @@ export function Navbar() {
 
   return (
     <>
-      <div
-        className="overflow-hidden border-b border-[#ead2d8]/50 bg-[#f9f0ed]"
-        style={{ height: "36px", display: "flex", alignItems: "center" }}
-      >
-        <div
-          className="announcement-marquee"
-          style={{ display: "flex", whiteSpace: "nowrap" }}
-        >
+      <div className="overflow-hidden border-b border-[var(--border-muted)] bg-[#f8efe8]">
+        <div className="announcement-marquee flex h-9 items-center whitespace-nowrap">
           {marqueeItems.map((offer, index) => (
             <span
               key={`${offer}-${index}`}
-              style={{ padding: "0 2.5rem", fontSize: "13px", color: "#5a2a2a" }}
+              className="px-10 text-[12px] font-medium tracking-[0.04em] text-[#6f5449]"
             >
               {offer}
-              <span style={{ opacity: 0.3, marginLeft: "2.5rem" }}>✦</span>
+              <span className="ml-10 opacity-30">✦</span>
             </span>
           ))}
         </div>
       </div>
 
-      <header
-        className="sticky top-0 z-50 border-b shadow-[0_2px_12px_rgba(0,0,0,0.06)] backdrop-blur-md transition-all duration-300"
-        style={{ background: "#fdf6f0", borderBottomColor: "#f0e4dc" }}
-      >
-        <div className="mx-auto max-w-7xl px-4 md:px-6 lg:px-8">
-          <div className="flex items-center justify-between py-4">
+      <header className="sticky top-0 z-50 border-b border-[var(--border-muted)] bg-[rgba(253,249,246,0.82)] shadow-[0_2px_18px_rgba(67,43,31,0.04)] backdrop-blur-xl transition-all duration-300">
+        <div className="section-shell px-1">
+          <div className="flex items-center justify-between py-4 md:py-5">
             <Link
               href="/"
-              className={`group flex-shrink-0 rounded-lg transition-all duration-200 ${
-                pathname === "/" ? "ring-2 ring-[#7a1f2b]/15 ring-offset-2 ring-offset-white" : ""
+              className={`group flex-shrink-0 rounded-2xl transition-all duration-200 ${
+                pathname === "/"
+                  ? "ring-2 ring-[var(--brand-primary)]/10 ring-offset-4 ring-offset-[var(--surface-elevated)]"
+                  : ""
               }`}
               aria-label="Go to homepage"
             >
@@ -206,38 +196,38 @@ export function Navbar() {
 
             <form
               onSubmit={handleSearchSubmit}
-              className="mx-8 hidden flex-1 items-center rounded-full border border-[#ead2d8] bg-[#fdf8f6] px-4 py-2.5 transition-all duration-200 hover:border-[#7a1f2b]/30 focus-within:border-[#7a1f2b] focus-within:ring-2 focus-within:ring-[#7a1f2b]/10 md:flex"
+              className="mx-8 hidden flex-1 items-center rounded-full border border-[var(--border-soft)] bg-white/80 px-5 py-3 shadow-[inset_0_1px_0_rgba(255,255,255,0.7)] transition-all duration-200 hover:border-[var(--brand-primary)]/25 focus-within:border-[var(--brand-primary)] focus-within:ring-4 focus-within:ring-[var(--brand-primary)]/8 md:flex"
             >
-              <Search size={18} className="flex-shrink-0 text-[#9c8b87]" />
+              <Search size={18} className="flex-shrink-0 text-[var(--text-muted)]" />
               <input
                 type="text"
                 placeholder="Search products, brands..."
-                className="w-full bg-transparent px-3 text-sm text-[#4a2c2a] outline-none placeholder:text-[#b5a9a4]"
+                className="w-full bg-transparent px-3 text-sm text-[var(--text-primary)] outline-none placeholder:text-[var(--text-muted)]"
                 value={userInput}
                 onChange={(e) => setUserInput(e.target.value)}
               />
               <button
                 type="submit"
-                className="rounded-full bg-[#7a1f2b] px-4 py-2 text-xs font-semibold uppercase tracking-[0.14em] text-white transition hover:bg-[#8d2742]"
+                className="rounded-full bg-[var(--brand-primary)] px-4 py-2 text-xs font-semibold uppercase tracking-[0.16em] text-white transition hover:bg-[var(--brand-primary-strong)]"
               >
                 Search
               </button>
             </form>
 
-            <div className="flex items-center gap-2 md:gap-6">
+            <div className="flex items-center gap-2 md:gap-3">
               <div className="relative hidden md:block" ref={profileRef}>
                 <button
                   onClick={() => setIsProfileOpen(!isProfileOpen)}
                   className={`transition-all duration-200 ${
                     user
-                      ? "flex items-center gap-[5px] rounded-[20px] bg-[#2a0a18] px-3 py-[7px] hover:opacity-95"
-                      : "rounded-lg p-2 hover:bg-[#fdf0f3]"
+                      ? "flex items-center gap-2 rounded-full bg-[var(--brand-primary-strong)] px-3.5 py-2 hover:opacity-95"
+                      : "rounded-2xl p-2.5 hover:bg-white/80"
                   }`}
                 >
                   <svg
                     viewBox="0 0 24 24"
                     fill="none"
-                    stroke={user ? "#f9c8d8" : "#5a1228"}
+                    stroke={user ? "#f9d6de" : "#5a1228"}
                     strokeWidth="1.8"
                     strokeLinecap="round"
                     strokeLinejoin="round"
@@ -248,19 +238,19 @@ export function Navbar() {
                     <circle cx="12" cy="7" r="4" />
                   </svg>
                   {user && (
-                    <span className="max-w-[110px] truncate text-[11px] font-semibold text-[#f9c8d8]">
+                    <span className="max-w-[120px] truncate text-[11px] font-semibold uppercase tracking-[0.08em] text-[#f9d6de]">
                       {displayName}
                     </span>
                   )}
                 </button>
 
                 {isProfileOpen && (
-                  <div className="animation-in absolute right-0 top-full z-50 mt-3 w-48 overflow-hidden rounded-lg border border-[#ead2d8] bg-white shadow-lg">
+                  <div className="absolute right-0 top-full z-50 mt-3 w-52 overflow-hidden rounded-[22px] border border-[var(--border-soft)] bg-white shadow-soft">
                     {!user ? (
                       <Link
                         href="/login"
                         onClick={() => setIsProfileOpen(false)}
-                        className="block border-b border-[#ead2d8] px-4 py-3 text-sm font-medium text-[#4a2c2a] transition-colors duration-200 hover:bg-[#f7e7ea]"
+                        className="block border-b border-[var(--border-soft)] px-4 py-3 text-sm font-medium text-[var(--text-primary)] transition-colors duration-200 hover:bg-[var(--surface-base)]"
                       >
                         Sign In
                       </Link>
@@ -270,7 +260,7 @@ export function Navbar() {
                           handleLogout();
                           setIsProfileOpen(false);
                         }}
-                        className="w-full border-b border-[#ead2d8] px-4 py-3 text-left text-sm font-medium text-[#4a2c2a] transition-colors duration-200 hover:bg-[#f7e7ea]"
+                        className="w-full border-b border-[var(--border-soft)] px-4 py-3 text-left text-sm font-medium text-[var(--text-primary)] transition-colors duration-200 hover:bg-[var(--surface-base)]"
                       >
                         Logout
                       </button>
@@ -280,7 +270,7 @@ export function Navbar() {
                       <Link
                         href="/profile"
                         onClick={() => setIsProfileOpen(false)}
-                        className="block border-b border-[#ead2d8] px-4 py-3 text-sm text-[#6b7280] transition-colors duration-200 hover:bg-[#f7e7ea] hover:text-[#4a2c2a]"
+                        className="block border-b border-[var(--border-soft)] px-4 py-3 text-sm text-[var(--text-secondary)] transition-colors duration-200 hover:bg-[var(--surface-base)] hover:text-[var(--text-primary)]"
                       >
                         My Profile
                       </Link>
@@ -289,7 +279,7 @@ export function Navbar() {
                     <Link
                       href="/help"
                       onClick={() => setIsProfileOpen(false)}
-                      className="block px-4 py-3 text-sm text-[#6b7280] transition-colors duration-200 hover:bg-[#f7e7ea] hover:text-[#4a2c2a]"
+                      className="block px-4 py-3 text-sm text-[var(--text-secondary)] transition-colors duration-200 hover:bg-[var(--surface-base)] hover:text-[var(--text-primary)]"
                     >
                       Help & Support
                     </Link>
@@ -306,7 +296,7 @@ export function Navbar() {
                   setLiked(!liked);
                   router.push("/wishlist");
                 }}
-                className="group relative rounded-lg p-2 transition-colors duration-200 hover:bg-[#fdf0f3]"
+                className="group relative rounded-2xl p-2.5 transition-colors duration-200 hover:bg-white/80"
               >
                 <svg
                   viewBox="0 0 24 24"
@@ -321,7 +311,7 @@ export function Navbar() {
                   <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z" />
                 </svg>
                 {wishlistCount > 0 && (
-                  <span className="absolute top-1 right-1 inline-flex translate-x-1/2 -translate-y-1/2 transform items-center justify-center rounded-full bg-[#7a1f2b] px-2 py-0.5 text-xs font-bold leading-none text-white">
+                  <span className="absolute right-1 top-1 inline-flex -translate-y-1/2 translate-x-1/2 items-center justify-center rounded-full bg-[var(--brand-primary)] px-2 py-0.5 text-xs font-bold leading-none text-white">
                     {wishlistCount}
                   </span>
                 )}
@@ -329,7 +319,7 @@ export function Navbar() {
 
               <button
                 onClick={() => setBagOpen(true)}
-                className="group relative rounded-lg p-2 transition-colors duration-200 hover:bg-[#fdf0f3]"
+                className="group relative rounded-2xl p-2.5 transition-colors duration-200 hover:bg-white/80"
               >
                 <svg
                   viewBox="0 0 24 24"
@@ -346,7 +336,7 @@ export function Navbar() {
                   <path d="M16 10a4 4 0 0 1-8 0" />
                 </svg>
                 {cartCount > 0 && (
-                  <span className="absolute right-0 top-0 inline-flex h-[18px] w-[18px] items-center justify-center rounded-full border-2 border-white bg-[#7b1d3a] text-[9px] font-bold leading-none text-white">
+                  <span className="absolute right-0 top-0 inline-flex h-[18px] w-[18px] items-center justify-center rounded-full border-2 border-white bg-[var(--brand-primary)] text-[9px] font-bold leading-none text-white">
                     {cartCount}
                   </span>
                 )}
@@ -354,49 +344,31 @@ export function Navbar() {
 
               <button
                 onClick={() => setIsMenuOpen(true)}
-                className="rounded-lg p-2 transition-colors duration-200 hover:bg-[#f7e7ea] md:hidden"
+                className="rounded-2xl p-2.5 transition-colors duration-200 hover:bg-white/80 md:hidden"
               >
-                <Menu className="h-5 w-5 text-[#4a2c2a]" />
+                <Menu className="h-5 w-5 text-[var(--text-primary)]" />
               </button>
             </div>
           </div>
 
-          <div
-            className="hidden items-center justify-center gap-1 border-t py-3 md:flex"
-            style={{ borderTopColor: "#f0e4dc" }}
-          >
-            <Link
-              href="/new-arrivals"
-              className={getNavLinkClassName("/new-arrivals")}
-            >
+          <div className="hidden items-center justify-center gap-2 border-t border-[var(--border-muted)] py-4 md:flex">
+            <Link href="/new-arrivals" className={getNavLinkClassName("/new-arrivals")}>
               New Arrivals
             </Link>
-
-            <Link
-              href="/category"
-              className={getNavLinkClassName("/category")}
-            >
+            <Link href="/category" className={getNavLinkClassName("/category")}>
               Category
             </Link>
-
-            <Link
-              href="/shop"
-              className={getNavLinkClassName("/shop")}
-            >
+            <Link href="/shop" className={getNavLinkClassName("/shop")}>
               Shop
             </Link>
-
-            <Link
-              href="/services"
-              className={getNavLinkClassName("/services")}
-            >
+            <Link href="/services" className={getNavLinkClassName("/services")}>
               Services
             </Link>
 
             {isAdmin && (
               <Link
                 href="/admin"
-                className="rounded-lg bg-gradient-to-r from-[#7a1f2b] to-[#5c1721] px-4 py-2 text-sm font-bold text-white transition-all duration-200 hover:shadow-md"
+                className="rounded-full bg-gradient-to-r from-[var(--brand-primary)] to-[var(--brand-primary-strong)] px-5 py-2.5 text-sm font-bold text-white transition-all duration-200 hover:shadow-md"
               >
                 Admin Panel
               </Link>
@@ -404,10 +376,10 @@ export function Navbar() {
 
             <Link
               href="/offers"
-              className={`ml-2 flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-bold text-white transition-all duration-200 ${
+              className={`ml-2 flex items-center gap-2 rounded-full px-4 py-2.5 text-sm font-bold text-white transition-all duration-200 ${
                 isActivePath("/offers")
-                  ? "bg-[#7a1f2b] shadow-lg"
-                  : "bg-gradient-to-r from-[#7a1f2b] via-[#d4a373] to-[#7a1f2b] hover:scale-105 hover:shadow-lg"
+                  ? "bg-[var(--brand-primary)] shadow-lg"
+                  : "bg-gradient-to-r from-[var(--brand-primary)] via-[var(--brand-accent)] to-[var(--brand-primary)] hover:scale-105 hover:shadow-lg"
               }`}
             >
               <Sparkles size={16} />
@@ -425,39 +397,35 @@ export function Navbar() {
             onClick={() => setIsMenuOpen(false)}
           />
 
-          <div
-            className="absolute left-0 top-0 flex h-full w-full max-w-xs flex-col shadow-2xl"
-            style={{ background: "#fdf6f0" }}
-          >
-            <div
-              className="flex items-center justify-between border-b px-6 py-5"
-              style={{ borderBottomColor: "#f0e4dc" }}
-            >
-              <h2 className="text-lg font-bold text-[#3d1a1a]">Menu</h2>
+          <div className="absolute left-0 top-0 flex h-full w-full max-w-xs flex-col bg-[#fcf7f2] shadow-2xl">
+            <div className="flex items-center justify-between border-b border-[var(--border-soft)] px-6 py-5">
+              <h2 className="text-lg font-bold tracking-[-0.02em] text-[var(--text-primary)]">
+                Menu
+              </h2>
               <button
                 onClick={() => setIsMenuOpen(false)}
-                className="rounded-lg p-2 transition-colors duration-200 hover:bg-[#f7e7ea]"
+                className="rounded-2xl p-2 transition-colors duration-200 hover:bg-white"
               >
-                <X className="h-5 w-5 text-[#5a3030]" />
+                <X className="h-5 w-5 text-[var(--text-secondary)]" />
               </button>
             </div>
 
             <div className="flex-1 space-y-2 overflow-y-auto px-6 py-6">
               <form
                 onSubmit={handleSearchSubmit}
-                className="mb-6 flex items-center gap-2 rounded-lg border border-[#ead2d8] bg-[#fdf8f6] px-3 py-2"
+                className="mb-6 flex items-center gap-2 rounded-2xl border border-[var(--border-soft)] bg-white px-4 py-3"
               >
-                <Search size={16} className="text-[#9c8b87]" />
+                <Search size={16} className="text-[var(--text-muted)]" />
                 <input
                   type="text"
                   placeholder="Search..."
-                  className="w-full bg-transparent px-2 text-sm text-[#4a2c2a] outline-none"
+                  className="w-full bg-transparent px-2 text-sm text-[var(--text-primary)] outline-none"
                   value={userInput}
                   onChange={(e) => setUserInput(e.target.value)}
                 />
                 <button
                   type="submit"
-                  className="rounded-full bg-[#7a1f2b] px-3 py-1.5 text-xs font-semibold uppercase tracking-[0.14em] text-white transition hover:bg-[#8d2742]"
+                  className="rounded-full bg-[var(--brand-primary)] px-3 py-1.5 text-xs font-semibold uppercase tracking-[0.14em] text-white transition hover:bg-[var(--brand-primary-strong)]"
                 >
                   Go
                 </button>
@@ -470,7 +438,6 @@ export function Navbar() {
               >
                 Shop
               </Link>
-
               <Link
                 href="/new-arrivals"
                 onClick={() => setIsMenuOpen(false)}
@@ -478,7 +445,6 @@ export function Navbar() {
               >
                 New Arrivals
               </Link>
-
               <Link
                 href="/category"
                 onClick={() => setIsMenuOpen(false)}
@@ -486,7 +452,6 @@ export function Navbar() {
               >
                 Category
               </Link>
-
               <Link
                 href="/services"
                 onClick={() => setIsMenuOpen(false)}
@@ -495,7 +460,7 @@ export function Navbar() {
                 Services
               </Link>
 
-              <div className="my-4 border-t" style={{ borderTopColor: "#f0e4dc" }} />
+              <div className="my-4 border-t border-[var(--border-soft)]" />
 
               <Link
                 href="/profile"
@@ -504,7 +469,6 @@ export function Navbar() {
               >
                 My Profile
               </Link>
-
               <Link
                 href="/help"
                 onClick={() => setIsMenuOpen(false)}
@@ -513,15 +477,15 @@ export function Navbar() {
                 Help & Support
               </Link>
 
-              <div className="my-4 border-t" style={{ borderTopColor: "#f0e4dc" }} />
+              <div className="my-4 border-t border-[var(--border-soft)]" />
 
               <Link
                 href="/offers"
                 onClick={() => setIsMenuOpen(false)}
-                className={`flex items-center gap-2 rounded-lg px-4 py-3 text-base font-bold text-white transition-all duration-200 ${
+                className={`flex items-center gap-2 rounded-2xl px-4 py-3 text-base font-bold text-white transition-all duration-200 ${
                   isActivePath("/offers")
-                    ? "bg-[#7a1f2b] shadow-lg"
-                    : "bg-gradient-to-r from-[#7a1f2b] via-[#d4a373] to-[#7a1f2b] hover:shadow-lg"
+                    ? "bg-[var(--brand-primary)] shadow-lg"
+                    : "bg-gradient-to-r from-[var(--brand-primary)] via-[var(--brand-accent)] to-[var(--brand-primary)] hover:shadow-lg"
                 }`}
               >
                 <Sparkles size={18} />
@@ -530,7 +494,7 @@ export function Navbar() {
               </Link>
             </div>
 
-            <div className="border-t px-6 py-5" style={{ borderTopColor: "#f0e4dc" }}>
+            <div className="border-t border-[var(--border-soft)] px-6 py-5">
               <button
                 onClick={() => {
                   if (!user) {
@@ -541,7 +505,7 @@ export function Navbar() {
                     setIsMenuOpen(false);
                   }
                 }}
-                className="w-full rounded-lg bg-gradient-to-r from-[#7a1f2b] to-[#5c1721] px-4 py-3 font-bold text-white transition-all duration-200 hover:shadow-lg"
+                className="w-full rounded-full bg-gradient-to-r from-[var(--brand-primary)] to-[var(--brand-primary-strong)] px-4 py-3 font-bold text-white transition-all duration-200 hover:shadow-lg"
               >
                 {user ? "Logout" : "Sign In"}
               </button>
@@ -568,4 +532,3 @@ export function Navbar() {
     </>
   );
 }
-

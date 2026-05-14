@@ -13,10 +13,10 @@ type SlideItem = {
 };
 
 const offerTexts = [
-  "₹250 OFF on orders above ₹1499",
+  "Rs. 250 OFF on orders above Rs. 1499",
   "Flat 15% OFF on skincare",
   "Buy 2 Get 1 on haircare",
-  "Free shipping above ₹699",
+  "Free shipping above Rs. 699",
 ];
 
 const items: SlideItem[] = [
@@ -51,6 +51,9 @@ const items: SlideItem[] = [
 
 export default function CategorySlider() {
   const [showArrows, setShowArrows] = useState(false);
+  const [offerIndex, setOfferIndex] = useState(0);
+  const trackRef = useRef<HTMLDivElement | null>(null);
+
   useEffect(() => {
     const checkOverflow = () => {
       if (!trackRef.current) return;
@@ -64,8 +67,6 @@ export default function CategorySlider() {
 
     return () => window.removeEventListener("resize", checkOverflow);
   }, []);
-  const [offerIndex, setOfferIndex] = useState(0);
-  const trackRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
     const id = setInterval(() => {
@@ -81,7 +82,7 @@ export default function CategorySlider() {
     if (!trackRef.current) return;
 
     const card = trackRef.current.querySelector(
-      "[data-slide-card]",
+      "[data-slide-card]"
     ) as HTMLElement | null;
     const gap = 24;
     const amount = card ? card.offsetWidth + gap : 280;
@@ -93,48 +94,45 @@ export default function CategorySlider() {
   };
 
   return (
-    <section className="w-full py-8 md:py-10 bg-[#fdf8f6]">
-      <div className="max-w-[1400px] mx-auto px-4 md:px-6">
+    <section className="section-space-tight w-full">
+      <div className="section-shell px-1">
+        <div className="mb-8 flex items-end justify-between gap-6">
+          <div className="space-y-3">
+            <span className="section-kicker">Browse by intent</span>
+            <h2 className="section-heading">Shop by category</h2>
+          </div>
+        </div>
+
         <div className="relative">
           {showArrows && (
             <button
               type="button"
               aria-label="Previous"
               onClick={() => scrollByAmount("left")}
-              className="hidden md:flex absolute left-0 top-1/2 z-20 -translate-y-1/2 -translate-x-3
-                       h-11 w-11 items-center justify-center rounded-full
-                       bg-transparent backdrop-blur-md border border-[#ead2d8]
-                       shadow-md hover:scale-105 transition"
+              className="absolute left-0 top-1/2 z-20 hidden h-11 w-11 -translate-x-3 -translate-y-1/2 items-center justify-center rounded-full border border-[var(--border-soft)] bg-white/80 shadow-md backdrop-blur-md transition hover:scale-105 md:flex"
             >
-              <ChevronLeft className="h-5 w-5 text-[#5a4f4d]" />
+              <ChevronLeft className="h-5 w-5 text-[var(--text-secondary)]" />
             </button>
           )}
+
           <div
             ref={trackRef}
-            className="flex gap-3 md:gap-6 overflow-x-auto scroll-smooth no-scrollbar px-1"
+            className="flex gap-4 overflow-x-auto scroll-smooth px-1 md:gap-6"
           >
             {items.map((item) => (
               <Link
                 key={item.id}
                 href={item.href}
                 data-slide-card
-                className="group shrink-0 w-[160px] sm:w-[200px] md:w-[270px]"
+                className="group w-[170px] shrink-0 sm:w-[220px] md:w-[280px]"
               >
-                {/* CARD WRAPPER */}
-                <div className="flex flex-col items-center text-center group">
-                  {/* IMAGE AREA */}
-                  <div className="relative mb-3 flex items-center justify-center">
-                    {/* 🔥 PURPLE GLOW */}
-                    <div
-                      className="absolute w-[90px] h-[90px] md:w-[130px] md:h-[130px] 
-                    bg-gradient-to-br from-[#e0d4ff] to-[#bfa8ff] 
-                    rounded-full blur-2xl opacity-70"
-                    />
+                <div className="glass-card flex flex-col items-center rounded-[30px] px-5 py-8 text-center transition duration-300 group-hover:-translate-y-1 group-hover:shadow-soft">
+                  <div className="relative mb-5 flex items-center justify-center">
+                    <div className="absolute h-[110px] w-[110px] rounded-full bg-gradient-to-br from-[#f2ded0] to-[#ead0c1] blur-2xl opacity-90 md:h-[150px] md:w-[150px]" />
 
-                    {/* 🔥 CONTENT */}
                     {item.kind === "offer" ? (
                       <div className="relative z-10 flex flex-col items-center justify-center px-4">
-                        <div className="mb-2 flex items-center gap-2 rounded-full bg-white/70 px-3 py-1 text-[#7a1f2b]">
+                        <div className="mb-3 flex items-center gap-2 rounded-full bg-white/85 px-3 py-1.5 text-[var(--brand-primary)]">
                           <Sparkles className="h-4 w-4" />
                           <span className="text-xs font-semibold tracking-wide">
                             Special Offer
@@ -143,16 +141,14 @@ export default function CategorySlider() {
 
                         <p
                           key={offerIndex}
-                          className="text-xl md:text-4xl font-extrabold leading-none text-[#2f2430]
-                     animate-[fadeIn_.45s_ease]"
+                          className="animate-[fadeIn_.45s_ease] text-2xl font-semibold leading-none tracking-[-0.04em] text-[var(--text-primary)] md:text-4xl"
                         >
                           {offerText.split(" ")[0]}
                         </p>
 
                         <p
                           key={`${offerIndex}-sub`}
-                          className="mt-2 max-w-[180px] text-sm font-medium text-[#5a4f4d]
-                     animate-[fadeIn_.45s_ease]"
+                          className="mt-3 max-w-[180px] animate-[fadeIn_.45s_ease] text-sm leading-6 text-[var(--text-secondary)]"
                         >
                           {offerText
                             .replace(offerText.split(" ")[0], "")
@@ -163,43 +159,33 @@ export default function CategorySlider() {
                       <img
                         src={item.image}
                         alt={item.title}
-                        className="relative z-10 h-[90px] md:h-[130px] w-auto object-contain 
-                   transition duration-300 group-hover:scale-105"
+                        className="relative z-10 h-[100px] w-auto object-contain transition duration-300 group-hover:scale-105 md:h-[140px]"
                       />
                     ) : (
-                      <div
-                        className="relative z-10 flex h-[90px] w-[90px] md:h-[130px] md:w-[130px] 
-                      items-center justify-center rounded-full bg-[#e8ddff]"
-                      >
-                        <span className="text-sm font-semibold text-[#7a1f2b]">
+                      <div className="relative z-10 flex h-[90px] w-[90px] items-center justify-center rounded-full bg-[#e8ddff] md:h-[130px] md:w-[130px]">
+                        <span className="text-sm font-semibold text-[var(--brand-primary)]">
                           {item.title}
                         </span>
                       </div>
                     )}
                   </div>
 
-                  {/* 🔥 TEXT */}
-                  <h3
-                    className="text-sm md:text-[22px] font-semibold text-[#2f2430]
-               transition duration-300 group-hover:text-[#7a1f2b]"
-                  >
+                  <h3 className="text-base font-semibold tracking-[-0.03em] text-[var(--text-primary)] transition duration-300 group-hover:text-[var(--brand-primary)] md:text-[22px]">
                     {item.kind === "offer" ? "Offers" : item.title}
                   </h3>
                 </div>
               </Link>
             ))}
           </div>
+
           {showArrows && (
             <button
               type="button"
               aria-label="Next"
               onClick={() => scrollByAmount("right")}
-              className="hidden md:flex absolute right-0 top-1/2 z-20 -translate-y-1/2 translate-x-3
-                       h-11 w-11 items-center justify-center rounded-full
-                       bg-white/85 backdrop-blur-md border border-[#ead2d8]
-                       shadow-md hover:scale-105 transition"
+              className="absolute right-0 top-1/2 z-20 hidden h-11 w-11 translate-x-3 -translate-y-1/2 items-center justify-center rounded-full border border-[var(--border-soft)] bg-white/85 shadow-md backdrop-blur-md transition hover:scale-105 md:flex"
             >
-              <ChevronRight className="h-5 w-5 text-[#5a4f4d]" />
+              <ChevronRight className="h-5 w-5 text-[var(--text-secondary)]" />
             </button>
           )}
         </div>
@@ -208,14 +194,14 @@ export default function CategorySlider() {
           <button
             type="button"
             onClick={() => scrollByAmount("left")}
-            className="flex h-10 w-10 items-center justify-center rounded-full border border-[#ead2d8] bg-white text-[#5a4f4d] shadow-sm"
+            className="flex h-10 w-10 items-center justify-center rounded-full border border-[var(--border-soft)] bg-white text-[var(--text-secondary)] shadow-sm"
           >
             <ChevronLeft className="h-4 w-4" />
           </button>
           <button
             type="button"
             onClick={() => scrollByAmount("right")}
-            className="flex h-10 w-10 items-center justify-center rounded-full border border-[#ead2d8] bg-white text-[#5a4f4d] shadow-sm"
+            className="flex h-10 w-10 items-center justify-center rounded-full border border-[var(--border-soft)] bg-white text-[var(--text-secondary)] shadow-sm"
           >
             <ChevronRight className="h-4 w-4" />
           </button>

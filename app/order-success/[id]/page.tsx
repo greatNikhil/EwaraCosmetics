@@ -105,8 +105,8 @@ export default function OrderSuccessPage() {
   const statusPillClass =
     normalizedStatus === "cancelled" || normalizedStatus === "failed"
       ? "border-[#f0c8c8] bg-[#fdf0f0] text-[#a32d2d]"
-      : normalizedStatus === "pending"
-        ? "border-[#f5d060] bg-[#fff8e1] text-[#b8860b]"
+      : normalizedStatus === "pending" || normalizedStatus === "processing"
+        ? "border-[#f5c97a] bg-[#fff4e0] text-[#b45300]"
         : "border-[var(--green-border)] bg-[var(--green-bg)] text-[var(--green-text)]";
   const deliveryDateSource =
     order.deliveryDate || order.updatedAt || order.createdAt;
@@ -133,17 +133,23 @@ export default function OrderSuccessPage() {
 
   return (
     <div className="min-h-screen bg-[var(--blush-bg)] px-4 py-8 md:py-12">
-      <div className="mx-auto max-w-[520px] overflow-hidden rounded-[14px] border border-[var(--blush-border)] bg-[var(--blush-bg)]">
-        <div className="border-b border-[var(--blush-border)] px-5 pb-4 pt-6 text-center">
+      <div className="mx-auto max-w-[520px] overflow-hidden rounded-[16px] border border-[#e8d5d5] bg-white shadow-[0_4px_24px_rgba(0,0,0,0.10)]">
+        <div className="border-b border-[#e8d5d5] px-5 pb-4 pt-6 text-center">
           <div className="mb-3 flex justify-center">
-            <div className="flex h-14 w-14 items-center justify-center rounded-full border-[3px] border-[var(--green-border)] bg-[var(--green-bg)]">
-              <div className="flex h-7 w-7 items-center justify-center rounded-full bg-[var(--green-text)] text-[13px] text-white">
-                {"\u2713"}
-              </div>
+            <div className="flex h-20 w-20 animate-[pulse_2s_ease-in-out_infinite] items-center justify-center rounded-full bg-[#7a1a2e]">
+              <svg width="36" height="36" viewBox="0 0 24 24" fill="none">
+                <path
+                  d="M5 13l4 4L19 7"
+                  stroke="white"
+                  strokeWidth="2.5"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                />
+              </svg>
             </div>
           </div>
 
-          <h1 className="mb-1.5 text-[20px] font-medium text-[var(--blush-dark)]">
+          <h1 className="mb-1.5 text-[24px] font-bold text-[#1a1a1a]">
             Order confirmed!
           </h1>
           <p className="mx-auto max-w-[240px] text-[11px] leading-[1.6] text-[var(--blush-muted)]">
@@ -152,29 +158,29 @@ export default function OrderSuccessPage() {
           </p>
         </div>
 
-        <div className="grid grid-cols-3 border-b border-[var(--blush-border)]">
-          <div className="border-r border-[var(--blush-border)] px-3 py-3">
+        <div className="m-4 grid grid-cols-3 rounded-[10px] border border-[#eedede] bg-[#fdf6f6]">
+          <div className="border-r border-[#eedede] px-3 py-3">
             <div className="mb-[5px] flex items-center gap-1">
               <Package className="h-3 w-3 text-[var(--blush-muted)]" />
-              <p className="text-[9px] font-medium uppercase tracking-[0.06em] text-[var(--blush-muted)]">
+              <p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-[#888]">
                 Order ID
               </p>
             </div>
-            <p className="break-all text-[11px] font-medium leading-[1.4] text-[var(--blush-dark)]">
+            <p className="break-all text-[11px] font-medium leading-[1.4] text-[#1a1a1a]">
               {order._id}
             </p>
           </div>
 
-          <div className="border-r border-[var(--blush-border)] px-3 py-3">
+          <div className="border-r border-[#eedede] px-3 py-3">
             <div className="mb-[5px] flex items-center gap-1">
               <span className="text-[10px] font-medium text-[var(--blush-muted)]">
                 {"\u20B9"}
               </span>
-              <p className="text-[9px] font-medium uppercase tracking-[0.06em] text-[var(--blush-muted)]">
+              <p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-[#888]">
                 Payment
               </p>
             </div>
-            <p className="break-all text-[11px] font-medium leading-[1.4] text-[var(--blush-dark)]">
+            <p className="break-all text-[11px] font-medium leading-[1.4] text-[#1a1a1a]">
               {order.paymentMethod}
             </p>
           </div>
@@ -182,12 +188,12 @@ export default function OrderSuccessPage() {
           <div className="px-3 py-3">
             <div className="mb-[5px] flex items-center gap-1">
               <Truck className="h-3 w-3 text-[var(--blush-muted)]" />
-              <p className="text-[9px] font-medium uppercase tracking-[0.06em] text-[var(--blush-muted)]">
+              <p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-[#888]">
                 Status
               </p>
             </div>
             <span
-              className={`inline-flex rounded-[10px] border px-[9px] py-[3px] text-[10px] font-medium ${statusPillClass}`}
+              className={`inline-flex rounded-[20px] border px-[9px] py-[3px] text-[12px] font-semibold ${statusPillClass}`}
             >
               {order.status}
             </span>
@@ -207,10 +213,10 @@ export default function OrderSuccessPage() {
                   className="mb-[10px] flex items-start justify-between last:mb-0"
                 >
                   <div className="min-w-0 flex-1 pr-3">
-                    <p className="text-[12px] font-medium text-[var(--blush-dark)]">
+                    <p className="text-[12px] font-medium text-[#1a1a1a]">
                       {item.name}
                     </p>
-                    <p className="text-[10px] text-[var(--blush-muted)]">
+                    <p className="text-[10px] text-[#555]">
                       Qty: {item.quantity} {"\u00D7"} {"\u20B9"}
                       {item.price}
                     </p>
@@ -222,54 +228,54 @@ export default function OrderSuccessPage() {
               ))}
             </div>
 
-            <div className="mb-3 rounded-[10px] border border-[var(--blush-border)] bg-white px-3 py-[10px]">
+            <div className="mb-3 rounded-[10px] border border-[#eedede] bg-[#fdf6f6] px-3 py-[10px]">
               <div className="flex items-center justify-between py-[3px]">
-                <span className="text-[11px] text-[var(--blush-muted)]">
+                <span className="text-[11px] text-[#555]">
                   Items ({totalItems})
                 </span>
-                <span className="text-[11px] text-[var(--blush-dark)]">
+                <span className="text-[11px] text-[#1a1a1a]">
                   Rs. {itemsTotal}
                 </span>
               </div>
               <div className="flex items-center justify-between py-[3px]">
-                <span className="text-[11px] text-[var(--blush-muted)]">
+                <span className="text-[11px] text-[#555]">
                   GST
                 </span>
-                <span className="text-[11px] text-[var(--blush-dark)]">
+                <span className="text-[11px] text-[#1a1a1a]">
                   Rs. {gstValue}
                 </span>
               </div>
               <div className="flex items-center justify-between py-[3px]">
-                <span className="text-[11px] text-[var(--blush-muted)]">
+                <span className="text-[11px] text-[#555]">
                   Shipping
                 </span>
                 <span
                   className={`text-[11px] ${
                     shippingValue === "Free"
-                      ? "font-medium text-[var(--green-text)]"
-                      : "text-[var(--blush-dark)]"
+                      ? "font-medium text-[#1a1a1a]"
+                      : "text-[#1a1a1a]"
                   }`}
                 >
                   {shippingValue}
                 </span>
               </div>
-              <div className="my-[6px] h-px bg-[var(--blush-border)]" />
+              <div className="my-[6px] h-px bg-[#eedede]" />
               <div className="flex items-center justify-between">
-                <span className="text-[13px] font-medium text-[var(--blush-dark)]">
+                <span className="text-[16px] font-bold text-[#7a1a2e]">
                   Grand total
                 </span>
-                <span className="text-[16px] font-medium text-[var(--blush-brand)]">
+                <span className="text-[16px] font-bold text-[#7a1a2e]">
                   Rs. {order.totalAmount}
                 </span>
               </div>
             </div>
 
-            <div className="mb-[10px] flex items-center gap-2 rounded-[9px] border border-[var(--blush-border)] bg-[#fdf0f3] px-3 py-[9px]">
-              <span className="h-2 w-2 rounded-full bg-[var(--blush-brand)]" />
-              <span className="text-[11px] font-medium text-[var(--blush-dark)]">
+            <div className="mb-[10px] flex items-center gap-2 rounded-[8px] border border-[#b8e0b8] bg-[#f0faf0] px-3 py-[9px]">
+              <span className="h-2 w-2 rounded-full bg-[#2d7a2d]" />
+              <span className="text-[11px] font-medium text-[#2d7a2d]">
                 Express delivery
               </span>
-              <span className="ml-auto text-[10px] text-[var(--blush-muted)]">
+              <span className="ml-auto text-[10px] text-[#2d7a2d]">
                 {deliveryDateLabel ? `by ${deliveryDateLabel}` : ""}
               </span>
             </div>
@@ -278,7 +284,7 @@ export default function OrderSuccessPage() {
           <div className="flex gap-[7px]">
             <button
               onClick={() => router.push(`/orders/${order._id}`)}
-              className="flex-1 rounded-[9px] bg-[var(--blush-brand)] px-2 py-[11px] text-center text-[11px] font-medium text-white transition-colors duration-200"
+              className="flex-1 rounded-[10px] border-[1.5px] border-[#d4a0a0] bg-[#f5eaea] px-[20px] py-[12px] text-center text-[11px] font-semibold text-[#7a1a2e] transition-colors duration-200"
             >
               <span className="inline-flex items-center justify-center gap-1.5">
                 <span>View order tracking</span>
@@ -288,7 +294,7 @@ export default function OrderSuccessPage() {
 
             <button
               onClick={() => router.push("/")}
-              className="flex-1 rounded-[9px] border border-[var(--blush-brand)] bg-transparent px-2 py-[11px] text-center text-[11px] font-medium text-[var(--blush-brand)] transition-colors duration-200"
+              className="flex-1 rounded-[10px] bg-[#7a1a2e] px-[20px] py-[12px] text-center text-[11px] font-semibold text-white transition-colors duration-200"
             >
               <span className="inline-flex items-center justify-center gap-1.5">
                 <Home size={14} />
@@ -299,12 +305,23 @@ export default function OrderSuccessPage() {
 
           <button
             onClick={() => router.push("/orders")}
-            className="mt-4 w-full py-2 text-center text-[11px] font-medium text-[var(--blush-muted)] transition-colors hover:text-[var(--blush-brand)]"
+            className="mt-4 w-full py-2 text-center text-[11px] font-medium text-[#7a1a2e] transition-colors hover:underline"
           >
             View All My Orders {"->"}
           </button>
         </div>
       </div>
+      <style jsx>{`
+        @keyframes pulse {
+          0%,
+          100% {
+            transform: scale(1);
+          }
+          50% {
+            transform: scale(1.05);
+          }
+        }
+      `}</style>
     </div>
   );
 }

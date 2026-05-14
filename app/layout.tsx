@@ -8,10 +8,12 @@ import { Navbar } from "@/components/Navbar";
 import Footer from "@/components/Footer";
 import { StatsSection } from "@/components/StatsSection ";
 import { Newsletter } from "@/components/Newsletter";
-import localFont from "next/font/local";
-const montage = localFont({
-  src: "../public/fonts/ewara.otf",
-  variable: "--font-ewara",
+import { Plus_Jakarta_Sans } from "next/font/google";
+
+const plusJakartaSans = Plus_Jakarta_Sans({
+  subsets: ["latin"],
+  variable: "--font-sans",
+  display: "swap",
 });
 export const metadata: Metadata = {
   title: "Ewara Cosmetics",
@@ -35,12 +37,12 @@ export default function RootLayout({ children }: { children: ReactNode }) {
           strategy="beforeInteractive"
         />
       </head>
-      <body className={montage.className}>
+      <body className={plusJakartaSans.variable}>
         <Providers>
           <AuthBootstrap />
-          <div className="min-h-screen bg-[#f3ede7] text-[#4a2c2a]">
+          <div className="min-h-screen bg-[var(--surface-base)] text-[var(--text-primary)]">
             <Navbar />
-            <main>{children}</main>
+            <main className="relative">{children}</main>
             <StatsSection />
             <Newsletter />
             <Footer />

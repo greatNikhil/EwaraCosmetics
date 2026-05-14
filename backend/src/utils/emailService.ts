@@ -6,6 +6,10 @@ import { orderShippedTemplate } from "./emailTemplates/orderShipped";
 import { orderDeliveredTemplate } from "./emailTemplates/orderDelivered";
 import { passwordResetTemplate } from "./emailTemplates/passwordReset";
 import { promotionalEmailTemplate } from "./emailTemplates/promotionalEmail";
+import { exchangeRequestCreatedTemplate } from "./emailTemplates/exchangeRequestCreated";
+import { returnRequestCreatedTemplate } from "./emailTemplates/returnRequestCreated";
+import { returnSuccessfulTemplate } from "./emailTemplates/returnSuccessful";
+import { refundNotificationTemplate } from "./emailTemplates/refundNotification";
 import { logError, logInfo } from "./logger";
 import {
   generateInvoicePdf,
@@ -346,6 +350,111 @@ export const sendWelcomeEmail = async (
     logInfo(`Welcome email sent to ${customerEmail}`);
   } catch (error: any) {
     logError("Error sending welcome email:", error.message);
+  }
+}
+
+export const sendExchangeRequestEmail = async (
+  customerEmail: string,
+  exchangeData: {
+    customerName: string;
+    orderId: string;
+    productName: string;
+    reason: string;
+    requestDate: string;
+    requestId: string;
+  }
+) => {
+  try {
+    const htmlContent = exchangeRequestCreatedTemplate(exchangeData);
+
+    await sendEmail(
+      customerEmail,
+      `Exchange Request Received - #${exchangeData.requestId} - ${BUSINESS_NAME}`,
+      htmlContent
+    );
+
+    logInfo(`Exchange request email sent to ${customerEmail}`);
+  } catch (error: any) {
+    logError("Error sending exchange request email:", error.message);
+  }
+};
+
+export const sendReturnRequestEmail = async (
+  customerEmail: string,
+  returnData: {
+    customerName: string;
+    orderId: string;
+    productName: string;
+    reason: string;
+    requestDate: string;
+    requestId: string;
+  }
+) => {
+  try {
+    const htmlContent = returnRequestCreatedTemplate(returnData);
+
+    await sendEmail(
+      customerEmail,
+      `Return Request Received - #${returnData.requestId} - ${BUSINESS_NAME}`,
+      htmlContent
+    );
+
+    logInfo(`Return request email sent to ${customerEmail}`);
+  } catch (error: any) {
+    logError("Error sending return request email:", error.message);
+  }
+};
+
+export const sendReturnApprovedEmail = async (
+  customerEmail: string,
+  returnData: {
+    customerName: string;
+    orderId: string;
+    productName: string;
+    requestDate: string;
+    requestId: string;
+    trackingNumber?: string;
+  }
+) => {
+  try {
+    const htmlContent = returnSuccessfulTemplate(returnData);
+
+    await sendEmail(
+      customerEmail,
+      `Return Approved - #${returnData.requestId} - ${BUSINESS_NAME}`,
+      htmlContent
+    );
+
+    logInfo(`Return approved email sent to ${customerEmail}`);
+  } catch (error: any) {
+    logError("Error sending return approved email:", error.message);
+  }
+};
+
+export const sendRefundNotificationEmail = async (
+  customerEmail: string,
+  refundData: {
+    customerName: string;
+    orderId: string;
+    refundAmount: number;
+    refundMethod: string;
+    status: "instant" | "pending";
+    processedDate: string;
+    estimatedDelivery?: string;
+  }
+) => {
+  try {
+    const htmlContent = refundNotificationTemplate(refundData);
+
+    await sendEmail(
+      customerEmail,
+      `Refund ${refundData.status === "instant" ? "Processed" : "Initiated"} - Order #${refundData.orderId} - ${BUSINESS_NAME}`,
+      htmlContent
+    );
+
+    logInfo(`Refund notification email sent to ${customerEmail}`);
+  } catch (error: any) {
+    logError("Error sending refund notification email:", error.message);
   }
 };
 

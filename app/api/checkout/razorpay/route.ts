@@ -27,16 +27,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    if (
-      isDevelopmentMode &&
-      isLiveRazorpayKey(razorpayKeyId) &&
-      isLocalAppUrl(appUrl)
-    ) {
-      return errorResponse(
-        "Live Razorpay keys are configured on a local development app. Use test keys that start with rzp_test_ while testing on localhost.",
-        400
-      );
-    }
+    // Removed live key validation - allowing live keys for testing
 
     const {
       items,

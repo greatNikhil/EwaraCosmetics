@@ -1,6 +1,11 @@
 # Ewara Cosmetics
 
-A full-stack cosmetics e-commerce project built with a Next.js storefront and an Express + MongoDB backend.
+A full-stack cosmetics e-commerce project built with a Next.js storefront and an Express + MySQL backend.
+
+Primary documentation:
+
+- [Comprehensive Project Documentation](docs/PROJECT_DOCUMENTATION.md)
+- [API Reference](API_DOCS.md)
 
 ## Features
 
@@ -23,7 +28,7 @@ A full-stack cosmetics e-commerce project built with a Next.js storefront and an
 ### Backend
 - Node.js
 - Express
-- MongoDB + Mongoose
+- MySQL + Sequelize
 - JWT
 - Nodemailer
 
@@ -68,7 +73,11 @@ Used by the Express server.
 
 ```env
 PORT=5000
-MONGO_URI=mongodb://127.0.0.1:27017/ewara
+DB_HOST=127.0.0.1
+DB_PORT=3306
+DB_USER=your_mysql_user
+DB_PASSWORD=your_mysql_password
+DB_NAME=ewara
 JWT_SECRET=replace_with_a_long_random_secret
 EMAIL_USER=your_email@gmail.com
 EMAIL_PASS=your_app_password
@@ -113,7 +122,11 @@ Required if Google login is enabled:
 ### Backend
 - Deploy the Express app separately
 - Required backend env vars:
-  - `MONGO_URI`
+  - `DB_HOST`
+  - `DB_PORT`
+  - `DB_USER`
+  - `DB_PASSWORD`
+  - `DB_NAME`
   - `JWT_SECRET`
   - `EMAIL_USER`
   - `EMAIL_PASS`
@@ -170,9 +183,9 @@ npm run test
 - check backend `CORS_ORIGINS`
 - check `NEXT_PUBLIC_API_URL`
 
-### MongoDB Connection Issues
-- verify `MONGO_URI`
-- ensure MongoDB is running or Atlas network access is configured
+### Database Connection Issues
+- verify `DB_HOST`, `DB_PORT`, `DB_USER`, `DB_PASSWORD`, and `DB_NAME`
+- ensure MySQL is running and reachable from the backend
 
 ### Payment Key Issues
 - verify the correct Razorpay keys are set in the correct env file

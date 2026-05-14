@@ -83,7 +83,7 @@ export default function ReviewForm({ productId, onSubmitted }: ReviewFormProps) 
   return (
     <form
       onSubmit={handleSubmit}
-      className="grid gap-6 rounded-[2rem] border border-[#e8d5c4] bg-white/95 p-8 shadow-[0_28px_64px_rgba(122,31,43,0.08)]"
+      className="ewara-review-form fk-review-form grid gap-6 rounded-[2rem] border border-[#e8d5c4] bg-white/95 p-8 shadow-[0_28px_64px_rgba(122,31,43,0.08)]"
     >
       <div>
         <h3 className="text-2xl font-semibold text-[#4a2c2a]">
@@ -134,6 +134,89 @@ export default function ReviewForm({ productId, onSubmitted }: ReviewFormProps) 
       {message ? (
         <p className="text-sm font-medium text-green-700">{message}</p>
       ) : null}
+
+      <style jsx>{`
+        @media (max-width: 767px) {
+          .ewara-review-form {
+            padding: 0 !important;
+            border: none !important;
+            border-radius: 0 !important;
+            box-shadow: none !important;
+            background: transparent !important;
+          }
+          .fk-review-form {
+            padding: 0 !important;
+            border: none !important;
+            border-radius: 0 !important;
+            box-shadow: none !important;
+            background: transparent !important;
+          }
+          .ewara-review-form textarea {
+            width: 100% !important;
+            border: 0.5px solid #d4a8a0 !important;
+            border-radius: 10px !important;
+            padding: 10px 12px !important;
+            font-size: 12px !important;
+            color: #8a6050 !important;
+            background: #fdf5f0 !important;
+            resize: none !important;
+            min-height: 70px !important;
+          }
+          .fk-review-form textarea {
+            width: 100% !important;
+            border: 0.5px solid #d4a8a0 !important;
+            border-radius: 8px !important;
+            padding: 10px 12px !important;
+            font-size: 12px !important;
+            color: #8a6050 !important;
+            background: #fdf5f0 !important;
+            resize: none !important;
+            min-height: 70px !important;
+          }
+          .ewara-review-form button[type="submit"] {
+            background: #8b1a2a !important;
+            color: #fff !important;
+            border: none !important;
+            width: 100% !important;
+            padding: 13px !important;
+            font-size: 13px !important;
+            font-weight: 500 !important;
+            border-radius: 10px !important;
+            cursor: pointer !important;
+            margin-top: 8px !important;
+          }
+          .fk-review-form button[type="submit"] {
+            background: #8b1a2a !important;
+            color: #fff !important;
+            border: none !important;
+            width: 100% !important;
+            padding: 13px !important;
+            font-size: 13px !important;
+            font-weight: 500 !important;
+            border-radius: 4px !important;
+            cursor: pointer !important;
+            margin-top: 8px !important;
+          }
+          .ewara-review-form input[type="text"],
+          .ewara-review-form input[type="email"] {
+            border: 0.5px solid #d4a8a0 !important;
+            border-radius: 8px !important;
+            padding: 8px 12px !important;
+            font-size: 12px !important;
+            background: #fdf5f0 !important;
+            width: 100% !important;
+          }
+          .fk-review-form input[type="text"],
+          .fk-review-form input[type="email"] {
+            border: 0.5px solid #d4a8a0 !important;
+            border-radius: 6px !important;
+            padding: 8px 12px !important;
+            font-size: 12px !important;
+            background: #fdf5f0 !important;
+            width: 100% !important;
+          }
+        }
+      `}</style>
     </form>
   );
 }

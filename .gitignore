@@ -26,6 +26,10 @@ yarn-error.log*
 .env.local
 .env.*.local
 
+# Local credential notes
+CREDENTIALS.local.md
+backend/CREDENTIALS.local.md
+
 # IDE
 .vscode/
 .idea/

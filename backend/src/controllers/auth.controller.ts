@@ -40,8 +40,10 @@ const buildAuthSuccessResponse = (user: any) => {
       _id: user.id,
       id: user.id,
       name: user.name,
+      lastname: user.lastname,
       email: user.email,
       phone: user.phone,
+      avatar_url: user.avatar_url,
       role: user.role,
     },
   };
@@ -186,8 +188,10 @@ export const register = async (req: Request, res: Response) => {
         _id: user.id,
         id: user.id,
         name: user.name,
+        lastname: user.lastname,
         email: user.email,
         phone: user.phone,
+        avatar_url: user.avatar_url,
         role: user.role,
       },
     });
@@ -288,6 +292,7 @@ export const getMe = async (req: any, res: Response) => {
       user: {
         ...user.toJSON(),
         _id: user.id,
+        avatar_url: user.avatar_url,
       },
     });
   } catch (error: any) {
@@ -449,6 +454,7 @@ export const updateProfile = async (req: any, res: Response) => {
         lastname: user.lastname,
         email: user.email,
         phone: user.phone,
+        avatar_url: user.avatar_url,
         role: user.role,
       },
     });

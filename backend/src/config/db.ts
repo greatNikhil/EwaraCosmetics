@@ -1,5 +1,5 @@
 import dotenv from "dotenv";
-import { Sequelize } from "sequelize";
+import { DataTypes, Sequelize } from "sequelize";
 import { logError, logInfo } from "../utils/logger";
 
 // Models import this module during startup, so load env here before
@@ -33,8 +33,20 @@ const connectDB = async () => {
     await sequelize.authenticate();
     logInfo("MySQL connected successfully");
     
-    // Sync all models
-    await sequelize.sync({ alter: true });
+    // Sync all models (create new tables only, don't alter existing ones)
+    await sequelize.sync({ alter: false });
+    const queryInterface = sequelize.getQueryInterface();
+    const userTable = await queryInterface.describeTable("users");
+
+    if (!("avatar_url" in userTable)) {
+      await queryInterface.addColumn("users", "avatar_url", {
+        type: DataTypes.STRING(500),
+        allowNull: true,
+        defaultValue: null,
+      });
+      logInfo("Added users.avatar_url column");
+    }
+
     logInfo("Database models synced");
   } catch (error) {
     logError("DB connection failed:", error);
