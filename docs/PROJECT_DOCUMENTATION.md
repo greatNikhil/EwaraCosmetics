@@ -582,7 +582,6 @@ NEXT_PUBLIC_API_URL=http://localhost:5000
 NEXT_PUBLIC_APP_URL=http://localhost:3000
 NEXT_PUBLIC_GOOGLE_CLIENT_ID=your_google_client_id_here
 NEXT_PUBLIC_RAZORPAY_KEY_ID=rzp_test_your_key_id_here
-RAZORPAY_KEY_SECRET=your_razorpay_key_secret_here
 ```
 
 Examples exist in:
@@ -713,4 +712,3 @@ This document intentionally corrects a few repo-level ambiguities:
 - backend ORM is `Sequelize`, not `Mongoose`
 - Razorpay order creation is handled in Next.js route handlers, while final order creation happens in Express
 - checkout totals are recomputed server-side, not trusted from the client
-

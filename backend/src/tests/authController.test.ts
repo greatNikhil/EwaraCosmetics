@@ -17,11 +17,11 @@ import * as emailService from "../utils/emailService";
 import { createMockRequest, createMockResponse } from "./helpers/mockExpress";
 
 const originalOtpCreate = (Otp as any).create;
-const originalOtpDeleteMany = (Otp as any).deleteMany;
+const originalOtpDestroy = (Otp as any).destroy;
 const originalOtpFindOne = (Otp as any).findOne;
 const originalUserCreate = (User as any).create;
 const originalUserFindOne = (User as any).findOne;
-const originalUserFindById = (User as any).findById;
+const originalUserFindByPk = (User as any).findByPk;
 const originalBcryptCompare = (bcrypt as any).compare;
 const originalBcryptHash = (bcrypt as any).hash;
 const originalJwtSign = (jwt as any).sign;
@@ -64,10 +64,11 @@ export const runAuthControllerTests = async () => {
     });
 
     (User as any).findOne = async (query: any) => {
-      if (query?.email === "buyer@example.com") {
+      if (query?.where?.email === "buyer@example.com") {
         return {
-          _id: "507f1f77bcf86cd799439011",
+          id: 101,
           name: "Buyer",
+          lastname: "",
           email: "buyer@example.com",
           phone: "9876543210",
           password: "hashed-password",
@@ -93,17 +94,20 @@ export const runAuthControllerTests = async () => {
       message: "Login successful",
       token: "signed-jwt-token",
       user: {
-        _id: "507f1f77bcf86cd799439011",
+        _id: 101,
+        id: 101,
         name: "Buyer",
+        lastname: "",
         email: "buyer@example.com",
         phone: "9876543210",
+        avatar_url: undefined,
         role: "user",
       },
     });
 
     let otpEmailPayload: any = null;
     (User as any).findOne = async () => null;
-    (Otp as any).deleteMany = async () => undefined;
+    (Otp as any).destroy = async () => undefined;
     (Otp as any).create = async (payload: any) => payload;
     (sendEmailModule as any).default = async (
       to: string,
@@ -129,7 +133,10 @@ export const runAuthControllerTests = async () => {
 
     let welcomeEmailPayload: any = null;
     (User as any).findOne = async (query: any) => {
-      if (query?.email === "fresh@example.com" || query?.phone === "9999999999") {
+      if (
+        query?.where?.email === "fresh@example.com" ||
+        query?.where?.phone === "9999999999"
+      ) {
         return null;
       }
 
@@ -141,7 +148,7 @@ export const runAuthControllerTests = async () => {
     });
     (bcrypt as any).hash = async () => "newly-hashed-password";
     (User as any).create = async (payload: any) => ({
-      _id: "507f1f77bcf86cd799439020",
+      id: 102,
       role: "user",
       ...payload,
     });
@@ -173,9 +180,9 @@ export const runAuthControllerTests = async () => {
 
     let passwordResetPayload: any = null;
     (User as any).findOne = async (query: any) => {
-      if (query?.email === "buyer@example.com") {
+      if (query?.where?.email === "buyer@example.com") {
         return {
-          _id: "507f1f77bcf86cd799439021",
+          id: 103,
           name: "Buyer",
           email: "buyer@example.com",
         };
@@ -253,7 +260,7 @@ export const runAuthControllerTests = async () => {
     let googleWelcomeEmailPayload: any = null;
     (User as any).findOne = async () => null;
     (User as any).create = async (payload: any) => ({
-      _id: "507f1f77bcf86cd799439022",
+      id: 104,
       role: "user",
       phone: undefined,
       ...payload,
@@ -303,7 +310,7 @@ export const runAuthControllerTests = async () => {
     });
 
     const userRecord = {
-      _id: "507f1f77bcf86cd799439012",
+      id: 105,
       name: "Old",
       lastname: "",
       email: "old@example.com",
@@ -315,10 +322,10 @@ export const runAuthControllerTests = async () => {
     };
 
     let findOneCall = 0;
-    (User as any).findById = async () => userRecord;
+    (User as any).findByPk = async () => userRecord;
     (User as any).findOne = async () => {
       findOneCall += 1;
-      return findOneCall === 1 ? { _id: "dup-email" } : null;
+      return findOneCall === 1 ? { id: 106 } : null;
     };
 
     const duplicateEmailReq = createMockRequest({
@@ -328,7 +335,7 @@ export const runAuthControllerTests = async () => {
         email: "taken@example.com",
         phone: "8888888888",
       },
-      user: { id: "507f1f77bcf86cd799439012" } as any,
+      user: { id: 105 } as any,
     });
     const duplicateEmailRes = createMockResponse();
 
@@ -350,7 +357,7 @@ export const runAuthControllerTests = async () => {
         email: "buyer.updated@example.com",
         phone: "8888888888",
       },
-      user: { id: "507f1f77bcf86cd799439012" } as any,
+      user: { id: 105 } as any,
     });
     const updateRes = createMockResponse();
 
@@ -363,11 +370,11 @@ export const runAuthControllerTests = async () => {
     assert.equal(userRecord.phone, "8888888888");
   } finally {
     (Otp as any).create = originalOtpCreate;
-    (Otp as any).deleteMany = originalOtpDeleteMany;
+    (Otp as any).destroy = originalOtpDestroy;
     (Otp as any).findOne = originalOtpFindOne;
     (User as any).create = originalUserCreate;
     (User as any).findOne = originalUserFindOne;
-    (User as any).findById = originalUserFindById;
+    (User as any).findByPk = originalUserFindByPk;
     (bcrypt as any).compare = originalBcryptCompare;
     (bcrypt as any).hash = originalBcryptHash;
     (jwt as any).sign = originalJwtSign;

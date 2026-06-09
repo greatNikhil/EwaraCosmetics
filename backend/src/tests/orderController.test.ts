@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import crypto from "crypto";
 import Order from "../models/order.model";
 import Product from "../models/Product";
 import User from "../models/user";
@@ -13,12 +14,12 @@ import * as couponUtils from "../utils/coupon";
 import * as emailService from "../utils/emailService";
 import { createMockRequest, createMockResponse } from "./helpers/mockExpress";
 
-const originalProductFindById = (Product as any).findById;
-const originalOrderFindById = (Order as any).findById;
+const originalProductFindByPk = (Product as any).findByPk;
+const originalOrderFindByPk = (Order as any).findByPk;
 const originalOrderCreate = (Order as any).create;
 const originalResolveCouponDiscount = (couponUtils as any).resolveCouponDiscount;
 const originalIncrementCouponUsage = (couponUtils as any).incrementCouponUsage;
-const originalUserFindById = (User as any).findById;
+const originalUserFindByPk = (User as any).findByPk;
 const originalSendPaymentFailedEmail = (emailService as any).sendPaymentFailedEmail;
 const originalSendOrderShippedEmail = (emailService as any).sendOrderShippedEmail;
 const originalSendOrderDeliveredEmail =
@@ -57,8 +58,8 @@ export const runOrderControllerTests = async () => {
     };
 
     let stockSaveCalled = false;
-    (Product as any).findById = async () => ({
-      _id: "507f1f77bcf86cd799439011",
+    (Product as any).findByPk = async () => ({
+      id: 11,
       name: "Glow Serum",
       price: 100,
       countInStock: 10,
@@ -73,7 +74,7 @@ export const runOrderControllerTests = async () => {
       body: {
         items: [
           {
-            productId: "507f1f77bcf86cd799439011",
+            productId: 11,
             quantity: 2,
             image: "/serum.jpg",
           },
@@ -81,7 +82,7 @@ export const runOrderControllerTests = async () => {
         totalAmount: 100,
         paymentMethod: "COD",
       },
-      user: { id: "507f1f77bcf86cd799439099" } as any,
+      user: { id: 99 } as any,
     });
     const mismatchRes = createMockResponse();
 
@@ -101,8 +102,8 @@ export const runOrderControllerTests = async () => {
     });
     assert.equal(stockSaveCalled, false);
 
-    (Product as any).findById = async () => ({
-      _id: "507f1f77bcf86cd799439019",
+    (Product as any).findByPk = async () => ({
+      id: 19,
       name: "Glow Serum",
       price: 100,
       countInStock: 3,
@@ -115,14 +116,14 @@ export const runOrderControllerTests = async () => {
       body: {
         items: [
           {
-            productId: "507f1f77bcf86cd799439019",
+            productId: 19,
             quantity: 5,
           },
         ],
         totalAmount: 590,
         paymentMethod: "COD",
       },
-      user: { id: "507f1f77bcf86cd799439099" } as any,
+      user: { id: 99 } as any,
     });
     const oversellRes = createMockResponse();
 
@@ -144,7 +145,7 @@ export const runOrderControllerTests = async () => {
     };
 
     const productRecord = {
-      _id: "507f1f77bcf86cd799439020",
+      id: 20,
       name: "Glow Serum",
       price: 1000,
       countInStock: 5,
@@ -154,17 +155,18 @@ export const runOrderControllerTests = async () => {
         return this;
       },
     };
-    (Product as any).findById = async () => productRecord;
+    (Product as any).findByPk = async () => productRecord;
 
     const createdOrders: any[] = [];
     (Order as any).create = async (payload: any) => {
       const order = {
-        _id: "507f1f77bcf86cd799439120",
+        id: 120 + createdOrders.length,
+        createdAt: new Date("2026-01-01T00:00:00.000Z"),
         ...payload,
-        toObject() {
+        get() {
+          const { get: _get, ...plain } = this;
           return {
-            _id: this._id,
-            ...payload,
+            ...plain,
           };
         },
       };
@@ -172,7 +174,8 @@ export const runOrderControllerTests = async () => {
       return order;
     };
 
-    (User as any).findById = async () => ({
+    (User as any).findByPk = async () => ({
+      id: 99,
       email: "buyer@example.com",
       name: "Buyer",
     });
@@ -181,7 +184,7 @@ export const runOrderControllerTests = async () => {
       body: {
         items: [
           {
-            productId: "507f1f77bcf86cd799439020",
+            productId: 20,
             quantity: 1,
           },
         ],
@@ -189,7 +192,7 @@ export const runOrderControllerTests = async () => {
         paymentMethod: "Cash on Delivery",
         couponCode: "SAVE100",
       },
-      user: { id: "507f1f77bcf86cd799439099" } as any,
+      user: { id: 99 } as any,
     });
     const codSuccessRes = createMockResponse();
 
@@ -205,8 +208,10 @@ export const runOrderControllerTests = async () => {
     assert.deepEqual(orderConfirmationEmailPayload, {
       customerEmail: "buyer@example.com",
       payload: {
-        _id: "507f1f77bcf86cd799439120",
-        user: "507f1f77bcf86cd799439099",
+        id: 120,
+        _id: 120,
+        createdAt: createdOrders[0].createdAt,
+        user: 99,
         items: createdOrders[0].items,
         subtotalAmount: 1000,
         couponCode: "SAVE100",
@@ -229,19 +234,63 @@ export const runOrderControllerTests = async () => {
       discountAmount: 50,
     });
 
+    let incompleteSignatureStockSaveCalled = false;
+    (Product as any).findByPk = async () => ({
+      id: 20,
+      name: "Glow Serum",
+      price: 1000,
+      countInStock: 5,
+      isPublished: true,
+      images: ["/serum.jpg"],
+      save: async () => {
+        incompleteSignatureStockSaveCalled = true;
+      },
+    });
+
+    const incompleteRazorpayReq = createMockRequest({
+      body: {
+        items: [
+          {
+            productId: 20,
+            quantity: 1,
+          },
+        ],
+        totalAmount: 1121,
+        paymentMethod: "Razorpay",
+        razorpayPaymentId: "pay_missing_signature",
+      },
+      user: { id: 99 } as any,
+    });
+    const incompleteRazorpayRes = createMockResponse();
+
+    await createOrder(incompleteRazorpayReq as any, incompleteRazorpayRes as any);
+
+    assert.equal(incompleteRazorpayRes.statusCode, 400);
+    assert.deepEqual(incompleteRazorpayRes.body, {
+      success: false,
+      message: "Razorpay payment verification details are required",
+    });
+    assert.equal(incompleteSignatureStockSaveCalled, false);
+    assert.equal(createdOrders.length, 1);
+
     const razorpaySuccessReq = createMockRequest({
       body: {
         items: [
           {
-            productId: "507f1f77bcf86cd799439020",
+            productId: 20,
             quantity: 1,
           },
         ],
         totalAmount: 1121,
         paymentMethod: "Razorpay",
         razorpayPaymentId: "pay_test_123",
+        razorpayOrderId: "order_test_123",
+        razorpaySignature: crypto
+          .createHmac("sha256", "test_secret")
+          .update("order_test_123|pay_test_123")
+          .digest("hex"),
       },
-      user: { id: "507f1f77bcf86cd799439099" } as any,
+      user: { id: 99 } as any,
     });
     const razorpaySuccessRes = createMockResponse();
 
@@ -257,14 +306,14 @@ export const runOrderControllerTests = async () => {
       customerEmail: "buyer@example.com",
       payload: {
         customerName: "Buyer",
-        orderId: "507f1f77bcf86cd799439120",
+        orderId: "121",
         amount: 1121,
         paymentMethod: "Razorpay",
         transactionId: "pay_test_123",
         customerEmail: "buyer@example.com",
         items: [
           {
-            productId: "507f1f77bcf86cd799439020",
+            productId: 20,
             name: "Glow Serum",
             price: 1000,
             quantity: 1,
@@ -281,8 +330,8 @@ export const runOrderControllerTests = async () => {
     });
 
     let signatureStockSaveCalled = false;
-    (Product as any).findById = async () => ({
-      _id: "507f1f77bcf86cd799439021",
+    (Product as any).findByPk = async () => ({
+      id: 21,
       name: "Night Repair Cream",
       price: 850,
       countInStock: 7,
@@ -297,7 +346,7 @@ export const runOrderControllerTests = async () => {
       body: {
         items: [
           {
-            productId: "507f1f77bcf86cd799439021",
+            productId: 21,
             quantity: 1,
           },
         ],
@@ -307,7 +356,7 @@ export const runOrderControllerTests = async () => {
         razorpayPaymentId: "pay_test_invalid",
         razorpaySignature: "bad_signature",
       },
-      user: { id: "507f1f77bcf86cd799439099" } as any,
+      user: { id: 99 } as any,
     });
     const invalidSignatureRes = createMockResponse();
 
@@ -322,11 +371,10 @@ export const runOrderControllerTests = async () => {
     assert.equal(createdOrders.length, 2);
 
     let paymentFailureEmailPayload: any = null;
-    (User as any).findById = () => ({
-      select: async () => ({
-        name: "Buyer",
-        email: "buyer@example.com",
-      }),
+    (User as any).findByPk = async () => ({
+      id: 99,
+      name: "Buyer",
+      email: "buyer@example.com",
     });
     (emailService as any).sendPaymentFailedEmail = async (
       customerEmail: string,
@@ -341,7 +389,7 @@ export const runOrderControllerTests = async () => {
         reason: "User cancelled checkout",
         razorpayOrderId: "order_retry_123",
       },
-      user: { id: "507f1f77bcf86cd799439099" } as any,
+      user: { id: 99 } as any,
     });
     const notifyFailureRes = createMockResponse();
 
@@ -363,20 +411,17 @@ export const runOrderControllerTests = async () => {
       },
     });
 
-    (Order as any).findById = () => ({
-      populate: async () => ({
-        _id: "507f1f77bcf86cd799439012",
-        user: {
-          _id: {
-            toString: () => "507f1f77bcf86cd799439013",
-          },
-        },
-      }),
+    (Order as any).findByPk = async () => ({
+      id: 12,
+      user: 13,
+      get() {
+        return this;
+      },
     });
 
     const deniedReq = createMockRequest({
-      params: { id: "507f1f77bcf86cd799439012" } as any,
-      user: { id: "507f1f77bcf86cd799439014", role: "user" } as any,
+      params: { id: "12" } as any,
+      user: { id: 14, role: "user" } as any,
     });
     const deniedRes = createMockResponse();
 
@@ -388,9 +433,19 @@ export const runOrderControllerTests = async () => {
       message: "Access denied",
     });
 
+    (User as any).findByPk = async () => ({
+      id: 13,
+      name: "Buyer",
+      email: "buyer@example.com",
+      get() {
+        const { get: _get, ...plain } = this;
+        return plain;
+      },
+    });
+
     const adminReq = createMockRequest({
-      params: { id: "507f1f77bcf86cd799439012" } as any,
-      user: { id: "507f1f77bcf86cd799439015", role: "admin" } as any,
+      params: { id: "12" } as any,
+      user: { id: 15, role: "admin" } as any,
     });
     const adminRes = createMockResponse();
 
@@ -411,26 +466,27 @@ export const runOrderControllerTests = async () => {
     };
 
     const orderRecord = {
-      _id: {
-        toString: () => "507f1f77bcf86cd799439016",
-      },
+      id: 16,
+      user: 99,
       paymentStatus: "Pending",
       totalAmount: 799,
-      user: {
-        email: "buyer@example.com",
-        name: "Buyer",
-      },
       save: async function () {
+        return this;
+      },
+      get() {
         return this;
       },
     };
 
-    (Order as any).findById = () => ({
-      populate: async () => orderRecord,
+    (Order as any).findByPk = async () => orderRecord;
+    (User as any).findByPk = async () => ({
+      id: 99,
+      email: "buyer@example.com",
+      name: "Buyer",
     });
 
     const paymentReq = createMockRequest({
-      params: { id: "507f1f77bcf86cd799439016" } as any,
+      params: { id: "16" } as any,
       body: { paymentStatus: "Failed", reason: "Bank declined" },
     });
     const paymentRes = createMockResponse();
@@ -443,17 +499,18 @@ export const runOrderControllerTests = async () => {
       customerEmail: "buyer@example.com",
       payload: {
         customerName: "Buyer",
-        orderId: "507f1f77bcf86cd799439016",
+        orderId: "16",
         amount: 799,
         reason: "Bank declined",
-        retryLink: "http://localhost:3000/orders/507f1f77bcf86cd799439016",
+        retryLink: "http://localhost:3000/orders/16",
       },
     });
 
     let restoredStock = 0;
     let shippedEmailPayload: any = null;
     let deliveredEmailPayload: any = null;
-    (Product as any).findById = async () => ({
+    (Product as any).findByPk = async () => ({
+      id: 18,
       countInStock: 4,
       save: async function () {
         restoredStock = this.countInStock;
@@ -474,36 +531,34 @@ export const runOrderControllerTests = async () => {
     };
 
     const cancellableOrder = {
-      _id: {
-        toString: () => "507f1f77bcf86cd799439017",
-      },
+      id: 17,
+      user: 99,
       status: "Processing",
       stockRestored: false,
       razorpayOrderId: "order_test_123",
       items: [
         {
-          productId: "507f1f77bcf86cd799439018",
+          productId: 18,
           quantity: 2,
         },
       ],
       save: async function () {
         return this;
       },
-      populate: async function () {
-        return {
-          ...this,
-          user: {
-            email: "buyer@example.com",
-            name: "Buyer",
-          },
-        };
+      get() {
+        return this;
       },
     };
 
-    (Order as any).findById = async () => cancellableOrder;
+    (Order as any).findByPk = async () => cancellableOrder;
+    (User as any).findByPk = async () => ({
+      id: 99,
+      email: "buyer@example.com",
+      name: "Buyer",
+    });
 
     const cancelReq = createMockRequest({
-      params: { id: "507f1f77bcf86cd799439017" } as any,
+      params: { id: "17" } as any,
       body: { status: "Cancelled" },
     });
     const cancelRes = createMockResponse();
@@ -516,7 +571,7 @@ export const runOrderControllerTests = async () => {
     assert.equal(restoredStock, 6);
 
     const shippedReq = createMockRequest({
-      params: { id: "507f1f77bcf86cd799439017" } as any,
+      params: { id: "17" } as any,
       body: { status: "Shipped" },
     });
     const shippedRes = createMockResponse();
@@ -528,16 +583,16 @@ export const runOrderControllerTests = async () => {
       customerEmail: "buyer@example.com",
       payload: {
         customerName: "Buyer",
-        orderId: "507f1f77bcf86cd799439017",
+        orderId: "17",
         trackingNumber: "order_test_123",
-        trackingUrl: "http://localhost:3000/orders/507f1f77bcf86cd799439017",
+        trackingUrl: "http://localhost:3000/orders/17",
         estimatedDelivery: shippedEmailPayload?.payload?.estimatedDelivery,
         carrier: "Ewara Delivery",
       },
     });
 
     const deliveredReq = createMockRequest({
-      params: { id: "507f1f77bcf86cd799439017" } as any,
+      params: { id: "17" } as any,
       body: { status: "Delivered" },
     });
     const deliveredRes = createMockResponse();
@@ -549,18 +604,18 @@ export const runOrderControllerTests = async () => {
       customerEmail: "buyer@example.com",
       payload: {
         customerName: "Buyer",
-        orderId: "507f1f77bcf86cd799439017",
+        orderId: "17",
         deliveryDate: deliveredEmailPayload?.payload?.deliveryDate,
         feedbackLink: "http://localhost:3000/services",
       },
     });
   } finally {
-    (Product as any).findById = originalProductFindById;
-    (Order as any).findById = originalOrderFindById;
+    (Product as any).findByPk = originalProductFindByPk;
+    (Order as any).findByPk = originalOrderFindByPk;
     (Order as any).create = originalOrderCreate;
     (couponUtils as any).resolveCouponDiscount = originalResolveCouponDiscount;
     (couponUtils as any).incrementCouponUsage = originalIncrementCouponUsage;
-    (User as any).findById = originalUserFindById;
+    (User as any).findByPk = originalUserFindByPk;
     (emailService as any).sendPaymentFailedEmail =
       originalSendPaymentFailedEmail;
     (emailService as any).sendOrderShippedEmail =

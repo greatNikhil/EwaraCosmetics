@@ -4,12 +4,13 @@ import { updateUserRole } from "../controllers/admin.controller";
 import { createMockRequest, createMockResponse } from "./helpers/mockExpress";
 
 const originalFindById = (User as any).findById;
+const originalFindByPk = (User as any).findByPk;
 
 export const runAdminControllerTests = async () => {
   const selfRoleReq = createMockRequest({
-    params: { id: "507f1f77bcf86cd799439011" } as any,
+    params: { id: "101" } as any,
     body: { role: "admin" },
-    user: { id: "507f1f77bcf86cd799439011" } as any,
+    user: { id: 101 } as any,
   });
   const selfRoleRes = createMockResponse();
 
@@ -21,14 +22,12 @@ export const runAdminControllerTests = async () => {
     message: "You cannot change your own role",
   });
 
-  (User as any).findById = () => ({
-    select: async () => null,
-  });
+  (User as any).findByPk = async () => null;
 
   const missingUserReq = createMockRequest({
-    params: { id: "507f1f77bcf86cd799439012" } as any,
+    params: { id: "102" } as any,
     body: { role: "admin" },
-    user: { id: "507f1f77bcf86cd799439013" } as any,
+    user: { id: 103 } as any,
   });
   const missingUserRes = createMockResponse();
 
@@ -41,21 +40,23 @@ export const runAdminControllerTests = async () => {
   });
 
   const userRecord = {
-    _id: "507f1f77bcf86cd799439014",
+    id: 104,
     role: "user",
+    isDeleted: false,
     save: async function () {
+      return this;
+    },
+    get: function () {
       return this;
     },
   };
 
-  (User as any).findById = () => ({
-    select: async () => userRecord,
-  });
+  (User as any).findByPk = async () => userRecord;
 
   const successReq = createMockRequest({
-    params: { id: "507f1f77bcf86cd799439014" } as any,
+    params: { id: "104" } as any,
     body: { role: "admin" },
-    user: { id: "507f1f77bcf86cd799439015" } as any,
+    user: { id: 105 } as any,
   });
   const successRes = createMockResponse();
 
@@ -65,4 +66,5 @@ export const runAdminControllerTests = async () => {
   assert.equal(userRecord.role, "admin");
 
   (User as any).findById = originalFindById;
+  (User as any).findByPk = originalFindByPk;
 };

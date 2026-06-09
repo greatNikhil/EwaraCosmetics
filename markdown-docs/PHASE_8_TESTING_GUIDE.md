@@ -23,12 +23,12 @@ What this covers:
   - Payment failure notification email
   - Payment status failure email
   - Stock restoration on cancellation
-- MongoDB integrity checks for:
-  - `products`, `orders`, `cartitems`, `wishlistitems`
+- MySQL/Sequelize integrity checks for:
+  - `products`, `orders`, `cart_items`, `wishlist_items`
   - missing required order fields
-  - duplicate `orders._id`
-  - duplicate `cartitems (userId + productId)`
-  - duplicate `wishlistitems (userId + productId)`
+  - duplicate `orders.id`
+  - duplicate `cart_items (user_id + product_id)`
+  - duplicate `wishlist_items (user_id + product_id)`
   - duplicate coupon codes
 
 If `npm run test:integrity` reports legacy orders missing `paymentStatus`, inspect and optionally repair them with:
@@ -68,7 +68,7 @@ Pass criteria:
 9. Confirm redirect to `/order-success/[id]`.
 10. Confirm the order appears in `/orders`.
 11. Confirm the order appears in `/admin/orders`.
-12. Confirm the product stock decreased in admin or MongoDB.
+12. Confirm the product stock decreased in admin or MySQL.
 13. Confirm order confirmation and payment emails are received.
 
 If any step fails, capture:
@@ -139,7 +139,7 @@ Monitor:
 
 - frontend console
 - backend server logs
-- MongoDB counts before and after
+- MySQL counts before and after
 
 Pass criteria:
 

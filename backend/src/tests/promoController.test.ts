@@ -8,8 +8,8 @@ import {
 import * as emailService from "../utils/emailService";
 import { createMockRequest, createMockResponse } from "./helpers/mockExpress";
 
-const originalUserFind = (User as any).find;
-const originalUserFindById = (User as any).findById;
+const originalUserFindAll = (User as any).findAll;
+const originalUserFindByPk = (User as any).findByPk;
 const originalSendPromotionalEmail =
   (emailService as any).sendPromotionalEmail;
 
@@ -18,7 +18,7 @@ export const runPromoControllerTests = async () => {
     const unauthorizedReq = createMockRequest({
       user: { role: "user" } as any,
       body: {
-        userId: "507f1f77bcf86cd799439031",
+        userId: "31",
         title: "Summer Offer",
         content: "Special offer",
         ctaText: "Shop Now",
@@ -36,8 +36,8 @@ export const runPromoControllerTests = async () => {
     });
 
     let singlePromoPayload: any = null;
-    (User as any).findById = async () => ({
-      _id: "507f1f77bcf86cd799439031",
+    (User as any).findByPk = async () => ({
+      id: 31,
       name: "Promo Buyer",
       email: "promo@example.com",
     });
@@ -51,7 +51,7 @@ export const runPromoControllerTests = async () => {
     const promoReq = createMockRequest({
       user: { role: "admin" } as any,
       body: {
-        userId: "507f1f77bcf86cd799439031",
+        userId: "31",
         title: "Summer Offer",
         content: "Special offer",
         ctaText: "Shop Now",
@@ -79,7 +79,7 @@ export const runPromoControllerTests = async () => {
     });
 
     let bulkRecipients: string[] = [];
-    (User as any).find = async () => [
+    (User as any).findAll = async () => [
       { name: "User One", email: "one@example.com" },
       { name: "User Two", email: "two@example.com" },
     ];
@@ -119,8 +119,8 @@ export const runPromoControllerTests = async () => {
     assert.equal(Array.isArray((templatesRes.body as any).templates), true);
     assert.equal((templatesRes.body as any).templates.length > 0, true);
   } finally {
-    (User as any).find = originalUserFind;
-    (User as any).findById = originalUserFindById;
+    (User as any).findAll = originalUserFindAll;
+    (User as any).findByPk = originalUserFindByPk;
     (emailService as any).sendPromotionalEmail = originalSendPromotionalEmail;
   }
 };

@@ -77,7 +77,7 @@ POST /api/promo/send-to-all         - Send promo to all users
 **File:** `backend/.env`
 ```env
 EMAIL_USER=chaubeynikhil7143@gmail.com       # Gmail SMTP user
-EMAIL_PASS=yiaohxbvjwmsqyxo                   # Gmail app password
+EMAIL_PASS=your_gmail_app_password_here       # Gmail app password
 EMAIL_FROM=info@ewaraofficial.com             # Business email
 BUSINESS_NAME=Ewara Fashion pvt. ltd.         # Business name
 ```

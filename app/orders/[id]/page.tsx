@@ -214,11 +214,11 @@ export default function OrderDetailsPage() {
                 className="flex items-start gap-4 border border-gray-200 rounded-xl p-4 hover:shadow-sm transition-shadow"
               >
                 <img
-                  src={item.image || "/fallback.png"}
+                  src={item.image || "/favicon/product.jpeg"}
                   alt={item.name}
                   className="w-20 h-20 object-cover rounded-lg flex-shrink-0"
                   onError={(e: any) => {
-                    e.target.src = "/fallback.png";
+                    e.target.src = "/favicon/product.jpeg";
                   }}
                 />
 

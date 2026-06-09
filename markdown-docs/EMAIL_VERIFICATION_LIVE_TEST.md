@@ -177,7 +177,7 @@ cat .env | grep EMAIL_
 Required format:
 ```env
 EMAIL_USER=your-gmail@gmail.com
-EMAIL_PASS=xyzabc1234567890  # App password, not Gmail password
+EMAIL_PASS=your_app_password_here  # App password, not Gmail password
 EMAIL_FROM=info@ewaraofficial.com
 ```
 

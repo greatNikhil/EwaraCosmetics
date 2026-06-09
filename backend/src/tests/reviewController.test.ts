@@ -4,10 +4,10 @@ import Review from "../models/review";
 import { deleteReview } from "../controllers/review.controller";
 import { createMockRequest, createMockResponse } from "./helpers/mockExpress";
 
-const originalReviewFindById = (Review as any).findById;
-const originalReviewFindByIdAndDelete = (Review as any).findByIdAndDelete;
-const originalReviewAggregate = (Review as any).aggregate;
-const originalProductFindByIdAndUpdate = (Product as any).findByIdAndUpdate;
+const originalReviewFindByPk = (Review as any).findByPk;
+const originalReviewCount = (Review as any).count;
+const originalReviewSum = (Review as any).sum;
+const originalProductUpdate = (Product as any).update;
 
 export const runReviewControllerTests = async () => {
   const invalidReq = createMockRequest({
@@ -23,10 +23,10 @@ export const runReviewControllerTests = async () => {
     message: "Invalid review ID",
   });
 
-  (Review as any).findById = async () => null;
+  (Review as any).findByPk = async () => null;
 
   const missingReq = createMockRequest({
-    params: { id: "507f1f77bcf86cd799439011" } as any,
+    params: { id: "11" } as any,
   });
   const missingRes = createMockResponse();
 
@@ -38,34 +38,35 @@ export const runReviewControllerTests = async () => {
     message: "Review not found",
   });
 
-  let deletedId = "";
-  let updatedProductId = "";
+  let deletedId = 0;
+  let updatedProductWhereId = 0;
 
-  (Review as any).findById = async () => ({
-    _id: "507f1f77bcf86cd799439012",
-    product: { toString: () => "507f1f77bcf86cd799439099" },
+  (Review as any).findByPk = async () => ({
+    id: 12,
+    product: 99,
+    destroy: async function () {
+      deletedId = this.id;
+    },
   });
-  (Review as any).findByIdAndDelete = async (id: string) => {
-    deletedId = id;
-  };
-  (Review as any).aggregate = async () => [];
-  (Product as any).findByIdAndUpdate = async (id: string) => {
-    updatedProductId = id;
+  (Review as any).count = async () => 0;
+  (Review as any).sum = async () => 0;
+  (Product as any).update = async (_values: any, options: any) => {
+    updatedProductWhereId = options?.where?.id;
   };
 
   const successReq = createMockRequest({
-    params: { id: "507f1f77bcf86cd799439012" } as any,
+    params: { id: "12" } as any,
   });
   const successRes = createMockResponse();
 
   await deleteReview(successReq as any, successRes as any);
 
   assert.equal(successRes.statusCode, 200);
-  assert.equal(deletedId, "507f1f77bcf86cd799439012");
-  assert.equal(updatedProductId, "507f1f77bcf86cd799439099");
+  assert.equal(deletedId, 12);
+  assert.equal(updatedProductWhereId, 99);
 
-  (Review as any).findById = originalReviewFindById;
-  (Review as any).findByIdAndDelete = originalReviewFindByIdAndDelete;
-  (Review as any).aggregate = originalReviewAggregate;
-  (Product as any).findByIdAndUpdate = originalProductFindByIdAndUpdate;
+  (Review as any).findByPk = originalReviewFindByPk;
+  (Review as any).count = originalReviewCount;
+  (Review as any).sum = originalReviewSum;
+  (Product as any).update = originalProductUpdate;
 };

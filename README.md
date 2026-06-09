@@ -65,8 +65,11 @@ NEXT_PUBLIC_API_URL=http://localhost:5000
 NEXT_PUBLIC_APP_URL=http://localhost:3000
 NEXT_PUBLIC_GOOGLE_CLIENT_ID=your_google_client_id_here
 NEXT_PUBLIC_RAZORPAY_KEY_ID=rzp_test_your_key_id_here
-RAZORPAY_KEY_SECRET=your_razorpay_key_secret_here
 ```
+
+Do not put private secrets in public frontend env examples. If a Next.js API route
+needs `RAZORPAY_KEY_SECRET`, add it only in your hosting provider's server-side
+environment variable store.
 
 ### Backend: `backend/.env`
 Used by the Express server.
@@ -114,10 +117,10 @@ Required if Google login is enabled:
 - The Next.js app is configured for Vercel via [vercel.json](vercel.json)
 - Vercel env vars should include:
   - `NEXT_PUBLIC_API_URL`
-  - `NEXT_PUBLIC_APP_URL`
-  - `NEXT_PUBLIC_GOOGLE_CLIENT_ID`
-  - `NEXT_PUBLIC_RAZORPAY_KEY_ID`
-  - `RAZORPAY_KEY_SECRET`
+- `NEXT_PUBLIC_APP_URL`
+- `NEXT_PUBLIC_GOOGLE_CLIENT_ID`
+- `NEXT_PUBLIC_RAZORPAY_KEY_ID`
+- `RAZORPAY_KEY_SECRET` as a server-side hosting secret only, never exposed with `NEXT_PUBLIC_`
 
 ### Backend
 - Deploy the Express app separately

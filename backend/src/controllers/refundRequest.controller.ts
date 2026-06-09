@@ -11,6 +11,20 @@ const serializeModel = <T extends { get: (options?: unknown) => any }>(model: T)
   return { ...plain, _id: plain.id };
 };
 
+const validRefundMethods = [
+  "Original Payment",
+  "Bank Transfer",
+  "Store Credit",
+] as const;
+
+type RefundMethod = (typeof validRefundMethods)[number];
+
+const normalizeRefundMethod = (value: unknown): RefundMethod => {
+  return validRefundMethods.includes(value as RefundMethod)
+    ? (value as RefundMethod)
+    : "Original Payment";
+};
+
 // USER ENDPOINTS
 export const requestRefund = async (req: any, res: Response) => {
   try {
@@ -397,7 +411,7 @@ export const processApprovedRefund = async (req: any, res: Response) => {
       amount: refundRequest.amount,
       reason: refundRequest.reason,
       status: "Completed",
-      refundMethod: refundRequest.refundMethod,
+      refundMethod: normalizeRefundMethod(refundRequest.refundMethod),
       processedAt: new Date(),
     });
 

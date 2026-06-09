@@ -30,17 +30,17 @@ const slides = [
     subtitle: "Confidence starts with thoughtful routines and healthy-looking skin.",
   },
   {
-    image: "/hero/hero5.png",
+    image: "/hero/hero5.jpg",
     title: "Glow On The Go",
     subtitle: "Travel-friendly picks that keep your routine polished wherever you are.",
   },
   {
-    image: "/hero/hero6.png",
+    image: "/hero/hero6.jpg",
     title: "Smooth, Calm, Hydrated",
     subtitle: "Hydration-first formulas for balanced beauty and everyday comfort.",
   },
   {
-    image: "/hero/hero8.png",
+    image: "/hero/hero8.jpg",
     title: "Always Fresh",
     subtitle: "Refresh your shelf with uplifting essentials made for modern routines.",
   },

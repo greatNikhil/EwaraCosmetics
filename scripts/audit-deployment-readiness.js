@@ -90,11 +90,10 @@ const frontendEnvExample = ".env.example";
 if (fs.existsSync(path.join(rootDir, frontendEnvExample))) {
   const frontendEnv = readText(frontendEnvExample);
   const forbiddenPublicExampleKeys = [
-    "RAZORPAY_KEY_SECRET",
     "STRIPE_SECRET_KEY",
     "STRIPE_WEBHOOK_SECRET",
+    "RAZORPAY_KEY_SECRET",
     "JWT_SECRET",
-    "MONGO_URI",
     "EMAIL_PASS",
   ];
 
@@ -128,7 +127,11 @@ if (fs.existsSync(path.join(rootDir, backendEnvExample))) {
   const backendEnv = readText(backendEnvExample);
   const requiredBackendKeys = [
     "PORT",
-    "MONGO_URI",
+    "DB_HOST",
+    "DB_PORT",
+    "DB_USER",
+    "DB_PASSWORD",
+    "DB_NAME",
     "JWT_SECRET",
     "EMAIL_USER",
     "EMAIL_PASS",

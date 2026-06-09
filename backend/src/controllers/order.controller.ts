@@ -58,6 +58,15 @@ const verifyRazorpaySignature = (
   return expectedSignature === razorpaySignature;
 };
 
+const isRazorpayPaymentAttempt = (
+  paymentMethod?: unknown,
+  razorpayPaymentId?: unknown,
+  razorpayOrderId?: unknown,
+  razorpaySignature?: unknown
+) =>
+  String(paymentMethod || "").toLowerCase().includes("razorpay") ||
+  Boolean(razorpayPaymentId || razorpayOrderId || razorpaySignature);
+
 export const createOrder = async (req: any, res: Response) => {
   try {
     const {
@@ -85,19 +94,35 @@ export const createOrder = async (req: any, res: Response) => {
       });
     }
 
-    if (razorpayPaymentId && razorpayOrderId && razorpaySignature) {
-      const isSignatureValid = verifyRazorpaySignature(
-        razorpayOrderId,
-        razorpayPaymentId,
-        razorpaySignature
-      );
+    const isRazorpayOrder = isRazorpayPaymentAttempt(
+      paymentMethod,
+      razorpayPaymentId,
+      razorpayOrderId,
+      razorpaySignature
+    );
 
-      if (!isSignatureValid) {
-        return res.status(400).json({
-          success: false,
-          message: "Razorpay payment signature verification failed",
-        });
-      }
+    if (
+      isRazorpayOrder &&
+      (!razorpayPaymentId || !razorpayOrderId || !razorpaySignature)
+    ) {
+      return res.status(400).json({
+        success: false,
+        message: "Razorpay payment verification details are required",
+      });
+    }
+
+    if (
+      isRazorpayOrder &&
+      !verifyRazorpaySignature(
+        String(razorpayOrderId),
+        String(razorpayPaymentId),
+        String(razorpaySignature)
+      )
+    ) {
+      return res.status(400).json({
+        success: false,
+        message: "Razorpay payment signature verification failed",
+      });
     }
 
     const sanitizedItems: Array<{

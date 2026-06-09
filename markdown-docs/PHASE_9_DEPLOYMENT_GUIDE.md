@@ -43,7 +43,7 @@ What the root audit checks:
 Before release, confirm:
 
 1. Hosting env values are populated from secret storage, not committed files.
-2. MongoDB backups are configured and a restore drill has been documented.
+2. MySQL backups are configured and a restore drill has been documented.
 3. Payment flow is tested with live Razorpay keys using a small controlled transaction.
 4. Email delivery works with production SMTP credentials.
 5. Monitoring and uptime alerts are live before traffic is sent.

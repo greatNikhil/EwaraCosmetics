@@ -1,6 +1,8 @@
 const nextConfig = {
   reactStrictMode: true,
   eslint: {
+    // Next 14's built-in lint runner is not compatible with the locally installed
+    // ESLint 10 option shape. Run `npm run lint` separately in CI/deploy checks.
     ignoreDuringBuilds: true,
   },
   headers: async () => {

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { Suspense, useEffect, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import {
@@ -37,7 +37,7 @@ import {
 } from "@/utils/wishlist";
 import { addToCart } from "@/utils/cart";
 
-export default function ProfilePage() {
+function ProfilePageContent() {
   const [user, setUser] = useState<any>(null);
   const [pageLoading, setPageLoading] = useState(true);
   const { orders } = useOrders();
@@ -1215,5 +1215,19 @@ export default function ProfilePage() {
         </div>
       </div>
     </div>
+  );
+}
+
+export default function ProfilePage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="flex min-h-screen items-center justify-center bg-[#fdf6f7]">
+          <p className="text-lg text-[#5a4f4d]">Loading profile...</p>
+        </div>
+      }
+    >
+      <ProfilePageContent />
+    </Suspense>
   );
 }

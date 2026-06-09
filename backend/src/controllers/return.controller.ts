@@ -43,7 +43,7 @@ export const createReturnRequest = async (req: any, res: Response) => {
     // If productId not provided, use first product from order
     let finalProductId = productId;
     if (!finalProductId && order.items && order.items.length > 0) {
-      finalProductId = order.items[0]?.productId || order.items[0]?.id;
+      finalProductId = order.items[0]?.productId;
     }
 
     if (!finalProductId) {

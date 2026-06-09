@@ -11,8 +11,7 @@ import * as couponUtils from "../utils/coupon";
 
 const originalFindOne = (Coupon as any).findOne;
 const originalCreate = (Coupon as any).create;
-const originalFindById = (Coupon as any).findById;
-const originalFindByIdAndDelete = (Coupon as any).findByIdAndDelete;
+const originalFindByPk = (Coupon as any).findByPk;
 const originalResolveCouponDiscount = (couponUtils as any).resolveCouponDiscount;
 
 export const runCouponControllerTests = async () => {
@@ -32,7 +31,7 @@ export const runCouponControllerTests = async () => {
   });
 
   const savedCoupon = {
-    _id: "coupon-1",
+    id: 1,
     code: "SAVE10",
     type: "percent",
     value: 10,
@@ -43,13 +42,16 @@ export const runCouponControllerTests = async () => {
     save: async function () {
       return this;
     },
+    get: function () {
+      return this;
+    },
   };
 
-  (Coupon as any).findById = async () => savedCoupon;
+  (Coupon as any).findByPk = async () => savedCoupon;
   (Coupon as any).findOne = async () => null;
 
   const updateReq = createMockRequest({
-    params: { id: "507f1f77bcf86cd799439011" } as any,
+    params: { id: "1" } as any,
     body: {
       code: "SAVE20",
       value: 20,
@@ -86,10 +88,10 @@ export const runCouponControllerTests = async () => {
     message: "Coupon limit reached",
   });
 
-  (Coupon as any).findById = async () => null;
+  (Coupon as any).findByPk = async () => null;
 
   const deleteMissingReq = createMockRequest({
-    params: { id: "507f1f77bcf86cd799439012" } as any,
+    params: { id: "2" } as any,
   });
   const deleteMissingRes = createMockResponse();
 
@@ -101,11 +103,13 @@ export const runCouponControllerTests = async () => {
     message: "Coupon not found",
   });
 
-  (Coupon as any).findByIdAndDelete = async () => undefined;
-  (Coupon as any).findById = async () => ({ _id: "coupon-2" });
+  (Coupon as any).findByPk = async () => ({
+    id: 2,
+    destroy: async () => undefined,
+  });
 
   const deleteReq = createMockRequest({
-    params: { id: "507f1f77bcf86cd799439013" } as any,
+    params: { id: "2" } as any,
   });
   const deleteRes = createMockResponse();
 
@@ -119,7 +123,6 @@ export const runCouponControllerTests = async () => {
 
   (Coupon as any).findOne = originalFindOne;
   (Coupon as any).create = originalCreate;
-  (Coupon as any).findById = originalFindById;
-  (Coupon as any).findByIdAndDelete = originalFindByIdAndDelete;
+  (Coupon as any).findByPk = originalFindByPk;
   (couponUtils as any).resolveCouponDiscount = originalResolveCouponDiscount;
 };

@@ -16,7 +16,7 @@ const quickLinks = [
   { label: "Track Order", href: "/orders" },
   { label: "Privacy Policy", href: "/policies/privacy" },
   { label: "Terms & Conditions", href: "/policies/terms&condtions" },
-  { label: "Refund Policy", href: "#" },
+  { label: "Refund Policy", href: "/policies/terms&condtions" },
 ];
 
 const categories = [

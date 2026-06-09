@@ -5,7 +5,7 @@ export default function AboutPage() {
     <div className="bg-[#fdf8f6] text-[#4a1f2b]">
       <section
         className="relative isolate overflow-hidden bg-cover bg-center text-white"
-        style={{ backgroundImage: "url('/favicon/about.png')" }}
+        style={{ backgroundImage: "url('/favicon/about.jpg')" }}
       >
         <div className="absolute inset-0 bg-gradient-to-b from-[#7a1f2b]/80 via-[#7a1f2b]/50 to-[#000000]/40" />
         <div className="relative mx-auto flex min-h-[40vh] md:min-h-[80vh] max-w-7xl items-center justify-center px-6 py-28 sm:px-8 lg:px-12">

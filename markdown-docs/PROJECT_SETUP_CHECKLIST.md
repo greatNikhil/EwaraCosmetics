@@ -117,9 +117,9 @@
   ```
   PORT=5000
   MONGO_URI=mongodb://127.0.0.1:27017/ewara
-  JWT_SECRET=ewara_secret_2026
+  JWT_SECRET=replace_with_a_long_random_secret
   EMAIL_USER=chaubeynikhil7143@gmail.com
-  EMAIL_PASS=yiaohxbvjwmsqyxo
+  EMAIL_PASS=your_app_password_here
   ```
 - [ ] **Frontend .env.local** - ❌ NOT DONE
 - [ ] **.env.example** - ❌ NOT DONE (For documentation)
