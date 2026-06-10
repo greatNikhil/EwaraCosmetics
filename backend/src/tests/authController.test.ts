@@ -45,7 +45,7 @@ export const runAuthControllerTests = async () => {
     assert.equal(missingRes.statusCode, 400);
     assert.deepEqual(missingRes.body, {
       success: false,
-      message: "Email and password are required",
+      message: "Email or phone and password are required",
     });
 
     (User as any).findOne = async () => null;
@@ -104,6 +104,31 @@ export const runAuthControllerTests = async () => {
         role: "user",
       },
     });
+
+    (User as any).findOne = async (query: any) => {
+      if (query?.where?.phone === "9876543210") {
+        return {
+          id: 101,
+          name: "Buyer",
+          lastname: "",
+          email: "buyer@example.com",
+          phone: "9876543210",
+          password: "hashed-password",
+          role: "user",
+        };
+      }
+
+      return null;
+    };
+
+    const phoneLoginReq = createMockRequest({
+      body: { identifier: "9876543210", password: "secret123" },
+    });
+    const phoneLoginRes = createMockResponse();
+
+    await login(phoneLoginReq as any, phoneLoginRes as any);
+
+    assert.equal(phoneLoginRes.statusCode, 200);
 
     let otpEmailPayload: any = null;
     (User as any).findOne = async () => null;

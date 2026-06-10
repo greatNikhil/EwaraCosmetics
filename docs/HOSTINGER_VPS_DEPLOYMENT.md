@@ -31,9 +31,9 @@ cd <repo-folder>
 ### Frontend root `.env.local`
 
 ```env
-NEXT_PUBLIC_API_URL=https://api.your-domain.com
-NEXT_PUBLIC_APP_URL=https://your-domain.com
-NEXT_PUBLIC_GOOGLE_CLIENT_ID=your_google_client_id
+NEXT_PUBLIC_API_URL=https://api.ewaraofficial.com
+NEXT_PUBLIC_APP_URL=https://ewaraofficial.com
+NEXT_PUBLIC_GOOGLE_CLIENT_ID=345425970600-1q7aaec0t01ol3gq45gfhfjucmjugjvd.apps.googleusercontent.com
 NEXT_PUBLIC_RAZORPAY_KEY_ID=your_razorpay_key_id
 ```
 

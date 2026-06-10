@@ -23,6 +23,7 @@ export default function RegisterPage() {
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
   const [otpSent, setOtpSent] = useState(false);
+  const [otpChannel, setOtpChannel] = useState<"email" | "phone">("email");
   const [loading, setLoading] = useState(false);
 
   const validateEmail = (email: string) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
@@ -62,8 +63,13 @@ export default function RegisterPage() {
   };
 
   const handleSendOTP = async () => {
-    if (!validateEmail(formData.email)) {
+    if (otpChannel === "email" && !validateEmail(formData.email)) {
       setErrors({ email: "Enter valid email first" });
+      return;
+    }
+
+    if (otpChannel === "phone" && !validatePhone(formData.phone)) {
+      setErrors({ phone: "Enter valid phone first" });
       return;
     }
 
@@ -75,9 +81,9 @@ export default function RegisterPage() {
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({
-          email: formData.email,
-        }),
+        body: JSON.stringify(
+          otpChannel === "email" ? { email: formData.email } : { phone: formData.phone }
+        ),
       });
 
       const data = await res.json();
@@ -115,6 +121,7 @@ export default function RegisterPage() {
           phone: formData.phone,
           password: formData.password,
           otp: formData.otp,
+          otpChannel,
         }),
       });
 
@@ -161,10 +168,40 @@ export default function RegisterPage() {
           Create Account
         </h1>
         <p className="mt-2 text-center text-[12px] text-[#a07080]">
-          Join Ewara and verify your email to get started
+          Join Ewara and verify via email or phone to get started
         </p>
 
         <form onSubmit={handleSubmit} className="mt-8 space-y-4">
+          <div>
+            <label className="mb-[5px] block text-[11px] font-medium tracking-[0.03em] text-[#7B2D42]">
+              Send OTP to
+            </label>
+            <div className="flex gap-2">
+              <button
+                type="button"
+                onClick={() => setOtpChannel("email")}
+                className={`flex-1 rounded-[10px] border px-3 py-2 text-[12px] transition ${
+                  otpChannel === "email"
+                    ? "border-[#7B2D42] bg-[#7B2D42] text-white"
+                    : "border-[#f0dde2] bg-[#f9eef2] text-[#3a1a22]"
+                }`}
+              >
+                Email OTP
+              </button>
+              <button
+                type="button"
+                onClick={() => setOtpChannel("phone")}
+                className={`flex-1 rounded-[10px] border px-3 py-2 text-[12px] transition ${
+                  otpChannel === "phone"
+                    ? "border-[#7B2D42] bg-[#7B2D42] text-white"
+                    : "border-[#f0dde2] bg-[#f9eef2] text-[#3a1a22]"
+                }`}
+              >
+                Phone OTP
+              </button>
+            </div>
+          </div>
+
           <div className="grid grid-cols-2 gap-[10px]">
             <div>
               <label className="mb-[5px] block text-[11px] font-medium tracking-[0.03em] text-[#7B2D42]">
@@ -336,7 +373,11 @@ export default function RegisterPage() {
               onClick={handleSendOTP}
               className="w-full rounded-[30px] bg-[#c49a6c] px-4 py-3 text-[14px] text-white transition hover:bg-[#b08860]"
             >
-              {loading ? "Sending..." : "Send OTP"}
+              {loading
+                ? "Sending..."
+                : otpChannel === "email"
+                  ? "Send Email OTP"
+                  : "Send Phone OTP"}
             </button>
           ) : (
             <button

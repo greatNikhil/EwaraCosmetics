@@ -4,7 +4,7 @@ import { useState } from "react";
 import { buildApiUrl } from "@/utils/api";
 
 export default function ForgotPasswordPage() {
-  const [email, setEmail] = useState("");
+  const [identifier, setIdentifier] = useState("");
   const [otp, setOtp] = useState("");
   const [newPassword, setNewPassword] = useState("");
   const [step, setStep] = useState(1);
@@ -12,11 +12,11 @@ export default function ForgotPasswordPage() {
   const sendOTP = async () => {
     const res = await fetch(buildApiUrl("/api/auth/forgot-password/send-otp"), {
       method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({ email }),
-    });
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ identifier }),
+      });
 
     const data = await res.json();
 
@@ -32,11 +32,11 @@ export default function ForgotPasswordPage() {
   const resetPassword = async () => {
     const res = await fetch(buildApiUrl("/api/auth/reset-password"), {
       method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({ email, otp, newPassword }),
-    });
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ identifier, otp, newPassword }),
+      });
 
     const data = await res.json();
 
@@ -59,10 +59,10 @@ export default function ForgotPasswordPage() {
         {step === 1 && (
           <>
             <input
-              type="email"
-              placeholder="Enter email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
+              type="text"
+              placeholder="Enter email or phone"
+              value={identifier}
+              onChange={(e) => setIdentifier(e.target.value)}
               className="w-full p-2 border rounded mb-4"
             />
 

@@ -6,21 +6,19 @@ const router = Router();
 
 /**
  * EMAIL DELIVERY VERIFICATION TEST
- * 
- * This endpoint performs a LIVE manual send test to verify:
- * ✅ SMTP credentials are valid
- * ✅ Gmail authentication works
- * ✅ Email reaches actual inbox (not spam)
- * ✅ Email content renders correctly
- * 
+ *
+ * This endpoint performs a live manual send test to verify:
+ * - SMTP credentials are valid
+ * - Email reaches the actual inbox
+ * - Email content renders correctly
+ *
  * Endpoint: POST /api/email-test/send-verification
- * 
+ *
  * Request Body:
  * {
- *   "testEmail": "your-test-email@gmail.com"
+ *   "testEmail": "your-test-email@example.com"
  * }
  */
-
 router.post("/send-verification", async (req, res) => {
   const { testEmail } = req.body;
 
@@ -29,25 +27,26 @@ router.post("/send-verification", async (req, res) => {
       success: false,
       message: "Test email address is required",
       example: {
-        testEmail: "your-email@gmail.com"
-      }
+        testEmail: "your-email@example.com",
+      },
     });
   }
 
   try {
-    // Verify credentials are set
-    if (!process.env.EMAIL_USER || !process.env.EMAIL_PASS) {
+    if (!process.env.EMAIL_USER || !process.env.EMAIL_PASS || !process.env.SMTP_HOST) {
       return res.status(500).json({
         success: false,
         message: "SMTP credentials not configured in .env",
         required: [
-          "EMAIL_USER=your-gmail@gmail.com",
-          "EMAIL_PASS=your-app-password"
-        ]
+          "SMTP_HOST=smtp.titan.email",
+          "SMTP_PORT=465",
+          "SMTP_SECURE=true",
+          "EMAIL_USER=info@ewaraofficial.com",
+          "EMAIL_PASS=your-mailbox-password",
+        ],
       });
     }
 
-    // Create test email content
     const testEmailHTML = `
 <!DOCTYPE html>
 <html>
@@ -66,44 +65,37 @@ router.post("/send-verification", async (req, res) => {
 <body>
   <div class="container">
     <div class="header">
-      <h1>📧 Email Delivery Verification</h1>
+      <h1>Email Delivery Verification</h1>
     </div>
-    
+
     <div class="content">
-      <h2>✅ Test Successful!</h2>
+      <h2>Test Successful</h2>
       <p>This email confirms that your SMTP credentials are working correctly and emails can be delivered to your inbox.</p>
-      
+
       <div class="success-badge">VERIFIED - REAL INBOX DELIVERY</div>
-      
+
       <div class="details">
         <h3>Verification Details:</h3>
         <p><strong>From:</strong> ${process.env.EMAIL_FROM || process.env.EMAIL_USER}</p>
         <p><strong>To:</strong> ${testEmail}</p>
-        <p><strong>Service:</strong> Gmail SMTP</p>
-        <p><strong>Status:</strong> ✅ Delivered Successfully</p>
+        <p><strong>Service:</strong> ${process.env.SMTP_HOST}</p>
+        <p><strong>Status:</strong> Delivered Successfully</p>
         <p class="timestamp"><strong>Timestamp:</strong> ${new Date().toISOString()}</p>
       </div>
-      
+
       <h3>What This Means:</h3>
       <ul>
-        <li>✅ Gmail authentication is working</li>
-        <li>✅ SMTP credentials are valid</li>
-        <li>✅ Email successfully reached your inbox (not spam)</li>
-        <li>✅ HTML content renders correctly</li>
-        <li>✅ All email triggers in production will work</li>
+        <li>SMTP authentication is working</li>
+        <li>SMTP credentials are valid</li>
+        <li>Email successfully reached your inbox</li>
+        <li>HTML content renders correctly</li>
+        <li>All email triggers in production will work</li>
       </ul>
-      
+
       <h3>Next Steps:</h3>
-      <p>Your email notification system is now fully verified and ready for production use. All automated emails will be sent through this verified connection:</p>
-      <ul>
-        <li>Order confirmations</li>
-        <li>Payment notifications</li>
-        <li>Password reset links</li>
-        <li>Shipping updates</li>
-        <li>Marketing campaigns</li>
-      </ul>
+      <p>Your email notification system is now verified and ready for production use.</p>
     </div>
-    
+
     <div class="footer">
       <p>This is an automated test email from Ewara Email Verification System</p>
       <p>© 2026 Ewara. All rights reserved.</p>
@@ -117,64 +109,61 @@ router.post("/send-verification", async (req, res) => {
     logInfo(`From: ${process.env.EMAIL_FROM || process.env.EMAIL_USER}`);
     logInfo(`Timestamp: ${new Date().toISOString()}`);
 
-    // Send the test email
     const result = await sendEmail(
       testEmail,
-      "📧 Email Delivery Verification Test - Ewara",
+      "Email Delivery Verification Test - Ewara",
       testEmailHTML
     );
 
     logInfo("Email sent successfully");
     logInfo(`Message ID: ${result.messageId}`);
 
-    // Return success response
     return res.status(200).json({
       success: true,
-      message: "✅ TEST EMAIL SENT SUCCESSFULLY",
+      message: "TEST EMAIL SENT SUCCESSFULLY",
       verification: {
         status: "VERIFIED",
         sentTo: testEmail,
         sentFrom: process.env.EMAIL_FROM || process.env.EMAIL_USER,
-        service: "Gmail SMTP",
+        service: process.env.SMTP_HOST,
         timestamp: new Date().toISOString(),
-        messageId: result.messageId
+        messageId: result.messageId,
       },
       instructions: {
         step1: "Check your inbox for the verification email",
         step2: "If not in inbox, check spam/promotions folder",
         step3: "If received, your email system is fully verified!",
-        step4: "All automated emails are now ready for production"
+        step4: "All automated emails are now ready for production",
       },
       nextSteps: [
         "Order confirmations will be sent automatically",
         "Payment notifications are active",
         "Password reset emails are functional",
         "Shipping updates will be delivered",
-        "Marketing campaigns can be sent"
-      ]
+        "Marketing campaigns can be sent",
+      ],
     });
-
   } catch (error: any) {
     logError("Email delivery test failed:");
     logError(error);
 
     return res.status(500).json({
       success: false,
-      message: "❌ EMAIL DELIVERY TEST FAILED",
+      message: "EMAIL DELIVERY TEST FAILED",
       error: error.message,
       troubleshooting: {
-        checkCredentials: "Verify EMAIL_USER and EMAIL_PASS in .env",
-        checkGmailPassword: "Use Gmail App Password, not your main password",
-        check2FA: "Enable 2-Factor Authentication on Gmail account",
-        checkAppAccess: "Allow 'Less secure apps' in Gmail settings",
-        checkLimits: "Verify you haven't exceeded Gmail's 500 emails/day limit"
+        checkCredentials: "Verify EMAIL_USER, EMAIL_PASS and SMTP_HOST in .env",
+        checkSmtpHost: "Verify SMTP_HOST and SMTP_PORT in .env",
+        checkMailboxPassword: "Use the mailbox password from Titan or your provider",
+        checkTls: "Make sure SMTP_SECURE matches the provider requirements",
+        checkProviderLimits: "Verify your email provider has not blocked sending",
       },
       tips: [
-        "Use an 'App Password' from Google Account settings, not your Gmail password",
-        "Ensure 2-Factor Authentication is enabled",
-        "Check Gmail Security Settings for 'Allow less secure apps'",
-        "Wait 5-10 minutes between test attempts"
-      ]
+        "Use the mailbox password from Titan or your email provider",
+        "Ensure SMTP credentials match the provider's documented settings",
+        "Check spam/promotions folders if the email arrives but is not visible",
+        "Wait 5-10 minutes between test attempts",
+      ],
     });
   }
 });

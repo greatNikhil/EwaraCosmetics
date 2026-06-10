@@ -6,10 +6,17 @@ const requiredEnvVars = [
   "JWT_SECRET",
 ];
 const recommendedEnvVars = [
+  "SMTP_HOST",
+  "SMTP_PORT",
+  "SMTP_SECURE",
   "EMAIL_USER",
   "EMAIL_PASS",
+  "EMAIL_FROM",
   "NEXT_PUBLIC_APP_URL",
   "RAZORPAY_KEY_SECRET",
+  "TWILIO_ACCOUNT_SID",
+  "TWILIO_AUTH_TOKEN",
+  "TWILIO_FROM_NUMBER",
 ];
 
 const normalizeOrigin = (value: string) => value.trim().replace(/\/+$/, "");

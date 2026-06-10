@@ -16,7 +16,7 @@ export default function LoginPage() {
   const { setUser, setToken, setAddresses } = useAuthStore();
   const syncCartFromBackend = useCartStore((state) => state.syncFromBackend);
 
-  const [input, setInput] = useState("");
+  const [identifier, setIdentifier] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -138,7 +138,7 @@ export default function LoginPage() {
     e.preventDefault();
     setError("");
 
-    const cleanInput = input.trim();
+    const cleanInput = identifier.trim();
 
     if (!cleanInput || !password) {
       setError("All fields required");
@@ -154,7 +154,7 @@ export default function LoginPage() {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          email: cleanInput,
+          identifier: cleanInput,
           password,
         }),
       });
@@ -191,13 +191,13 @@ export default function LoginPage() {
         <form onSubmit={handleLogin} className="mt-8 space-y-4">
           <div>
             <label className="mb-[5px] block text-[11px] font-medium tracking-[0.03em] text-[#7B2D42]">
-              Email
+              Email or Phone
             </label>
             <input
               type="text"
-              value={input}
-              onChange={(e) => setInput(e.target.value)}
-              placeholder="Enter your email"
+              value={identifier}
+              onChange={(e) => setIdentifier(e.target.value)}
+              placeholder="Enter your email or phone"
               className="w-full rounded-[10px] border border-[#f0dde2] bg-[#f9eef2] px-[14px] py-[10px] text-[13px] text-[#3a1a22] outline-none placeholder:text-[#c0a8b0] focus:border-[#7B2D42] focus:bg-white"
             />
           </div>

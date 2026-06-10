@@ -1,9 +1,11 @@
 import { Request, Response } from "express";
 import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
+import { Op } from "sequelize";
 import User from "../models/user";
 import Otp from "../models/otp";
 import sendEmail from "../utils/sendEmail";
+import sendSms from "../utils/sendSms";
 import {
   sendPasswordResetEmail,
   sendPasswordResetSuccessEmail,
@@ -20,6 +22,99 @@ const getAccountAccessError = (user: any) => {
   }
 
   return null;
+};
+
+const normalizeEmail = (value: unknown) =>
+  String(value || "")
+    .trim()
+    .toLowerCase();
+
+const normalizePhone = (value: unknown) =>
+  String(value || "")
+    .trim()
+    .replace(/[^\d]/g, "")
+    .slice(-10);
+
+const isEmailLike = (value: string) => value.includes("@");
+
+const resolveIdentifier = (value: unknown) => {
+  const trimmed = String(value || "").trim();
+
+  if (!trimmed) {
+    return null;
+  }
+
+  if (isEmailLike(trimmed)) {
+    return {
+      type: "email" as const,
+      value: normalizeEmail(trimmed),
+    };
+  }
+
+  const phone = normalizePhone(trimmed);
+
+  if (phone.length >= 10) {
+    return {
+      type: "phone" as const,
+      value: phone,
+    };
+  }
+
+  return null;
+};
+
+const getOtpLookupValue = (identifier: { type: "email" | "phone"; value: string }) =>
+  identifier.type === "email" ? identifier.value : identifier.value;
+
+const findUserByIdentifier = async (identifier: { type: "email" | "phone"; value: string }) => {
+  if (identifier.type === "email") {
+    return User.findOne({ where: { email: identifier.value } });
+  }
+
+  return User.findOne({ where: { phone: identifier.value } });
+};
+
+const sendOtpMessage = async (
+  identifier: { type: "email" | "phone"; value: string },
+  otp: string,
+  purpose: "registration" | "password-reset"
+) => {
+  if (identifier.type === "email") {
+    const subject =
+      purpose === "registration"
+        ? "Your Ewara OTP Code"
+        : "Your Ewara Password Reset OTP";
+
+    const html =
+      purpose === "registration"
+        ? `
+        <div style="font-family: Arial, sans-serif; padding: 20px;">
+          <h2>Your OTP is: ${otp}</h2>
+          <p>This OTP is valid for 5 minutes.</p>
+          <p>If you did not request this, please ignore this email.</p>
+        </div>
+      `
+        : `
+        <div style="font-family: Arial, sans-serif; padding: 20px;">
+          <h2>Your password reset OTP is: ${otp}</h2>
+          <p>This OTP is valid for 5 minutes.</p>
+          <p>If you did not request this, please ignore this email.</p>
+        </div>
+      `;
+
+    await sendEmail(identifier.value, subject, html);
+    return;
+  }
+
+  const smsPrefix =
+    purpose === "registration"
+      ? "Ewara signup OTP"
+      : "Ewara password reset OTP";
+
+  await sendSms({
+    to: identifier.value.startsWith("+") ? identifier.value : `+91${identifier.value}`,
+    body: `${smsPrefix}: ${otp}. Valid for 5 minutes.`,
+  });
 };
 
 const buildAuthSuccessResponse = (user: any) => {
@@ -52,51 +147,46 @@ const buildAuthSuccessResponse = (user: any) => {
 // SEND OTP
 export const sendOTP = async (req: Request, res: Response) => {
   try {
-    const { email } = req.body;
+    const { email, phone, identifier } = req.body;
+    const resolvedIdentifier = resolveIdentifier(identifier || email || phone);
 
-    if (!email) {
+    if (!resolvedIdentifier) {
       return res.status(400).json({
         success: false,
-        message: "Email is required",
+        message: "Email or phone number is required",
       });
     }
 
-    const normalizedEmail = email.trim().toLowerCase();
-
-    const existingUser = await User.findOne({ where: { email: normalizedEmail } });
+    const existingUser = await findUserByIdentifier(resolvedIdentifier);
 
     if (existingUser) {
       return res.status(400).json({
         success: false,
-        message: "Email already registered",
+        message:
+          resolvedIdentifier.type === "email"
+            ? "Email already registered"
+            : "Phone number already registered",
       });
     }
 
     const otp = Math.floor(100000 + Math.random() * 900000).toString();
 
-    await Otp.destroy({ where: { email: normalizedEmail } });
+    const otpKey = getOtpLookupValue(resolvedIdentifier);
+
+    await Otp.destroy({ where: { email: otpKey } });
 
     await Otp.create({
-      email: normalizedEmail,
+      email: otpKey,
       otp,
       expiresAt: new Date(Date.now() + 5 * 60 * 1000),
     });
 
-    await sendEmail(
-      normalizedEmail,
-      "Your Ewara OTP Code",
-      `
-        <div style="font-family: Arial, sans-serif; padding: 20px;">
-          <h2>Your OTP is: ${otp}</h2>
-          <p>This OTP is valid for 5 minutes.</p>
-          <p>If you did not request this, please ignore this email.</p>
-        </div>
-      `
-    );
+    await sendOtpMessage(resolvedIdentifier, otp, "registration");
 
     return res.status(200).json({
       success: true,
       message: "OTP sent successfully",
+      channel: resolvedIdentifier.type,
     });
   } catch (error: any) {
     console.error("SEND OTP ERROR:", error);
@@ -112,7 +202,7 @@ export const sendOTP = async (req: Request, res: Response) => {
 // REGISTER
 export const register = async (req: Request, res: Response) => {
   try {
-    const { name, email, phone, password, otp } = req.body;
+    const { name, email, phone, password, otp, otpChannel } = req.body;
 
     if (!name || !email || !phone || !password || !otp) {
       return res.status(400).json({
@@ -123,7 +213,14 @@ export const register = async (req: Request, res: Response) => {
 
     const normalizedEmail = email.trim().toLowerCase();
     const trimmedName = name.trim();
-    const trimmedPhone = phone.trim();
+    const trimmedPhone = normalizePhone(phone);
+
+    if (!trimmedPhone || trimmedPhone.length !== 10) {
+      return res.status(400).json({
+        success: false,
+        message: "Valid phone number is required",
+      });
+    }
 
     const existingUserByEmail = await User.findOne({ where: { email: normalizedEmail } });
     if (existingUserByEmail) {
@@ -141,7 +238,12 @@ export const register = async (req: Request, res: Response) => {
       });
     }
 
-    const otpData = await Otp.findOne({ where: { email: normalizedEmail } });
+    const verificationKey =
+      String(otpChannel || "email").toLowerCase() === "phone"
+        ? trimmedPhone
+        : normalizedEmail;
+
+    const otpData = await Otp.findOne({ where: { email: verificationKey } });
 
     if (!otpData) {
       return res.status(400).json({
@@ -151,7 +253,7 @@ export const register = async (req: Request, res: Response) => {
     }
 
     if (otpData.expiresAt < new Date()) {
-      await Otp.destroy({ where: { email: normalizedEmail } });
+      await Otp.destroy({ where: { email: verificationKey } });
 
       return res.status(400).json({
         success: false,
@@ -176,7 +278,7 @@ export const register = async (req: Request, res: Response) => {
       role: "user",
     });
 
-    await Otp.destroy({ where: { email: normalizedEmail } });
+    await Otp.destroy({ where: { email: verificationKey } });
 
     // Send welcome email
     await sendWelcomeEmail(normalizedEmail, trimmedName);
@@ -209,18 +311,17 @@ export const register = async (req: Request, res: Response) => {
 // LOGIN
 export const login = async (req: Request, res: Response) => {
   try {
-    const { email, password } = req.body;
+    const { email, phone, identifier, password } = req.body;
+    const resolvedIdentifier = resolveIdentifier(identifier || email || phone);
 
-    if (!email || !password) {
+    if (!resolvedIdentifier || !password) {
       return res.status(400).json({
         success: false,
-        message: "Email and password are required",
+        message: "Email or phone and password are required",
       });
     }
 
-    const normalizedEmail = email.trim().toLowerCase();
-
-    const user = await User.findOne({ where: { email: normalizedEmail } });
+    const user = await findUserByIdentifier(resolvedIdentifier);
 
     if (!user) {
       return res.status(400).json({
@@ -412,7 +513,7 @@ export const updateProfile = async (req: any, res: Response) => {
     const existingUserByEmail = await User.findOne({
       where: {
         email: normalizedEmail,
-        id: { [require("sequelize").Op.ne]: userId },
+        id: { [Op.ne]: userId },
       },
     });
 
@@ -426,7 +527,7 @@ export const updateProfile = async (req: any, res: Response) => {
     const existingUserByPhone = await User.findOne({
       where: {
         phone: trimmedPhone,
-        id: { [require("sequelize").Op.ne]: userId },
+        id: { [Op.ne]: userId },
       },
     });
 
@@ -475,18 +576,17 @@ export const forgotPasswordSendOTP = async (
   res: Response
 ) => {
   try {
-    const { email } = req.body;
+    const { email, phone, identifier } = req.body;
+    const resolvedIdentifier = resolveIdentifier(identifier || email || phone);
 
-    if (!email) {
+    if (!resolvedIdentifier) {
       return res.status(400).json({
         success: false,
-        message: "Email is required",
+        message: "Email or phone number is required",
       });
     }
 
-    const normalizedEmail = email.trim().toLowerCase();
-
-    const user = await User.findOne({ where: { email: normalizedEmail } });
+    const user = await findUserByIdentifier(resolvedIdentifier);
 
     if (!user) {
       return res.status(404).json({
@@ -496,28 +596,40 @@ export const forgotPasswordSendOTP = async (
     }
 
     const otp = Math.floor(100000 + Math.random() * 900000).toString();
+    const otpKey = getOtpLookupValue(resolvedIdentifier);
 
-    await Otp.destroy({ where: { email: normalizedEmail } });
+    await Otp.destroy({ where: { email: otpKey } });
 
     await Otp.create({
-      email: normalizedEmail,
+      email: otpKey,
       otp,
       expiresAt: new Date(Date.now() + 5 * 60 * 1000),
     });
 
     // Create reset link (user will need OTP to verify)
-    const resetLink = `${process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000"}/forgot-password?email=${normalizedEmail}`;
+    const resetLink = `${process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000"}/forgot-password`;
 
-    // Send password reset email with template
-    await sendPasswordResetEmail(normalizedEmail, {
-      customerName: user.name || "User",
-      resetLink,
-      expiryTime: "5 minutes",
-    });
+    if (resolvedIdentifier.type === "email") {
+      // Send password reset email with template
+      await sendPasswordResetEmail(resolvedIdentifier.value, {
+        customerName: user.name || "User",
+        resetLink: `${resetLink}?email=${resolvedIdentifier.value}`,
+        expiryTime: "5 minutes",
+      });
+    } else {
+      await sendSms({
+        to: `+91${resolvedIdentifier.value}`,
+        body: `Ewara password reset OTP: ${otp}. Use this code on ${resetLink}. Valid for 5 minutes.`,
+      });
+    }
 
     return res.status(200).json({
       success: true,
-      message: "Password reset OTP sent to your email",
+      message:
+        resolvedIdentifier.type === "email"
+          ? "Password reset OTP sent to your email"
+          : "Password reset OTP sent to your phone",
+      channel: resolvedIdentifier.type,
     });
   } catch (error: any) {
     console.error("FORGOT PASSWORD SEND OTP ERROR:", error);
@@ -533,12 +645,13 @@ export const forgotPasswordSendOTP = async (
 // RESET PASSWORD
 export const resetPassword = async (req: Request, res: Response) => {
   try {
-    const { email, otp, newPassword } = req.body;
+    const { email, phone, identifier, otp, newPassword } = req.body;
+    const resolvedIdentifier = resolveIdentifier(identifier || email || phone);
 
-    if (!email || !otp || !newPassword) {
+    if (!resolvedIdentifier || !otp || !newPassword) {
       return res.status(400).json({
         success: false,
-        message: "Email, OTP and new password are required",
+        message: "Email or phone, OTP and new password are required",
       });
     }
 
@@ -549,9 +662,7 @@ export const resetPassword = async (req: Request, res: Response) => {
       });
     }
 
-    const normalizedEmail = email.trim().toLowerCase();
-
-    const user = await User.findOne({ where: { email: normalizedEmail } });
+    const user = await findUserByIdentifier(resolvedIdentifier);
 
     if (!user) {
       return res.status(404).json({
@@ -560,7 +671,8 @@ export const resetPassword = async (req: Request, res: Response) => {
       });
     }
 
-    const otpData = await Otp.findOne({ where: { email: normalizedEmail } });
+    const otpKey = getOtpLookupValue(resolvedIdentifier);
+    const otpData = await Otp.findOne({ where: { email: otpKey } });
 
     if (!otpData) {
       return res.status(400).json({
@@ -570,7 +682,7 @@ export const resetPassword = async (req: Request, res: Response) => {
     }
 
     if (otpData.expiresAt < new Date()) {
-      await Otp.destroy({ where: { email: normalizedEmail } });
+      await Otp.destroy({ where: { email: otpKey } });
 
       return res.status(400).json({
         success: false,
@@ -590,9 +702,9 @@ export const resetPassword = async (req: Request, res: Response) => {
     user.password = hashedPassword;
     await user.save();
 
-    await Otp.destroy({ where: { email: normalizedEmail } });
+    await Otp.destroy({ where: { email: otpKey } });
 
-    await sendPasswordResetSuccessEmail(normalizedEmail, {
+    await sendPasswordResetSuccessEmail(user.email, {
       customerName: user.name || "User",
       loginLink: `${process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000"}/login`,
     });
