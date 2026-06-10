@@ -217,6 +217,20 @@ aside input[type="radio"][name="skinType"]:checked {
 .animate-fadeUp {
   animation: fadeUp 0.8s ease forwards;
 }
+
+@keyframes bagToastProgress {
+  from {
+    transform: scaleX(1);
+  }
+
+  to {
+    transform: scaleX(0);
+  }
+}
+
+.animate-bag-toast-progress {
+  animation: bagToastProgress 3s linear forwards;
+}
 .no-scrollbar::-webkit-scrollbar {
   display: none;
 }

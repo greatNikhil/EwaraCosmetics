@@ -23,6 +23,7 @@ import {
   type ProductReview,
 } from "@/utils/productApi";
 import { addToCart } from "@/utils/cart";
+import { showAddedToBagToast } from "@/utils/bagToast";
 import { isInWishlist, toggleWishlist } from "@/utils/wishlist";
 import ReviewForm from "@/components/services/ReviewForm";
 
@@ -207,6 +208,8 @@ export default function ProductDetailPage() {
     for (let index = 0; index < maxAllowed; index += 1) {
       addToCart(product as any);
     }
+
+    showAddedToBagToast();
   };
 
   const handleWishlistToggle = async () => {

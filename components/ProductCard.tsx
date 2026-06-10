@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { Heart, Star } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { addToCart } from "@/utils/cart";
+import { showAddedToBagToast } from "@/utils/bagToast";
 import { toggleWishlist, isInWishlist } from "@/utils/wishlist";
 import { type Product } from "@/utils/productApi";
 
@@ -50,6 +51,7 @@ export default function ProductCard({
   const handleAddToBag = (e: React.MouseEvent) => {
     e.stopPropagation();
     addToCart(product as any);
+    showAddedToBagToast();
   };
 
   const handleTitleClick = () => {
