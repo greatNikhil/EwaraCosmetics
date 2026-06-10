@@ -8,7 +8,11 @@ export const refundNotificationTemplate = (data: {
   estimatedDelivery?: string;
 }) => {
   const primaryColor = "#7a1f2b";
-  const supportEmail = process.env.SUPPORT_EMAIL || "support@ewaraofficial.com";
+  const supportEmail =
+    process.env.SUPPORT_EMAIL ||
+    process.env.EMAIL_FROM ||
+    process.env.EMAIL_USER ||
+    "support@ewaraofficial.com";
   const companyName = process.env.COMPANY_NAME || "Ewara Fashion";
 
   const isInstant = data.status === "instant";

@@ -4,6 +4,9 @@ export const orderDeliveredTemplate = (deliveryData: {
   deliveryDate: string;
   feedbackLink: string;
 }) => {
+  const supportEmail =
+    process.env.SUPPORT_EMAIL || process.env.EMAIL_FROM || "support@ewaraofficial.com";
+
   return `
     <!DOCTYPE html>
     <html>
@@ -87,7 +90,7 @@ export const orderDeliveredTemplate = (deliveryData: {
           <!-- Support -->
           <div style="background-color: #e8f5e9; border-left: 4px solid #28a745; padding: 15px; border-radius: 4px;">
             <p style="margin: 0; font-size: 13px; color: #1b5e20;">
-              ❓ Not satisfied? Our <strong>Easy Return Policy</strong> allows returns within 30 days. Contact us at <strong>support@ewaraofficial.com</strong>
+              ❓ Not satisfied? Our <strong>Easy Return Policy</strong> allows returns within 30 days. Contact us at <strong>${supportEmail}</strong>
             </p>
           </div>
 

@@ -1,5 +1,9 @@
 const BUSINESS_NAME = process.env.BUSINESS_NAME || "Ewara Fashion pvt. ltd.";
-const BUSINESS_EMAIL = process.env.EMAIL_FROM || "info@ewaraofficial.com";
+const BUSINESS_EMAIL =
+  process.env.SUPPORT_EMAIL ||
+  process.env.EMAIL_FROM ||
+  process.env.EMAIL_USER ||
+  "support@ewaraofficial.com";
 
 export type InvoiceItem = {
   name: string;

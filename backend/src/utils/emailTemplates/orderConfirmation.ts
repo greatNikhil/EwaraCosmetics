@@ -14,6 +14,9 @@ export const orderConfirmationTemplate = (
     paymentMethod: string;
   }
 ) => {
+  const supportEmail =
+    process.env.SUPPORT_EMAIL || process.env.EMAIL_FROM || "support@ewaraofficial.com";
+
   const itemsHtml = orderData.items
     .map(
       (item) => `
@@ -137,7 +140,7 @@ export const orderConfirmationTemplate = (
           <!-- FAQ -->
           <h3 style="margin: 30px 0 15px 0; font-size: 14px; font-weight: bold; color: #333;">Need Help?</h3>
           <p style="margin: 0 0 8px 0; font-size: 13px; color: #666;">
-            📧 <strong>Email:</strong> support@ewaraofficial.com
+            📧 <strong>Email:</strong> ${supportEmail}
           </p>
           <p style="margin: 0 0 8px 0; font-size: 13px; color: #666;">
             📞 <strong>Phone:</strong> +91-XXXXXXXXXX

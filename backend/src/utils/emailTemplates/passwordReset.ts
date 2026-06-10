@@ -3,6 +3,9 @@ export const passwordResetTemplate = (resetData: {
   resetLink: string;
   expiryTime: string;
 }) => {
+  const supportEmail =
+    process.env.SUPPORT_EMAIL || process.env.EMAIL_FROM || "support@ewaraofficial.com";
+
   return `
     <!DOCTYPE html>
     <html>
@@ -68,7 +71,7 @@ export const passwordResetTemplate = (resetData: {
           <div style="background-color: #fff5f5; border-left: 4px solid #dc3545; padding: 15px; border-radius: 4px;">
             <h3 style="margin: 0 0 8px 0; font-size: 13px; font-weight: bold; color: #721c24;">Didn't Request This?</h3>
             <p style="margin: 0; font-size: 12px; color: #721c24;">
-              If you didn't request a password reset, please ignore this email or contact us immediately at <strong>support@ewaraofficial.com</strong>. Your account is safe.
+              If you didn't request a password reset, please ignore this email or contact us immediately at <strong>${supportEmail}</strong>. Your account is safe.
             </p>
           </div>
 

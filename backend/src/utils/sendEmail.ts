@@ -6,6 +6,12 @@ type EmailAttachment = {
   contentType?: string;
 };
 
+const getFromAddress = () =>
+  process.env.RESEND_FROM?.trim() ||
+  process.env.EMAIL_FROM?.trim() ||
+  process.env.EMAIL_USER?.trim() ||
+  "info@ewaraofficial.com";
+
 const sendEmail = async (
   to: string,
   subject: string,
@@ -13,7 +19,7 @@ const sendEmail = async (
   attachments?: EmailAttachment[]
 ) => {
   const resendApiKey = process.env.RESEND_API_KEY?.trim();
-  const resendFrom = process.env.RESEND_FROM?.trim() || process.env.EMAIL_FROM?.trim();
+  const resendFrom = getFromAddress();
 
   if (resendApiKey) {
     if (!resendFrom) {
@@ -65,7 +71,7 @@ const sendEmail = async (
   });
 
   return await transporter.sendMail({
-    from: process.env.EMAIL_FROM || process.env.EMAIL_USER,
+    from: getFromAddress(),
     to,
     subject,
     html,

@@ -5,6 +5,9 @@ export const paymentFailedTemplate = (paymentData: {
   reason: string;
   retryLink: string;
 }) => {
+  const supportEmail =
+    process.env.SUPPORT_EMAIL || process.env.EMAIL_FROM || "support@ewaraofficial.com";
+
   return `
     <!DOCTYPE html>
     <html>
@@ -84,7 +87,7 @@ export const paymentFailedTemplate = (paymentData: {
           <!-- Support -->
           <div style="background-color: #fff3cd; border-left: 4px solid #ffc107; padding: 15px; border-radius: 4px;">
             <p style="margin: 0; font-size: 13px; color: #856404;">
-              ❓ Still having issues? Email us at <strong>support@ewaraofficial.com</strong> or call <strong>+91-XXXXXXXXXX</strong>
+              ❓ Still having issues? Email us at <strong>${supportEmail}</strong> or call <strong>+91-XXXXXXXXXX</strong>
             </p>
           </div>
 
