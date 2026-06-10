@@ -203,6 +203,53 @@ export const runAuthControllerTests = async () => {
       customerName: "Fresh User",
     });
 
+    let phoneRegisterPayload: any = null;
+    let phoneWelcomeEmailPayload: any = "not-called";
+    let destroyedOtpKey: any = null;
+    (User as any).findOne = async () => null;
+    (Otp as any).findOne = async () => ({
+      otp: "222222",
+      expiresAt: new Date(Date.now() + 60_000),
+    });
+    (Otp as any).destroy = async (query: any) => {
+      destroyedOtpKey = query?.where?.email;
+      return undefined;
+    };
+    (User as any).create = async (payload: any) => {
+      phoneRegisterPayload = payload;
+      return {
+        id: 103,
+        role: "user",
+        ...payload,
+      };
+    };
+    (emailService as any).sendWelcomeEmail = async (
+      customerEmail: string,
+      customerName: string
+    ) => {
+      phoneWelcomeEmailPayload = { customerEmail, customerName };
+    };
+
+    const phoneRegisterReq = createMockRequest({
+      body: {
+        name: "Phone User",
+        email: "",
+        phone: "9123456789",
+        password: "secret123",
+        otp: "222222",
+        otpChannel: "phone",
+      },
+    });
+    const phoneRegisterRes = createMockResponse();
+
+    await register(phoneRegisterReq as any, phoneRegisterRes as any);
+
+    assert.equal(phoneRegisterRes.statusCode, 201);
+    assert.equal(phoneRegisterPayload.email, "phone-9123456789@ewaraofficial.com");
+    assert.equal(phoneRegisterPayload.phone, "9123456789");
+    assert.equal(destroyedOtpKey, "9123456789");
+    assert.equal(phoneWelcomeEmailPayload, "not-called");
+
     let passwordResetPayload: any = null;
     (User as any).findOne = async (query: any) => {
       if (query?.where?.email === "buyer@example.com") {
@@ -217,9 +264,18 @@ export const runAuthControllerTests = async () => {
     };
     (Otp as any).create = async (payload: any) => payload;
     (emailService as any).sendPasswordResetEmail = async (
-      customerEmail: string,
-      payload: any
+      customerEmailOrPayload: any,
+      maybePayload: any
     ) => {
+      const customerEmail =
+        typeof customerEmailOrPayload === "string"
+          ? customerEmailOrPayload
+          : maybePayload?.customerEmail || "buyer@example.com";
+      const payload =
+        typeof customerEmailOrPayload === "string"
+          ? maybePayload
+          : customerEmailOrPayload;
+
       passwordResetPayload = { customerEmail, payload };
     };
 
@@ -243,6 +299,7 @@ export const runAuthControllerTests = async () => {
     let passwordResetSuccessPayload: any = null;
     const resetUser = {
       name: "Buyer",
+      email: "buyer@example.com",
       password: "old-password",
       save: async function () {
         return this;

@@ -32,12 +32,24 @@ export default function RegisterPage() {
 
   const validateForm = () => {
     const e: Record<string, string> = {};
+    const trimmedEmail = formData.email.trim();
+    const trimmedPhone = formData.phone.trim();
+    const emailRequired = otpChannel === "email";
+    const phoneRequired = otpChannel === "phone";
 
     if (!formData.name.trim()) e.name = "Name required";
 
-    if (!validateEmail(formData.email)) e.email = "Valid email required";
+    if (emailRequired && !validateEmail(trimmedEmail)) {
+      e.email = "Valid email required";
+    } else if (trimmedEmail && !validateEmail(trimmedEmail)) {
+      e.email = "Valid email required";
+    }
 
-    if (!validatePhone(formData.phone)) e.phone = "Valid phone required";
+    if (phoneRequired && !validatePhone(trimmedPhone)) {
+      e.phone = "Valid phone required";
+    } else if (trimmedPhone && !validatePhone(trimmedPhone)) {
+      e.phone = "Valid phone required";
+    }
 
     if (formData.password.length < 6) e.password = "Min 6 characters";
 
@@ -63,12 +75,15 @@ export default function RegisterPage() {
   };
 
   const handleSendOTP = async () => {
-    if (otpChannel === "email" && !validateEmail(formData.email)) {
+    const trimmedEmail = formData.email.trim();
+    const trimmedPhone = formData.phone.trim();
+
+    if (otpChannel === "email" && !validateEmail(trimmedEmail)) {
       setErrors({ email: "Enter valid email first" });
       return;
     }
 
-    if (otpChannel === "phone" && !validatePhone(formData.phone)) {
+    if (otpChannel === "phone" && !validatePhone(trimmedPhone)) {
       setErrors({ phone: "Enter valid phone first" });
       return;
     }
@@ -82,7 +97,9 @@ export default function RegisterPage() {
           "Content-Type": "application/json",
         },
         body: JSON.stringify(
-          otpChannel === "email" ? { email: formData.email } : { phone: formData.phone }
+          otpChannel === "email"
+            ? { email: trimmedEmail }
+            : { phone: trimmedPhone }
         ),
       });
 
@@ -117,8 +134,8 @@ export default function RegisterPage() {
         },
         body: JSON.stringify({
           name: formData.name,
-          email: formData.email,
-          phone: formData.phone,
+          email: formData.email.trim(),
+          phone: formData.phone.trim(),
           password: formData.password,
           otp: formData.otp,
           otpChannel,
@@ -179,7 +196,11 @@ export default function RegisterPage() {
             <div className="flex gap-2">
               <button
                 type="button"
-                onClick={() => setOtpChannel("email")}
+                onClick={() => {
+                  setOtpChannel("email");
+                  setOtpSent(false);
+                  setFormData((prev) => ({ ...prev, otp: "" }));
+                }}
                 className={`flex-1 rounded-[10px] border px-3 py-2 text-[12px] transition ${
                   otpChannel === "email"
                     ? "border-[#7B2D42] bg-[#7B2D42] text-white"
@@ -190,7 +211,11 @@ export default function RegisterPage() {
               </button>
               <button
                 type="button"
-                onClick={() => setOtpChannel("phone")}
+                onClick={() => {
+                  setOtpChannel("phone");
+                  setOtpSent(false);
+                  setFormData((prev) => ({ ...prev, otp: "" }));
+                }}
                 className={`flex-1 rounded-[10px] border px-3 py-2 text-[12px] transition ${
                   otpChannel === "phone"
                     ? "border-[#7B2D42] bg-[#7B2D42] text-white"
@@ -231,7 +256,7 @@ export default function RegisterPage() {
 
           <div>
             <label className="mb-[5px] block text-[11px] font-medium tracking-[0.03em] text-[#7B2D42]">
-              Email
+              Email {otpChannel === "phone" ? "(optional)" : "(required)"}
             </label>
             <input
               placeholder="Enter your email"
@@ -244,7 +269,7 @@ export default function RegisterPage() {
 
           <div>
             <label className="mb-[5px] block text-[11px] font-medium tracking-[0.03em] text-[#7B2D42]">
-              Phone
+              Phone {otpChannel === "phone" ? "(required)" : "(optional)"}
             </label>
             <input
               placeholder="Enter your phone number"

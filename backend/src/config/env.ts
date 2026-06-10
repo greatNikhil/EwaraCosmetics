@@ -16,9 +16,15 @@ const recommendedEnvVars = [
   "EMAIL_FROM",
   "NEXT_PUBLIC_APP_URL",
   "RAZORPAY_KEY_SECRET",
-  "TWILIO_ACCOUNT_SID",
-  "TWILIO_AUTH_TOKEN",
-  "TWILIO_FROM_NUMBER",
+];
+
+const recommendedSmsEnvVars = [
+  "GUPSHUP_USER_ID",
+  "GUPSHUP_PASSWORD",
+  "GUPSHUP_SENDER_ID",
+  "GUPSHUP_PRINCIPAL_ENTITY_ID",
+  "GUPSHUP_DLT_TEMPLATE_ID",
+  "GUPSHUP_SMS_ENDPOINT",
 ];
 
 const normalizeOrigin = (value: string) => value.trim().replace(/\/+$/, "");
@@ -109,6 +115,16 @@ export const validateEnv = () => {
   if (missingRecommended.length > 0) {
     console.warn(
       `Recommended environment variables missing: ${missingRecommended.join(", ")}`
+    );
+  }
+
+  const missingSms = recommendedSmsEnvVars.filter(
+    (name) => !process.env[name] || !String(process.env[name]).trim()
+  );
+
+  if (missingSms.length > 0) {
+    console.warn(
+      `Recommended SMS environment variables missing: ${missingSms.join(", ")}`
     );
   }
 

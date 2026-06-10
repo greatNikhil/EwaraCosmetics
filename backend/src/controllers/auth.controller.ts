@@ -37,6 +37,12 @@ const normalizePhone = (value: unknown) =>
 
 const isEmailLike = (value: string) => value.includes("@");
 
+const isValidEmail = (value: string) =>
+  /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value);
+
+const buildPhonePlaceholderEmail = (phone: string) =>
+  `phone-${phone}@ewaraofficial.com`;
+
 const resolveIdentifier = (value: unknown) => {
   const trimmed = String(value || "").trim();
 
@@ -203,26 +209,54 @@ export const sendOTP = async (req: Request, res: Response) => {
 export const register = async (req: Request, res: Response) => {
   try {
     const { name, email, phone, password, otp, otpChannel } = req.body;
+    const resolvedChannel = String(otpChannel || "email").toLowerCase();
 
-    if (!name || !email || !phone || !password || !otp) {
+    if (!name || !password || !otp) {
       return res.status(400).json({
         success: false,
         message: "All fields are required",
       });
     }
 
-    const normalizedEmail = email.trim().toLowerCase();
+    const normalizedEmail = normalizeEmail(email);
     const trimmedName = name.trim();
     const trimmedPhone = normalizePhone(phone);
+    const emailProvided = Boolean(normalizedEmail);
+    const phoneProvided = Boolean(trimmedPhone);
+    const emailIsRequired = resolvedChannel !== "phone";
+    const phoneIsRequired = resolvedChannel === "phone";
 
-    if (!trimmedPhone || trimmedPhone.length !== 10) {
+    if (emailIsRequired && !emailProvided) {
+      return res.status(400).json({
+        success: false,
+        message: "Valid email is required",
+      });
+    }
+
+    if (emailProvided && !isValidEmail(normalizedEmail)) {
+      return res.status(400).json({
+        success: false,
+        message: "Valid email is required",
+      });
+    }
+
+    if (phoneIsRequired && !phoneProvided) {
       return res.status(400).json({
         success: false,
         message: "Valid phone number is required",
       });
     }
 
-    const existingUserByEmail = await User.findOne({ where: { email: normalizedEmail } });
+    if (phoneProvided && trimmedPhone.length !== 10) {
+      return res.status(400).json({
+        success: false,
+        message: "Valid phone number is required",
+      });
+    }
+
+    const existingUserByEmail = emailProvided
+      ? await User.findOne({ where: { email: normalizedEmail } })
+      : null;
     if (existingUserByEmail) {
       return res.status(400).json({
         success: false,
@@ -230,7 +264,9 @@ export const register = async (req: Request, res: Response) => {
       });
     }
 
-    const existingUserByPhone = await User.findOne({ where: { phone: trimmedPhone } });
+    const existingUserByPhone = phoneProvided
+      ? await User.findOne({ where: { phone: trimmedPhone } })
+      : null;
     if (existingUserByPhone) {
       return res.status(400).json({
         success: false,
@@ -238,10 +274,7 @@ export const register = async (req: Request, res: Response) => {
       });
     }
 
-    const verificationKey =
-      String(otpChannel || "email").toLowerCase() === "phone"
-        ? trimmedPhone
-        : normalizedEmail;
+    const verificationKey = resolvedChannel === "phone" ? trimmedPhone : normalizedEmail;
 
     const otpData = await Otp.findOne({ where: { email: verificationKey } });
 
@@ -269,19 +302,25 @@ export const register = async (req: Request, res: Response) => {
     }
 
     const hashedPassword = await bcrypt.hash(password, 10);
+    const accountEmail =
+      resolvedChannel === "phone" && !emailProvided
+        ? buildPhonePlaceholderEmail(trimmedPhone)
+        : normalizedEmail;
 
     const user = await User.create({
       name: trimmedName,
-      email: normalizedEmail,
-      phone: trimmedPhone,
+      email: accountEmail,
+      phone: phoneProvided ? trimmedPhone : null,
       password: hashedPassword,
       role: "user",
     });
 
     await Otp.destroy({ where: { email: verificationKey } });
 
-    // Send welcome email
-    await sendWelcomeEmail(normalizedEmail, trimmedName);
+    // Send welcome email only when the user supplied a real email address.
+    if (emailProvided) {
+      await sendWelcomeEmail(normalizedEmail, trimmedName);
+    }
 
     return res.status(201).json({
       success: true,
