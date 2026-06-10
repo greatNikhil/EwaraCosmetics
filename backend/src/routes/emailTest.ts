@@ -4,21 +4,6 @@ import { logError, logInfo } from "../utils/logger";
 
 const router = Router();
 
-/**
- * EMAIL DELIVERY VERIFICATION TEST
- *
- * This endpoint performs a live manual send test to verify:
- * - SMTP credentials are valid
- * - Email reaches the actual inbox
- * - Email content renders correctly
- *
- * Endpoint: POST /api/email-test/send-verification
- *
- * Request Body:
- * {
- *   "testEmail": "your-test-email@example.com"
- * }
- */
 router.post("/send-verification", async (req, res) => {
   const { testEmail } = req.body;
 
@@ -33,14 +18,27 @@ router.post("/send-verification", async (req, res) => {
   }
 
   try {
-    if (!process.env.EMAIL_USER || !process.env.EMAIL_PASS || !process.env.SMTP_HOST) {
+    const usingResend = Boolean(process.env.RESEND_API_KEY?.trim());
+
+    if (usingResend) {
+      if (!process.env.RESEND_FROM && !process.env.EMAIL_FROM) {
+        return res.status(500).json({
+          success: false,
+          message: "Resend sender address not configured in .env",
+          required: [
+            "RESEND_API_KEY=your_resend_api_key",
+            "RESEND_FROM=Ewara Cosmetics <info@ewaraofficial.com>",
+          ],
+        });
+      }
+    } else if (!process.env.EMAIL_USER || !process.env.EMAIL_PASS || !process.env.SMTP_HOST) {
       return res.status(500).json({
         success: false,
         message: "SMTP credentials not configured in .env",
         required: [
           "SMTP_HOST=smtp.titan.email",
-          "SMTP_PORT=465",
-          "SMTP_SECURE=true",
+          "SMTP_PORT=587",
+          "SMTP_SECURE=false",
           "EMAIL_USER=info@ewaraofficial.com",
           "EMAIL_PASS=your-mailbox-password",
         ],
@@ -70,23 +68,23 @@ router.post("/send-verification", async (req, res) => {
 
     <div class="content">
       <h2>Test Successful</h2>
-      <p>This email confirms that your SMTP credentials are working correctly and emails can be delivered to your inbox.</p>
+      <p>This email confirms that your email delivery setup is working correctly.</p>
 
       <div class="success-badge">VERIFIED - REAL INBOX DELIVERY</div>
 
       <div class="details">
         <h3>Verification Details:</h3>
-        <p><strong>From:</strong> ${process.env.EMAIL_FROM || process.env.EMAIL_USER}</p>
+        <p><strong>From:</strong> ${process.env.EMAIL_FROM || process.env.RESEND_FROM || process.env.EMAIL_USER}</p>
         <p><strong>To:</strong> ${testEmail}</p>
-        <p><strong>Service:</strong> ${process.env.SMTP_HOST}</p>
+        <p><strong>Service:</strong> ${usingResend ? "Resend API" : process.env.SMTP_HOST}</p>
         <p><strong>Status:</strong> Delivered Successfully</p>
         <p class="timestamp"><strong>Timestamp:</strong> ${new Date().toISOString()}</p>
       </div>
 
       <h3>What This Means:</h3>
       <ul>
-        <li>SMTP authentication is working</li>
-        <li>SMTP credentials are valid</li>
+        <li>Email authentication is working</li>
+        <li>Provider credentials are valid</li>
         <li>Email successfully reached your inbox</li>
         <li>HTML content renders correctly</li>
         <li>All email triggers in production will work</li>
@@ -106,7 +104,7 @@ router.post("/send-verification", async (req, res) => {
     `;
 
     logInfo(`Sending verification test email to: ${testEmail}`);
-    logInfo(`From: ${process.env.EMAIL_FROM || process.env.EMAIL_USER}`);
+    logInfo(`From: ${process.env.EMAIL_FROM || process.env.RESEND_FROM || process.env.EMAIL_USER}`);
     logInfo(`Timestamp: ${new Date().toISOString()}`);
 
     const result = await sendEmail(
@@ -124,8 +122,8 @@ router.post("/send-verification", async (req, res) => {
       verification: {
         status: "VERIFIED",
         sentTo: testEmail,
-        sentFrom: process.env.EMAIL_FROM || process.env.EMAIL_USER,
-        service: process.env.SMTP_HOST,
+        sentFrom: process.env.EMAIL_FROM || process.env.RESEND_FROM || process.env.EMAIL_USER,
+        service: usingResend ? "Resend API" : process.env.SMTP_HOST,
         timestamp: new Date().toISOString(),
         messageId: result.messageId,
       },
@@ -151,19 +149,33 @@ router.post("/send-verification", async (req, res) => {
       success: false,
       message: "EMAIL DELIVERY TEST FAILED",
       error: error.message,
-      troubleshooting: {
-        checkCredentials: "Verify EMAIL_USER, EMAIL_PASS and SMTP_HOST in .env",
-        checkSmtpHost: "Verify SMTP_HOST and SMTP_PORT in .env",
-        checkMailboxPassword: "Use the mailbox password from Titan or your provider",
-        checkTls: "Make sure SMTP_SECURE matches the provider requirements",
-        checkProviderLimits: "Verify your email provider has not blocked sending",
-      },
-      tips: [
-        "Use the mailbox password from Titan or your email provider",
-        "Ensure SMTP credentials match the provider's documented settings",
-        "Check spam/promotions folders if the email arrives but is not visible",
-        "Wait 5-10 minutes between test attempts",
-      ],
+      troubleshooting: process.env.RESEND_API_KEY
+        ? {
+            checkCredentials: "Verify RESEND_API_KEY and RESEND_FROM in .env",
+            checkDomain: "Verify your sender domain is verified in Resend",
+            checkFromAddress: "Use a verified sender address",
+            checkProviderLimits: "Verify your email provider has not blocked sending",
+          }
+        : {
+            checkCredentials: "Verify EMAIL_USER, EMAIL_PASS and SMTP_HOST in .env",
+            checkSmtpHost: "Verify SMTP_HOST and SMTP_PORT in .env",
+            checkMailboxPassword: "Use the mailbox password from Titan or your provider",
+            checkTls: "Make sure SMTP_SECURE matches the provider requirements",
+            checkProviderLimits: "Verify your email provider has not blocked sending",
+          },
+      tips: process.env.RESEND_API_KEY
+        ? [
+            "Verify your domain in Resend before sending from info@ewaraofficial.com",
+            "If you need a quick test, use the default Resend sender first",
+            "Check spam/promotions folders if the email arrives but is not visible",
+            "Wait 5-10 minutes between test attempts",
+          ]
+        : [
+            "Use the mailbox password from Titan or your email provider",
+            "Ensure SMTP credentials match the provider's documented settings",
+            "Check spam/promotions folders if the email arrives but is not visible",
+            "Wait 5-10 minutes between test attempts",
+          ],
     });
   }
 });

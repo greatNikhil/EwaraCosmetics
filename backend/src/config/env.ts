@@ -6,6 +6,8 @@ const requiredEnvVars = [
   "JWT_SECRET",
 ];
 const recommendedEnvVars = [
+  "RESEND_API_KEY",
+  "RESEND_FROM",
   "SMTP_HOST",
   "SMTP_PORT",
   "SMTP_SECURE",
