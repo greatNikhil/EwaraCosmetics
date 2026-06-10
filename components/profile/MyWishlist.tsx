@@ -41,7 +41,7 @@ export default function MyWishlist({
               {item.image ? (
                 <img
                   src={item.image}
-                  alt={item.name}
+                  alt={item.name || item.productName || "Wishlist product"}
                   className="h-full w-full rounded-[10px] object-cover"
                 />
               ) : (
@@ -56,7 +56,9 @@ export default function MyWishlist({
               <Heart size={14} fill="currentColor" />
             </button>
           </div>
-          <p className="text-sm font-medium text-[#2f1f25]">{item.name}</p>
+          <p className="text-sm font-medium text-[#2f1f25]">
+            {item.name || item.productName || "Product"}
+          </p>
           <p className="mt-1 text-sm text-[#7B2D42]">
             Rs. {Number(item.price || 0).toFixed(2)}
           </p>

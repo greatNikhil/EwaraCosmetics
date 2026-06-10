@@ -25,6 +25,7 @@ export interface WishlistProduct {
 export interface WishlistItem {
   _id: string;
   name: string;
+  productName?: string;
   price: number;
   originalPrice?: number;
   image: string;
@@ -35,6 +36,22 @@ export interface WishlistItem {
 const WISHLIST_EVENT = "wishlistChanged";
 
 let wishlistCache: WishlistItem[] = [];
+
+const normalizeWishlistItem = (item: any): WishlistItem => {
+  const id = String(item?._id || item?.id || item?.productId || "");
+  const name = String(item?.name || item?.productName || "Product");
+
+  return {
+    _id: id,
+    name,
+    productName: item?.productName ? String(item.productName) : name,
+    price: Number(item?.price || 0),
+    originalPrice: item?.originalPrice ? Number(item.originalPrice) : undefined,
+    image: String(item?.image || item?.imageUrl || "/favicon/product.jpeg"),
+    brand: item?.brand ? String(item.brand) : undefined,
+    category: String(item?.category || item?.brand || "General"),
+  };
+};
 
 const notifyWishlistChanged = () => {
   if (typeof window === "undefined") return;
@@ -60,7 +77,9 @@ export const syncWishlistFromBackend = async (token?: string | null) => {
 
   try {
     const response = await wishlistApi.getAll(authToken);
-    wishlistCache = response?.success ? response.wishlist || [] : [];
+    wishlistCache = Array.isArray(response?.wishlist)
+      ? response.wishlist.map(normalizeWishlistItem)
+      : [];
     notifyWishlistChanged();
     return wishlistCache;
   } catch (error) {
@@ -84,7 +103,7 @@ export const getWishlistItems = async (): Promise<WishlistItem[]> => {
 };
 
 export const saveWishlistItems = (items: WishlistItem[]) => {
-  wishlistCache = items;
+  wishlistCache = Array.isArray(items) ? items.map(normalizeWishlistItem) : [];
   notifyWishlistChanged();
 };
 
@@ -120,15 +139,16 @@ export const toggleWishlist = async (product: WishlistProduct): Promise<boolean>
       }
     } else {
       const category = product.category || product.brand || "General";
-      const newItem: WishlistItem = {
+      const newItem: WishlistItem = normalizeWishlistItem({
         _id: product._id,
         name: product.name,
+        productName: product.name,
         price: product.price,
         originalPrice: product.originalPrice,
         image: product.images?.[0] || "/favicon/product.jpeg",
         brand: product.brand,
         category,
-      };
+      });
 
       const response = await wishlistApi.add(token, {
         productId: product._id,

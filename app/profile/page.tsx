@@ -254,7 +254,7 @@ function ProfilePageContent() {
   useEffect(() => {
     const syncWishlist = async () => {
       const items = await getWishlistItems();
-      setWishlistItems(items);
+      setWishlistItems(Array.isArray(items) ? items : []);
     };
 
     const handleWishlistChanged = () => {
