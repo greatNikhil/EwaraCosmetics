@@ -2,7 +2,6 @@ import Link from "next/link";
 import {
   Clock3,
   CreditCard,
-  Heart,
   Mail,
   Phone,
   Share2,
@@ -107,13 +106,28 @@ export default function Footer() {
           </p>
 
           <div className="mt-6 flex gap-3">
-            <button
-              type="button"
+            <a
+              href="https://www.instagram.com/ewaraofficial?igsh=eTlkNmxsczZseWcx"
+              target="_blank"
+              rel="noreferrer"
               aria-label="Instagram"
               className="flex h-8 w-8 items-center justify-center rounded-[8px] border-[0.5px] border-white/[0.1] bg-white/[0.07] text-white/[0.6] transition hover:border-[#c49a6c] hover:bg-[rgba(196,154,108,0.2)]"
             >
-              <Heart size={16} strokeWidth={1.8} />
-            </button>
+              <svg
+                viewBox="0 0 24 24"
+                aria-hidden="true"
+                className="h-4 w-4"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="1.8"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              >
+                <rect x="3" y="3" width="18" height="18" rx="5" ry="5" />
+                <circle cx="12" cy="12" r="4" />
+                <circle cx="17.2" cy="6.8" r="1" fill="currentColor" stroke="none" />
+              </svg>
+            </a>
             <button
               type="button"
               aria-label="Facebook"

@@ -5,6 +5,11 @@ import User from "../src/models/user";
 
 dotenv.config({ path: "../.env" });
 
+const ADMIN_EMAIL = (process.env.ADMIN_EMAIL || "chaubeynikhil649@gmail.com").trim().toLowerCase();
+const ADMIN_NAME = (process.env.ADMIN_NAME || "Admin User").trim();
+const ADMIN_PHONE = (process.env.ADMIN_PHONE || "9999999999").trim();
+const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || "admin123";
+
 async function createAdminUser() {
   try {
     console.log("Creating admin user for testing...");
@@ -13,11 +18,11 @@ async function createAdminUser() {
     console.log("Connected to MySQL");
 
     const existingAdmin = await User.findOne({
-      where: { email: "admin@ewara.com" },
+      where: { email: ADMIN_EMAIL },
     });
 
     if (existingAdmin) {
-      console.log("Admin user already exists: admin@ewara.com");
+      console.log(`Admin user already exists: ${ADMIN_EMAIL}`);
       console.log(`   User ID: ${existingAdmin.id}`);
       console.log(`   Role: ${existingAdmin.role}`);
 
@@ -28,18 +33,18 @@ async function createAdminUser() {
       }
 
       console.log("\nAdmin Login Credentials:");
-      console.log("   Email: admin@ewara.com");
-      console.log("   Password: admin123");
+      console.log(`   Email: ${ADMIN_EMAIL}`);
+      console.log(`   Password: ${ADMIN_PASSWORD}`);
 
       await sequelize.close();
       return;
     }
 
-    const hashedPassword = await bcryptjs.hash("admin123", 10);
+    const hashedPassword = await bcryptjs.hash(ADMIN_PASSWORD, 10);
     const adminUser = await User.create({
-      name: "Admin User",
-      email: "admin@ewara.com",
-      phone: "9999999999",
+      name: ADMIN_NAME,
+      email: ADMIN_EMAIL,
+      phone: ADMIN_PHONE,
       password: hashedPassword,
       role: "admin",
     });
@@ -50,8 +55,8 @@ async function createAdminUser() {
     console.log(`   Role: ${adminUser.role}`);
 
     console.log("\nAdmin Login Credentials:");
-    console.log("   Email: admin@ewara.com");
-    console.log("   Password: admin123");
+    console.log(`   Email: ${ADMIN_EMAIL}`);
+    console.log(`   Password: ${ADMIN_PASSWORD}`);
 
     await sequelize.close();
   } catch (error: any) {

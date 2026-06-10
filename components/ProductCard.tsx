@@ -50,7 +50,6 @@ export default function ProductCard({
   const handleAddToBag = (e: React.MouseEvent) => {
     e.stopPropagation();
     addToCart(product as any);
-    alert("Added to bag!");
   };
 
   const handleTitleClick = () => {

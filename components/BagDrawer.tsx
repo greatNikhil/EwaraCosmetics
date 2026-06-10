@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { ShoppingBag, Lock, Trash2, Plus, Minus } from "lucide-react";
+import { ShoppingBag, Trash2, Plus, Minus } from "lucide-react";
 import { useCartStore } from "@/store/cartStore";
 import { useAuthStore } from "@/store/authStore";
 import CheckoutModal from "./CheckoutModal";
@@ -16,13 +16,11 @@ export default function BagDrawer({ open, setOpen }: any) {
   } = useCartStore();
   const { token } = useAuthStore();
   const [showCheckout, setShowCheckout] = useState(false);
-  const [loggedIn, setLoggedIn] = useState(false);
   const [isMounted, setIsMounted] = useState(false);
   const router = useRouter();
 
   useEffect(() => {
     setIsMounted(true);
-    setLoggedIn(!!token);
 
     // ✅ NEW: Sync cart from backend when user logs in
     if (token) {
@@ -34,7 +32,6 @@ export default function BagDrawer({ open, setOpen }: any) {
 
   const handleCheckout = () => {
     if (!token) {
-      alert("Please login first");
       router.push("/login");
       return;
     }
@@ -93,28 +90,7 @@ export default function BagDrawer({ open, setOpen }: any) {
         </div>
 
         <div className="no-scrollbar flex-1 overflow-hidden overflow-y-auto bg-white">
-          {!loggedIn ? (
-            <div className="flex h-full flex-col items-center justify-center px-6 py-16 text-center">
-              <div className="mb-4 rounded-full bg-[var(--blush-light)] p-4">
-                <Lock className="h-8 w-8 text-[#7a1a2e]" />
-              </div>
-              <h3 className="mb-2 text-[14px] font-medium text-[#1a1a1a]">
-                Sign In to Continue
-              </h3>
-              <p className="mb-6 text-[11px] font-normal text-[#666]">
-                You need to be logged in to view and manage your bag
-              </p>
-              <button
-                onClick={() => {
-                  setOpen(false);
-                  router.push("/login");
-                }}
-                className="h-[46px] w-full rounded-[10px] bg-[#7a1a2e] px-4 py-[11px] text-[12px] font-semibold text-white transition-all duration-200 hover:bg-[#7a1a2e]"
-              >
-                Sign In Now
-              </button>
-            </div>
-          ) : cart.length === 0 ? (
+          {cart.length === 0 ? (
             <div className="flex h-full flex-col items-center justify-center px-6 py-16 text-center">
               <div className="mb-4 rounded-full bg-[var(--blush-light)] p-4">
                 <ShoppingBag className="h-8 w-8 text-[#7a1a2e]" />
@@ -221,7 +197,7 @@ export default function BagDrawer({ open, setOpen }: any) {
           )}
         </div>
 
-        {loggedIn && cart.length > 0 && (
+        {cart.length > 0 && (
           <div className="flex-shrink-0 border-t border-[#f0e0e0] bg-white">
             <div className="space-y-2 px-[15px] py-3">
               <div className="flex items-center justify-between">
@@ -246,36 +222,50 @@ export default function BagDrawer({ open, setOpen }: any) {
             </div>
 
             <div className="px-[15px] pb-[14px] pt-3">
-              <button
-                onClick={() => {
-                  setOpen(false);
-                  handleCheckout();
-                }}
-                className="mb-[7px] flex h-[46px] w-full items-center justify-center rounded-[10px] bg-[#7a1a2e] px-4 py-[11px] text-[12px] font-semibold text-white transition-colors duration-200 hover:bg-[#7a1a2e]"
-              >
-                <span>Proceed to checkout</span>
-              </button>
+              {token ? (
+                <>
+                  <button
+                    onClick={() => {
+                      setOpen(false);
+                      handleCheckout();
+                    }}
+                    className="mb-[7px] flex h-[46px] w-full items-center justify-center rounded-[10px] bg-[#7a1a2e] px-4 py-[11px] text-[12px] font-semibold text-white transition-colors duration-200 hover:bg-[#7a1a2e]"
+                  >
+                    <span>Proceed to checkout</span>
+                  </button>
 
-              <button
-                onClick={() => {
-                  setOpen(false);
-                  router.push("/cart");
-                }}
-                className="mb-[10px] block w-full bg-transparent text-center text-[11px] font-normal text-[#666] underline underline-offset-2 transition-colors duration-200 hover:text-[#666]"
-              >
-                View full cart
-              </button>
+                  <button
+                    onClick={() => {
+                      setOpen(false);
+                      router.push("/cart");
+                    }}
+                    className="mb-[10px] block w-full bg-transparent text-center text-[11px] font-normal text-[#666] underline underline-offset-2 transition-colors duration-200 hover:text-[#666]"
+                  >
+                    View full cart
+                  </button>
+                </>
+              ) : (
+                <button
+                  onClick={() => {
+                    setOpen(false);
+                    router.push("/login");
+                  }}
+                  className="mb-[10px] flex h-[46px] w-full items-center justify-center rounded-[10px] border border-[#e0c8c8] bg-white px-4 py-[11px] text-[12px] font-semibold text-[#7a1a2e] transition-colors duration-200 hover:bg-[#fff7f7]"
+                >
+                  Sign in to checkout
+                </button>
+              )}
 
               <div className="flex flex-wrap items-center justify-center gap-[6px]">
-              <span className="rounded-[6px] border border-[#e8d5d5] bg-[#fdf6f6] px-2 py-[4px] text-[9px] font-medium text-[#666]">
-                PhonePe
-              </span>
-              <span className="rounded-[6px] border border-[#e8d5d5] bg-[#fdf6f6] px-2 py-[4px] text-[9px] font-medium text-[#666]">
-                Bhim UPI
-              </span>
-              <span className="rounded-[6px] border border-[#e8d5d5] bg-[#fdf6f6] px-2 py-[4px] text-[9px] font-medium text-[#666]">
-                Paytm
-              </span>
+                <span className="rounded-[6px] border border-[#e8d5d5] bg-[#fdf6f6] px-2 py-[4px] text-[9px] font-medium text-[#666]">
+                  PhonePe
+                </span>
+                <span className="rounded-[6px] border border-[#e8d5d5] bg-[#fdf6f6] px-2 py-[4px] text-[9px] font-medium text-[#666]">
+                  Bhim UPI
+                </span>
+                <span className="rounded-[6px] border border-[#e8d5d5] bg-[#fdf6f6] px-2 py-[4px] text-[9px] font-medium text-[#666]">
+                  Paytm
+                </span>
               </div>
             </div>
           </div>

@@ -55,7 +55,6 @@ export default function CartPage() {
 
   const handleCheckout = async () => {
     if (!token) {
-      alert("Please login first");
       router.push("/login");
       return;
     }

@@ -273,7 +273,6 @@ export default function CheckoutModal({
       if (!isOpen) return;
 
       if (!token) {
-        alert("Please login first");
         router.push("/login");
         return;
       }
@@ -505,7 +504,6 @@ export default function CheckoutModal({
 
   const handlePlaceOrder = async () => {
     if (!user) {
-      alert("Please login first");
       router.push("/login");
       return;
     }

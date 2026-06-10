@@ -1,10 +1,11 @@
 import dotenv from "dotenv";
+import path from "path";
 import { DataTypes, Sequelize } from "sequelize";
 import { logError, logInfo } from "../utils/logger";
 
 // Models import this module during startup, so load env here before
 // constructing the shared Sequelize instance.
-dotenv.config();
+dotenv.config({ path: path.resolve(__dirname, "../../.env") });
 
 const sequelize = new Sequelize(
   process.env.DB_NAME as string,

@@ -207,8 +207,6 @@ export default function ProductDetailPage() {
     for (let index = 0; index < maxAllowed; index += 1) {
       addToCart(product as any);
     }
-
-    alert("Added to bag!");
   };
 
   const handleWishlistToggle = async () => {
