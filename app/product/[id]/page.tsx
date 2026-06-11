@@ -861,7 +861,7 @@ export default function ProductDetailPage() {
 
           .mobile-hero {
             position: relative;
-            min-height: 430px;
+            min-height: min(74svh, 560px);
             overflow: hidden;
             background:
               radial-gradient(circle at 30% 22%, rgba(255, 255, 255, 0.95), rgba(255, 255, 255, 0) 34%),
@@ -919,7 +919,7 @@ export default function ProductDetailPage() {
 
           .mobile-carousel {
             display: flex;
-            height: 430px;
+            height: min(74svh, 560px);
             overflow-x: auto;
             scroll-snap-type: x mandatory;
             scrollbar-width: none;
@@ -936,15 +936,18 @@ export default function ProductDetailPage() {
             align-items: center;
             justify-content: center;
             scroll-snap-align: start;
-            padding: 76px 26px 54px;
+            padding: 62px 18px 42px;
+            box-sizing: border-box;
           }
 
           .mobile-image {
             position: relative;
             z-index: 1;
             width: 100%;
-            max-height: 318px;
+            height: 100%;
+            max-height: none;
             object-fit: contain;
+            object-position: center;
             filter: drop-shadow(0 24px 32px rgba(55, 32, 22, 0.18));
           }
 

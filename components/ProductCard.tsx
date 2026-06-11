@@ -369,7 +369,9 @@ export default function ProductCard({
             }
 
             .product-card .card-image-wrapper {
-              height: 110px !important;
+              aspect-ratio: 4 / 5 !important;
+              height: auto !important;
+              min-height: 150px !important;
               position: relative !important;
               overflow: hidden !important;
             }
@@ -378,6 +380,7 @@ export default function ProductCard({
               width: 100% !important;
               height: 100% !important;
               object-fit: cover !important;
+              object-position: center center !important;
             }
 
             .product-card .card-discount-banner {
