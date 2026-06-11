@@ -62,6 +62,11 @@ export interface DeleteProductResponse {
   message: string;
 }
 
+export interface UploadProductImagesResponse {
+  success: boolean;
+  images: string[];
+}
+
 export type ProductListParams = {
   page?: number;
   limit?: number;
@@ -219,6 +224,25 @@ export const deleteProduct = async (
   token: string
 ): Promise<DeleteProductResponse> => {
   const response = await axios.delete(`${API_BASE_URL}/${id}`, {
+    headers: {
+      Authorization: `Bearer ${token}`,
+    },
+  });
+
+  return response.data;
+};
+
+export const uploadProductImages = async (
+  files: File[],
+  token: string
+): Promise<UploadProductImagesResponse> => {
+  const formData = new FormData();
+
+  for (const file of files) {
+    formData.append("images", file);
+  }
+
+  const response = await axios.post(`${API_BASE_URL}/uploads/images`, formData, {
     headers: {
       Authorization: `Bearer ${token}`,
     },

@@ -210,7 +210,16 @@ pm2 start ecosystem.config.cjs
 pm2 save
 ```
 
-## 9) Git deployment flow
+## 9) Rotate admin password
+
+```bash
+cd /var/www/ewara/backend
+ADMIN_EMAIL='admin@example.com' ADMIN_PASSWORD='new-strong-password' npm run rotate:admin-password
+pm2 restart ewara-backend --update-env
+pm2 save
+```
+
+## 10) Git deployment flow
 
 Whenever you push new code from your laptop:
 
@@ -228,7 +237,7 @@ pm2 restart ewara-backend --update-env
 pm2 save
 ```
 
-## 10) Quick health checks
+## 11) Quick health checks
 
 ```bash
 pm2 list
@@ -238,7 +247,21 @@ sudo nginx -t
 sudo mysql -e "USE ewara; SHOW TABLES;"
 ```
 
-## 11) Logs for troubleshooting
+Full production health script:
+
+```bash
+cd /var/www/ewara
+bash scripts/vps-health-check.sh
+```
+
+With SSL renewal dry-run:
+
+```bash
+cd /var/www/ewara
+RUN_CERTBOT_DRY_RUN=1 bash scripts/vps-health-check.sh
+```
+
+## 12) Logs for troubleshooting
 
 Frontend:
 
@@ -259,7 +282,7 @@ sudo tail -n 100 /var/log/nginx/error.log
 sudo tail -n 100 /var/log/nginx/access.log
 ```
 
-## 12) SSL after DNS is live
+## 13) SSL after DNS is live
 
 When your domain points to the VPS:
 
@@ -268,10 +291,42 @@ sudo apt install certbot python3-certbot-nginx -y
 sudo certbot --nginx -d ewaraofficial.com -d www.ewaraofficial.com -d api.ewaraofficial.com
 ```
 
-## 13) Common notes
+## 14) Backups
+
+Manual backup:
+
+```bash
+cd /var/www/ewara
+bash scripts/vps-backup.sh
+```
+
+Daily cron:
+
+```bash
+crontab -e
+```
+
+Add:
+
+```cron
+15 2 * * * cd /var/www/ewara && bash scripts/vps-backup.sh >> /var/log/ewara-backup.log 2>&1
+```
+
+Backup locations:
+
+- `/var/backups/ewara/db`
+- `/var/backups/ewara/uploads`
+
+## 15) Product image uploads
+
+- Admin product add/edit pages can upload images directly.
+- Files are stored in `/var/www/ewara/public/uploads/products`.
+- Product database rows store image paths like `/uploads/products/example.webp`.
+- Include `/var/www/ewara/public/uploads` in backups.
+
+## 16) Common notes
 
 - If you see `Server Action` errors in Next.js, clear `.next` and rebuild.
 - If backend logs show `ENOTFOUND <YOUR_DB_HOST>`, check `.env` on the VPS.
 - If public domain is not opening but `curl 127.0.0.1:3000` works, DNS or Nginx is the issue.
 - If the cart or bag behaves oddly, test in an incognito window to avoid stale browser cache.
-

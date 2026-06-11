@@ -118,11 +118,14 @@ export const validateEnv = () => {
     );
   }
 
+  const phoneOtpEnabled =
+    process.env.PHONE_OTP_ENABLED === "true" ||
+    process.env.NEXT_PUBLIC_PHONE_OTP_ENABLED === "true";
   const missingSms = recommendedSmsEnvVars.filter(
     (name) => !process.env[name] || !String(process.env[name]).trim()
   );
 
-  if (missingSms.length > 0) {
+  if (phoneOtpEnabled && missingSms.length > 0) {
     console.warn(
       `Recommended SMS environment variables missing: ${missingSms.join(", ")}`
     );

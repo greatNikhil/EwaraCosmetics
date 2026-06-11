@@ -11,7 +11,8 @@
     "test:integrity": "node scripts/verify-data-integrity.js",
     "test:phase8": "npm test && npm run test:integrity",
     "backfill:payment-status": "node scripts/backfill-order-payment-status.js",
-    "import:products:csv": "node scripts/import-products-from-csv.js"
+    "import:products:csv": "node scripts/import-products-from-csv.js",
+    "rotate:admin-password": "node scripts/rotate-admin-password.js"
   },
   "keywords": [],
   "author": "",

@@ -8,7 +8,7 @@ Ewara Cosmetics is a full-stack e-commerce platform for browsing, purchasing, an
 - An `Express 5 + TypeScript` backend in [`backend/`](../backend)
 - A `MySQL` database accessed through `Sequelize`
 - `Razorpay` for online payments
-- `Nodemailer`-based transactional email workflows
+- `Resend API` transactional email workflows with SMTP fallback support
 
 The application supports a customer storefront, authenticated shopping flows, and an admin area for operational management.
 
@@ -21,7 +21,7 @@ The application supports a customer storefront, authenticated shopping flows, an
 - UI: `React 18`, `Tailwind CSS`
 - State management: `Zustand`
 - HTTP client: `fetch` and `axios`
-- Deployment target: Vercel-compatible
+- Deployment target: Hostinger VPS behind Nginx
 
 ### Backend
 
@@ -31,13 +31,13 @@ The application supports a customer storefront, authenticated shopping flows, an
 - ORM: `Sequelize`
 - Database: `MySQL`
 - Authentication: `JWT`
-- Email: `Nodemailer`
+- Email: `Resend API` preferred, SMTP fallback supported
 - Payments: `Razorpay`
 
 ### Data / Infra Notes
 
 - The backend auto-syncs Sequelize models at startup with `sequelize.sync({ alter: true })`.
-- Product images are served from the frontend `public/` directory.
+- Product images are served from the frontend `public/` directory, including runtime uploads under `public/uploads`.
 - The checkout flow mixes frontend API routes and backend APIs:
   - Next.js route handlers create Razorpay orders and handle payment callbacks/webhooks
   - Express creates finalized orders and manages stock, coupons, and notifications
@@ -582,6 +582,7 @@ NEXT_PUBLIC_API_URL=http://localhost:5000
 NEXT_PUBLIC_APP_URL=http://localhost:3000
 NEXT_PUBLIC_GOOGLE_CLIENT_ID=your_google_client_id_here
 NEXT_PUBLIC_RAZORPAY_KEY_ID=rzp_test_your_key_id_here
+NEXT_PUBLIC_PHONE_OTP_ENABLED=false
 ```
 
 Examples exist in:
@@ -603,14 +604,21 @@ DB_USER=your_mysql_user
 DB_PASSWORD=your_mysql_password
 DB_NAME=ewara
 JWT_SECRET=replace_with_a_long_random_secret
-EMAIL_USER=your_email_account
-EMAIL_PASS=your_email_password_or_app_password
+SMTP_HOST=smtp.titan.email
+SMTP_PORT=587
+SMTP_SECURE=false
+EMAIL_USER=info@ewaraofficial.com
+EMAIL_PASS=your_smtp_password
 EMAIL_FROM=info@ewaraofficial.com
+RESEND_API_KEY=your_resend_api_key
+RESEND_FROM=Ewara Cosmetics <info@ewaraofficial.com>
 BUSINESS_NAME=Ewara Cosmetics
 NEXT_PUBLIC_APP_URL=http://localhost:3000
 FRONTEND_URL=http://localhost:3000
 CORS_ORIGINS=http://localhost:3000
 RAZORPAY_KEY_SECRET=your_razorpay_secret
+RAZORPAY_WEBHOOK_SECRET=your_razorpay_webhook_secret
+PHONE_OTP_ENABLED=false
 NODE_ENV=development
 ```
 
@@ -674,15 +682,16 @@ Backend tests exist under [`backend/src/tests/`](../backend/src/tests) and cover
 
 ### Frontend
 
-- Vercel configuration exists in [`vercel.json`](../vercel.json)
-- frontend route handlers depend on Razorpay env vars being available in the deployed Next.js app
+- The production frontend runs on the Hostinger VPS through PM2 and Nginx.
+- Frontend route handlers depend on Razorpay env vars being available in the root production env file.
+- Public storefront domains are `https://ewaraofficial.com` and `https://www.ewaraofficial.com`.
 
 ### Backend
 
-- deploy separately from the frontend
-- must expose the Express API publicly to the frontend
-- must be configured with production MySQL credentials
-- CORS allowlist must include the deployed frontend origin
+- The production backend runs on the same Hostinger VPS through PM2 and Nginx.
+- API domain is `https://api.ewaraofficial.com`.
+- Backend must be configured with production MySQL credentials.
+- CORS allowlist must include `https://ewaraofficial.com`, `https://www.ewaraofficial.com`, and `https://api.ewaraofficial.com`.
 
 ## 16. Important Implementation Notes
 

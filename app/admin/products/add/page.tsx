@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { createProduct } from "@/utils/productApi";
 import { useProtectedRoute } from "@/hooks/useProtectedRoute";
+import ProductImageManager from "@/components/admin/ProductImageManager";
 
 const categories = ["Skincare", "Hair", "Fragrance", "Makeup", "Body"];
 
@@ -333,54 +334,12 @@ export default function AddProductPage() {
               </div>
             </div>
 
-            <label className="block">
-              <span className="text-sm font-medium text-[#4a2c2a]">
-                Images (one URL/path per line) *
-              </span>
-              <textarea
-                value={form.images}
-                onChange={(e) => setForm({ ...form, images: e.target.value })}
-                rows={4}
-                placeholder="/Product/rose-glow-serum-1.jpg&#10;/Product/rose-glow-serum-2.jpg"
-                className="mt-2 w-full rounded-2xl border border-[#ead2d8] bg-[#fdf8f6] px-4 py-3 outline-none focus:border-[#7a1f2b]"
-              />
-              <p className="mt-1 text-xs text-[#6b7280]">
-                Enter one image path per line. First image will be used as the
-                main product image.
-              </p>
-            </label>
-
-            {form.images.trim() && (
-              <div className="block">
-                <span className="mb-2 block text-sm font-medium text-[#4a2c2a]">
-                  Image Preview
-                </span>
-                <div className="flex flex-wrap gap-2">
-                  {form.images.split("\n").map((url, index) => {
-                    const trimmedUrl = url.trim();
-                    if (!trimmedUrl) return null;
-
-                    return (
-                      <div key={index} className="relative">
-                        <img
-                          src={trimmedUrl}
-                          alt={`Preview ${index + 1}`}
-                          className="h-16 w-16 rounded-lg border border-[#ead2d8] object-cover"
-                          onError={(e) => {
-                            e.currentTarget.src = "/favicon/product.jpeg";
-                          }}
-                        />
-                        {index === 0 && (
-                          <span className="absolute -top-2 -right-2 rounded bg-[#7a1f2b] px-1 text-xs text-white">
-                            Main
-                          </span>
-                        )}
-                      </div>
-                    );
-                  })}
-                </div>
-              </div>
-            )}
+            <ProductImageManager
+              value={form.images}
+              onChange={(images) => setForm({ ...form, images })}
+              token={token}
+              disabled={submitting}
+            />
 
             <div className="flex flex-wrap gap-4 pt-4">
               <button

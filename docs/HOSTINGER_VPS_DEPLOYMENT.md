@@ -28,13 +28,14 @@ cd <repo-folder>
 
 ## 3. Set environment variables
 
-### Frontend root `.env.local`
+### Frontend root `.env` or `.env.local`
 
 ```env
 NEXT_PUBLIC_API_URL=https://api.ewaraofficial.com
-NEXT_PUBLIC_APP_URL=https://ewaraofficial.com
+NEXT_PUBLIC_APP_URL=https://www.ewaraofficial.com
 NEXT_PUBLIC_GOOGLE_CLIENT_ID=345425970600-1q7aaec0t01ol3gq45gfhfjucmjugjvd.apps.googleusercontent.com
 NEXT_PUBLIC_RAZORPAY_KEY_ID=your_razorpay_key_id
+NEXT_PUBLIC_PHONE_OTP_ENABLED=false
 RAZORPAY_KEY_SECRET=your_razorpay_key_secret
 RAZORPAY_WEBHOOK_SECRET=your_razorpay_webhook_secret
 ```
@@ -45,25 +46,33 @@ RAZORPAY_WEBHOOK_SECRET=your_razorpay_webhook_secret
 
 ```env
 PORT=5000
-DB_HOST=your_mysql_host
+DB_HOST=127.0.0.1
 DB_PORT=3306
-DB_USER=your_mysql_user
+DB_USER=ewarauser
 DB_PASSWORD=your_mysql_password
 DB_NAME=ewara
 JWT_SECRET=your_long_secret
-EMAIL_USER=your_smtp_email
+SMTP_HOST=smtp.titan.email
+SMTP_PORT=587
+SMTP_SECURE=false
+EMAIL_USER=info@ewaraofficial.com
 EMAIL_PASS=your_smtp_password
 EMAIL_FROM=info@ewaraofficial.com
+RESEND_API_KEY=your_resend_api_key
+RESEND_FROM=Ewara Cosmetics <info@ewaraofficial.com>
 SUPPORT_EMAIL=support@ewaraofficial.com
 BUSINESS_NAME=Ewara Cosmetics
-NEXT_PUBLIC_APP_URL=https://your-domain.com
-FRONTEND_URL=https://your-domain.com
-CORS_ORIGINS=https://your-domain.com
+NEXT_PUBLIC_APP_URL=https://www.ewaraofficial.com
+FRONTEND_URL=https://www.ewaraofficial.com
+CORS_ORIGINS=https://ewaraofficial.com,https://www.ewaraofficial.com,https://api.ewaraofficial.com
 RAZORPAY_KEY_SECRET=your_razorpay_key_secret
+RAZORPAY_WEBHOOK_SECRET=your_razorpay_webhook_secret
+PHONE_OTP_ENABLED=false
 NODE_ENV=production
 ```
 
 Use the same Razorpay key secret in both root `.env` and `backend/.env`; the Next.js API route creates the Razorpay order and the backend verifies the successful payment signature before creating the order.
+Prefer Resend for production emails. Keep Titan SMTP values as fallback.
 
 ## 4. Install and build
 
@@ -93,10 +102,11 @@ Put a reverse proxy in front of the two ports:
 - Frontend -> `127.0.0.1:3000`
 - Backend -> `127.0.0.1:5000`
 
-Common options:
+Production mapping:
 
-- `your-domain.com` -> frontend
-- `api.your-domain.com` -> backend
+- `ewaraofficial.com` -> frontend
+- `www.ewaraofficial.com` -> frontend
+- `api.ewaraofficial.com` -> backend
 
 If you prefer a single domain, proxy `/api` to the backend and everything else to the frontend.
 
@@ -122,8 +132,42 @@ cd ..
 pm2 restart ecosystem.config.cjs --update-env
 ```
 
+## 9. Product image uploads
+
+The admin product add/edit screens upload product images through the backend.
+
+- Upload API: `POST /api/products/uploads/images`
+- Storage directory: `/var/www/ewara/public/uploads/products`
+- Product image path format: `/uploads/products/<filename>`
+
+Make sure the uploads directory is backed up because it is runtime data and is not committed to Git.
+
+## 10. Backups and health checks
+
+Manual backup:
+
+```bash
+cd /var/www/ewara
+bash scripts/vps-backup.sh
+```
+
+Health check:
+
+```bash
+cd /var/www/ewara
+bash scripts/vps-health-check.sh
+```
+
+Certbot renewal dry-run:
+
+```bash
+cd /var/www/ewara
+RUN_CERTBOT_DRY_RUN=1 bash scripts/vps-health-check.sh
+```
+
 ## Notes
 
 - Keep SMTP and business/support email values in backend env only.
 - Keep `NEXT_PUBLIC_*` values limited to browser-safe values.
 - If your MySQL database is managed elsewhere, only update `DB_HOST`, `DB_USER`, and `DB_PASSWORD` to match it.
+- Keep `public/uploads` in the backup routine.
