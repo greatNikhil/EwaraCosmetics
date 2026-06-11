@@ -369,18 +369,30 @@ export default function ProductCard({
             }
 
             .product-card .card-image-wrapper {
-              aspect-ratio: 4 / 5 !important;
+              aspect-ratio: 1 / 1.12 !important;
               height: auto !important;
-              min-height: 150px !important;
+              min-height: 0 !important;
               position: relative !important;
               overflow: hidden !important;
+              display: flex !important;
+              align-items: center !important;
+              justify-content: center !important;
+              box-sizing: border-box !important;
+              padding: 10px 10px 24px !important;
+              background:
+                radial-gradient(circle at 50% 28%, rgba(255, 255, 255, 0.92), rgba(255, 255, 255, 0) 48%),
+                linear-gradient(145deg, #fff8f1 0%, #f5eee7 100%) !important;
             }
 
             .product-card .card-image-wrapper img {
               width: 100% !important;
               height: 100% !important;
-              object-fit: cover !important;
+              max-width: 100% !important;
+              max-height: 100% !important;
+              display: block !important;
+              object-fit: contain !important;
               object-position: center center !important;
+              transform: none !important;
             }
 
             .product-card .card-discount-banner {

@@ -861,8 +861,11 @@ export default function ProductDetailPage() {
 
           .mobile-hero {
             position: relative;
-            min-height: min(74svh, 560px);
+            height: clamp(360px, 116vw, 520px);
+            max-height: 72svh;
+            min-height: 360px;
             overflow: hidden;
+            border-radius: 0 0 30px 30px;
             background:
               radial-gradient(circle at 30% 22%, rgba(255, 255, 255, 0.95), rgba(255, 255, 255, 0) 34%),
               linear-gradient(150deg, #f9e3d8 0%, #f6d4d3 44%, #fff4e8 100%);
@@ -919,10 +922,12 @@ export default function ProductDetailPage() {
 
           .mobile-carousel {
             display: flex;
-            height: min(74svh, 560px);
+            height: 100%;
             overflow-x: auto;
+            overscroll-behavior-x: contain;
             scroll-snap-type: x mandatory;
             scrollbar-width: none;
+            touch-action: pan-x pan-y;
             -webkit-overflow-scrolling: touch;
           }
 
@@ -936,7 +941,8 @@ export default function ProductDetailPage() {
             align-items: center;
             justify-content: center;
             scroll-snap-align: start;
-            padding: 62px 18px 42px;
+            scroll-snap-stop: always;
+            padding: 68px 24px 52px;
             box-sizing: border-box;
           }
 
@@ -945,7 +951,8 @@ export default function ProductDetailPage() {
             z-index: 1;
             width: 100%;
             height: 100%;
-            max-height: none;
+            max-width: min(86vw, 390px);
+            max-height: 100%;
             object-fit: contain;
             object-position: center;
             filter: drop-shadow(0 24px 32px rgba(55, 32, 22, 0.18));
@@ -998,6 +1005,17 @@ export default function ProductDetailPage() {
             padding: 20px !important;
             box-shadow: 0 20px 55px rgba(59, 37, 30, 0.13) !important;
             backdrop-filter: blur(16px);
+          }
+
+          @media (max-width: 380px) {
+            .mobile-hero {
+              height: clamp(340px, 122vw, 480px);
+              min-height: 340px;
+            }
+
+            .mobile-slide {
+              padding: 64px 20px 50px;
+            }
           }
 
           .brand-kicker {
