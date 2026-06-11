@@ -1,12 +1,13 @@
 "use client";
 
-import { useEffect, useMemo, useState, Suspense } from "react";
+import { useEffect, useMemo, useRef, useState, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
 import ProductCard from "@/components/ProductCard";
 import { getAllProducts, type Product } from "@/utils/productApi";
 import { ChevronDown, Search, SlidersHorizontal, Star, X } from "lucide-react";
 
 const DEFAULT_CATEGORIES = ["Skincare", "Haircare", "Makeup"];
+const COMING_SOON_CATEGORIES = new Set(["Haircare", "Makeup"]);
 const SKIN_TYPE_OPTIONS = ["All Skin Types", "Dry", "Oily", "Combination"];
 const RATING_OPTIONS = ["All", "4", "3", "2"];
 const DEFAULT_FILTERS = {
@@ -19,6 +20,7 @@ const DEFAULT_FILTERS = {
 
 export function ShopContent() {
   const searchParams = useSearchParams();
+  const mobileFilterSheetRef = useRef<HTMLDetailsElement | null>(null);
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -71,12 +73,18 @@ export function ShopContent() {
 
   const categoryEntries = useMemo(() => {
     return categories.map((category) => ({
-      label: category === "All" ? "All Products" : category,
+      label:
+        category === "All"
+          ? "All Products"
+          : COMING_SOON_CATEGORIES.has(category)
+            ? `${category} (Coming Soon)`
+            : category,
       value: category,
       count:
         category === "All"
           ? products.length
           : products.filter((product) => product.category === category).length,
+      comingSoon: COMING_SOON_CATEGORIES.has(category),
     }));
   }, [categories, products]);
 
@@ -126,12 +134,30 @@ export function ShopContent() {
 
   const applyFilters = () => {
     setAppliedFilters({ ...draftFilters });
+    if (mobileFilterSheetRef.current) {
+      mobileFilterSheetRef.current.open = false;
+    }
+  };
+
+  const applyCategory = (category: string) => {
+    setDraftFilters((current) => ({
+      ...current,
+      category,
+    }));
+
+    setAppliedFilters((current) => ({
+      ...current,
+      category,
+    }));
   };
 
   const clearFilters = () => {
     setDraftFilters(DEFAULT_FILTERS);
     setAppliedFilters(DEFAULT_FILTERS);
     setSearchTerm("");
+    if (mobileFilterSheetRef.current) {
+      mobileFilterSheetRef.current.open = false;
+    }
   };
 
   const resultSummary =
@@ -275,15 +301,10 @@ export function ShopContent() {
               {categoryEntries.map((item) => (
                 <span
                   key={item.value}
-                  onClick={() =>
-                    setDraftFilters((current) => ({
-                      ...current,
-                      category: item.value,
-                    }))
-                  }
+                  onClick={() => applyCategory(item.value)}
                   className={`mob-chip ${
                     draftFilters.category === item.value ? "active" : ""
-                  }`}
+                  } ${item.comingSoon ? "coming-soon" : ""}`}
                 >
                   {item.label}
                 </span>
@@ -293,7 +314,7 @@ export function ShopContent() {
             <div className="mob-toolbar">
               <span className="mob-count">{filteredProducts.length} products</span>
               <div className="mob-toolbar-btns">
-                <details className="mob-filter-sheet">
+                <details ref={mobileFilterSheetRef} className="mob-filter-sheet">
                   <summary className="mob-tbtn">
                     Filter
                   </summary>
@@ -531,26 +552,21 @@ export function ShopContent() {
                 </h2>
                 <div className="mt-4 space-y-2">
                   {categoryEntries.map((item) => (
-                    <button
-                      key={item.value}
-                      type="button"
-                      onClick={() =>
-                        setDraftFilters((current) => ({
-                          ...current,
-                          category: item.value,
-                        }))
-                      }
-                      className={`flex w-full items-center justify-between rounded-2xl px-3.5 py-3 text-left text-sm transition ${
-                        draftFilters.category === item.value
-                          ? "bg-white text-[var(--brand-primary)] shadow-card"
-                          : "text-[var(--text-secondary)] hover:bg-white/70"
-                      }`}
-                    >
-                      <span>{item.label}</span>
-                      <span className="rounded-full bg-[var(--surface-base)] px-2.5 py-0.5 text-[11px] text-[var(--text-muted)]">
-                        {item.count}
-                      </span>
-                    </button>
+                  <button
+                    key={item.value}
+                    type="button"
+                    onClick={() => applyCategory(item.value)}
+                    className={`flex w-full items-center justify-between rounded-2xl px-3.5 py-3 text-left text-sm transition ${
+                      draftFilters.category === item.value
+                        ? "bg-white text-[var(--brand-primary)] shadow-card"
+                        : "text-[var(--text-secondary)] hover:bg-white/70"
+                    } ${item.comingSoon ? "coming-soon" : ""}`}
+                  >
+                    <span>{item.label}</span>
+                    <span className="rounded-full bg-[var(--surface-base)] px-2.5 py-0.5 text-[11px] text-[var(--text-muted)]">
+                      {item.comingSoon ? "Soon" : item.count}
+                    </span>
+                  </button>
                   ))}
                 </div>
               </div>
@@ -1012,6 +1028,27 @@ export function ShopContent() {
             color: #fff;
             border-color: #7a1a2e;
             font-weight: 600;
+          }
+
+          .mob-chip.coming-soon,
+          .mob-cat-item.coming-soon {
+            opacity: 0.72;
+            border-style: dashed;
+          }
+
+          .mob-cat-item.coming-soon {
+            position: relative;
+          }
+
+          .mob-cat-item.coming-soon::after {
+            content: "Coming Soon";
+            display: block;
+            margin-top: 3px;
+            font-size: 9px;
+            font-weight: 700;
+            letter-spacing: 0.1em;
+            color: #8a6e6e;
+            text-transform: uppercase;
           }
 
           .mob-toolbar {
