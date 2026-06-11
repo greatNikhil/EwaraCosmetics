@@ -34,6 +34,13 @@ export interface CartItem {
   countInStock: number;
 }
 
+const CART_CHANGED_EVENT = "cartChanged";
+
+const notifyCartChanged = () => {
+  if (typeof window === "undefined") return;
+  window.dispatchEvent(new Event(CART_CHANGED_EVENT));
+};
+
 const mapStoreItemToCartItem = (
   item: ReturnType<typeof useCartStore.getState>["items"][number]
 ): CartItem => ({
@@ -88,6 +95,7 @@ export const saveCartItems = (items: CartItem[]) => {
   }));
 
   useCartStore.setState({ items: normalizedItems });
+  notifyCartChanged();
 };
 
 export const addToCart = async (product: CartProduct) => {
@@ -107,6 +115,7 @@ export const addToCart = async (product: CartProduct) => {
     image: product.images?.[0] || "/favicon/product.jpeg",
     category: product.category || product.brand || "General",
   });
+  notifyCartChanged();
 
   // ✅ NEW: Sync to backend if logged in
   const token = getToken();
@@ -122,6 +131,7 @@ export const addToCart = async (product: CartProduct) => {
 export const removeFromCart = async (_id: string) => {
   const store = useCartStore.getState();
   store.removeItem(_id);
+  notifyCartChanged();
 
   // ✅ NEW: Sync to backend if logged in
   const token = getToken();
@@ -140,6 +150,7 @@ export const updateCartQuantity = async (_id: string, quantity: number) => {
 
   const store = useCartStore.getState();
   store.updateQuantity(_id, Math.max(1, Math.min(quantity, item.countInStock)));
+  notifyCartChanged();
 
   // ✅ NEW: Sync to backend if logged in
   const token = getToken();
@@ -155,6 +166,7 @@ export const updateCartQuantity = async (_id: string, quantity: number) => {
 export const clearCart = async () => {
   const store = useCartStore.getState();
   store.clearCart();
+  notifyCartChanged();
 
   // ✅ NEW: Sync to backend if logged in
   const token = getToken();
@@ -222,6 +234,7 @@ export const syncCartWithCatalog = async (): Promise<CartSyncResult> => {
 
     if (removedCount > 0 || updatedCount > 0 || quantityAdjustedCount > 0) {
       useCartStore.setState({ items: syncedItems });
+      notifyCartChanged();
 
       const token = getToken();
       if (token) {
@@ -255,3 +268,5 @@ export const getCartTotal = (): number => {
     0
   );
 };
+
+export const cartChangedEvent = CART_CHANGED_EVENT;

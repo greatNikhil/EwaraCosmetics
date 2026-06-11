@@ -9,6 +9,7 @@ import {
   removeFromCart,
   getCartTotal,
   removeUnavailableCartItems,
+  cartChangedEvent,
   type CartItem,
 } from "@/utils/cart";
 import { useAuthStore } from "@/store/authStore";
@@ -42,10 +43,12 @@ export default function CartPage() {
 
     window.addEventListener("userChanged", handleRefresh);
     window.addEventListener("storage", handleRefresh);
+    window.addEventListener(cartChangedEvent, handleRefresh);
 
     return () => {
       window.removeEventListener("userChanged", handleRefresh);
       window.removeEventListener("storage", handleRefresh);
+      window.removeEventListener(cartChangedEvent, handleRefresh);
     };
   }, [syncFromBackend, token]);
 
