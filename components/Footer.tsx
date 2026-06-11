@@ -232,7 +232,7 @@ export default function Footer() {
 
       <div className="flex flex-col gap-4 border-t-[0.5px] border-white/[0.08] px-6 py-5 text-center md:flex-row md:items-center md:justify-between md:text-left lg:px-10">
         <p className="text-[12px] text-white/[0.3]">
-          Copyright 2026 Ewara. All rights reserved.
+          © 2026 Ewara official. All Right Reserved.
         </p>
 
         <p className="text-[12px] text-white/[0.2]">
