@@ -6,6 +6,8 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { buildApiUrl } from "@/utils/api";
 
+const phoneOtpEnabled = process.env.NEXT_PUBLIC_PHONE_OTP_ENABLED === "true";
+
 export default function RegisterPage() {
   const router = useRouter();
 
@@ -77,6 +79,13 @@ export default function RegisterPage() {
   const handleSendOTP = async () => {
     const trimmedEmail = formData.email.trim();
     const trimmedPhone = formData.phone.trim();
+
+    if (otpChannel === "phone" && !phoneOtpEnabled) {
+      setErrors({
+        phone: "Phone OTP will be available soon. Please use email OTP for now.",
+      });
+      return;
+    }
 
     if (otpChannel === "email" && !validateEmail(trimmedEmail)) {
       setErrors({ email: "Enter valid email first" });
@@ -185,7 +194,7 @@ export default function RegisterPage() {
           Create Account
         </h1>
         <p className="mt-2 text-center text-[12px] text-[#a07080]">
-          Join Ewara and verify via email or phone to get started
+          Join Ewara and verify your email to get started
         </p>
 
         <form onSubmit={handleSubmit} className="mt-8 space-y-4">
@@ -211,7 +220,9 @@ export default function RegisterPage() {
               </button>
               <button
                 type="button"
+                disabled={!phoneOtpEnabled}
                 onClick={() => {
+                  if (!phoneOtpEnabled) return;
                   setOtpChannel("phone");
                   setOtpSent(false);
                   setFormData((prev) => ({ ...prev, otp: "" }));
@@ -219,12 +230,20 @@ export default function RegisterPage() {
                 className={`flex-1 rounded-[10px] border px-3 py-2 text-[12px] transition ${
                   otpChannel === "phone"
                     ? "border-[#7B2D42] bg-[#7B2D42] text-white"
+                    : !phoneOtpEnabled
+                      ? "cursor-not-allowed border-[#eadce1] bg-[#f3e9ed] text-[#b896a1]"
                     : "border-[#f0dde2] bg-[#f9eef2] text-[#3a1a22]"
                 }`}
               >
-                Phone OTP
+                {phoneOtpEnabled ? "Phone OTP" : "Phone OTP soon"}
               </button>
             </div>
+            {!phoneOtpEnabled && (
+              <p className="mt-2 text-[11px] leading-5 text-[#a07080]">
+                Phone verification is being connected with our SMS partner.
+                Please use email OTP for launch.
+              </p>
+            )}
           </div>
 
           <div className="grid grid-cols-2 gap-[10px]">

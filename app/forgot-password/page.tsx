@@ -3,6 +3,9 @@
 import { useState } from "react";
 import { buildApiUrl } from "@/utils/api";
 
+const phoneOtpEnabled = process.env.NEXT_PUBLIC_PHONE_OTP_ENABLED === "true";
+const isPhoneIdentifier = (value: string) => /^[6-9]\d{9}$/.test(value.trim());
+
 export default function ForgotPasswordPage() {
   const [identifier, setIdentifier] = useState("");
   const [otp, setOtp] = useState("");
@@ -10,6 +13,11 @@ export default function ForgotPasswordPage() {
   const [step, setStep] = useState(1);
 
   const sendOTP = async () => {
+    if (isPhoneIdentifier(identifier) && !phoneOtpEnabled) {
+      alert("Phone OTP will be available soon. Please use your email address for password reset.");
+      return;
+    }
+
     const res = await fetch(buildApiUrl("/api/auth/forgot-password/send-otp"), {
       method: "POST",
         headers: {
@@ -60,7 +68,7 @@ export default function ForgotPasswordPage() {
           <>
             <input
               type="text"
-              placeholder="Enter email or phone"
+              placeholder={phoneOtpEnabled ? "Enter email or phone" : "Enter email"}
               value={identifier}
               onChange={(e) => setIdentifier(e.target.value)}
               className="w-full p-2 border rounded mb-4"

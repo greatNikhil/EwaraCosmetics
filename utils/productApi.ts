@@ -2,6 +2,7 @@ import axios from "axios";
 import { buildApiUrl } from "@/utils/api";
 
 const API_BASE_URL = buildApiUrl("/api/products");
+const DEFAULT_CATALOG_LIMIT = 1000;
 
 export interface Product {
   _id: string;
@@ -60,6 +61,16 @@ export interface DeleteProductResponse {
   success: boolean;
   message: string;
 }
+
+export type ProductListParams = {
+  page?: number;
+  limit?: number;
+  keyword?: string;
+  category?: string;
+  brand?: string;
+  featured?: boolean;
+  published?: boolean;
+};
 
 const FALLBACK_PRODUCT_IMAGE = "/favicon/product.jpeg";
 
@@ -134,8 +145,16 @@ const normalizeReview = (review: any): ProductReview => ({
   rating: normalizeNumber(review?.rating),
 });
 
-export const getAllProducts = async (): Promise<GetProductsResponse> => {
-  const response = await axios.get(API_BASE_URL);
+export const getAllProducts = async (
+  params: ProductListParams = {}
+): Promise<GetProductsResponse> => {
+  const response = await axios.get(API_BASE_URL, {
+    params: {
+      limit: DEFAULT_CATALOG_LIMIT,
+      ...params,
+    },
+  });
+
   return {
     ...response.data,
     products: Array.isArray(response.data?.products)
