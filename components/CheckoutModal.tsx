@@ -416,8 +416,6 @@ export default function CheckoutModal({
         name: "Ewara Cosmetics",
         description: `${onlinePaymentLabel} payment for ${cartItems.length} item${cartItems.length > 1 ? "s" : ""}`,
         order_id: orderId,
-        callback_url: `${window.location.origin}/api/checkout/razorpay/callback`,
-        redirect: true,
         config: checkoutConfig,
         handler: async (response: any) => {
           try {
