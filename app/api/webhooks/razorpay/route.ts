@@ -6,17 +6,29 @@ export async function POST(request: NextRequest) {
   try {
     const body = await request.text();
     const signature = request.headers.get("x-razorpay-signature");
+    const webhookSecret = process.env.RAZORPAY_WEBHOOK_SECRET || "";
 
     if (!signature) {
       return errorResponse("Missing signature", 400);
     }
 
+    if (!webhookSecret) {
+      console.error("RAZORPAY_WEBHOOK_SECRET not found in environment");
+      return errorResponse("Webhook secret is not configured", 500);
+    }
+
     const hash = crypto
-      .createHmac("sha256", process.env.RAZORPAY_KEY_SECRET || "")
+      .createHmac("sha256", webhookSecret)
       .update(body)
       .digest("hex");
 
-    if (hash !== signature) {
+    const expectedSignature = Buffer.from(hash, "hex");
+    const receivedSignature = Buffer.from(signature, "hex");
+
+    if (
+      expectedSignature.length !== receivedSignature.length ||
+      !crypto.timingSafeEqual(expectedSignature, receivedSignature)
+    ) {
       console.error("Invalid Razorpay webhook signature");
       return errorResponse("Invalid signature", 400);
     }

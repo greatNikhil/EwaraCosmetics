@@ -35,7 +35,11 @@ NEXT_PUBLIC_API_URL=https://api.ewaraofficial.com
 NEXT_PUBLIC_APP_URL=https://ewaraofficial.com
 NEXT_PUBLIC_GOOGLE_CLIENT_ID=345425970600-1q7aaec0t01ol3gq45gfhfjucmjugjvd.apps.googleusercontent.com
 NEXT_PUBLIC_RAZORPAY_KEY_ID=your_razorpay_key_id
+RAZORPAY_KEY_SECRET=your_razorpay_key_secret
+RAZORPAY_WEBHOOK_SECRET=your_razorpay_webhook_secret
 ```
+
+`RAZORPAY_KEY_SECRET` and `RAZORPAY_WEBHOOK_SECRET` are server-side values. They are safe in the VPS root `.env` because only variables prefixed with `NEXT_PUBLIC_` are exposed to the browser.
 
 ### Backend `backend/.env`
 
@@ -58,6 +62,8 @@ CORS_ORIGINS=https://your-domain.com
 RAZORPAY_KEY_SECRET=your_razorpay_key_secret
 NODE_ENV=production
 ```
+
+Use the same Razorpay key secret in both root `.env` and `backend/.env`; the Next.js API route creates the Razorpay order and the backend verifies the successful payment signature before creating the order.
 
 ## 4. Install and build
 
