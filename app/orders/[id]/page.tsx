@@ -117,23 +117,26 @@ export default function OrderDetailsPage() {
   const handleBuyAgain = async () => {
     if (!Array.isArray(order.items) || order.items.length === 0) return;
 
-    for (const item of order.items) {
-      const productId = item.productId || item._id || item.id;
-      if (!productId) continue;
+    try {
+      for (const item of order.items) {
+        const productId = item.productId || item._id || item.id;
+        const price = Number(item.price ?? 0);
+        if (!productId || !Number.isFinite(price) || price <= 0) continue;
 
-      for (let count = 0; count < (item.quantity || 1); count += 1) {
         await addToCart({
           _id: productId,
           name: item.name || item.productName || "Product",
-          price: item.price ?? 0,
+          price,
           images: [item.image || "/favicon/product.jpeg"],
           category: item.category,
           brand: item.brand,
-        });
+        }, item.quantity || 1);
       }
-    }
 
-    router.push("/cart");
+      router.push("/cart");
+    } catch (error) {
+      console.error("Failed to add order items to bag:", error);
+    }
   };
 
   return (

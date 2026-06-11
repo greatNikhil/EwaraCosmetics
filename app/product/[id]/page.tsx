@@ -208,11 +208,11 @@ export default function ProductDetailPage() {
 
     try {
       setIsAddingToBag(true);
-      for (let index = 0; index < maxAllowed; index += 1) {
-        await addToCart(product as any);
+      const added = await addToCart(product as any, maxAllowed);
+      if (added) {
+        showAddedToBagToast();
       }
-      showAddedToBagToast();
-      return true;
+      return Boolean(added);
     } catch (cartError) {
       console.error("Failed to add product to bag:", cartError);
       return false;

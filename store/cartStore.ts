@@ -110,6 +110,7 @@ export const useCartStore = create<CartStore>()(
           }
         } catch (error) {
           console.error('Failed to sync cart to backend:', error);
+          throw error;
         }
       },
     }),

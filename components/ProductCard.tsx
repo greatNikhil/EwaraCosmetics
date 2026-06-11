@@ -25,6 +25,7 @@ export default function ProductCard({
   const [currentImage, setCurrentImage] = useState(safeImages[0]);
   const [isLiked, setIsLiked] = useState(false);
   const [isHovering, setIsHovering] = useState(false);
+  const [isAddingToBag, setIsAddingToBag] = useState(false);
   const router = useRouter();
 
   useEffect(() => {
@@ -48,10 +49,21 @@ export default function ProductCard({
     setIsLiked(isNowLiked);
   };
 
-  const handleAddToBag = (e: React.MouseEvent) => {
+  const handleAddToBag = async (e: React.MouseEvent) => {
     e.stopPropagation();
-    addToCart(product as any);
-    showAddedToBagToast();
+    if (isAddingToBag) return;
+
+    try {
+      setIsAddingToBag(true);
+      const added = await addToCart(product as any);
+      if (added) {
+        showAddedToBagToast();
+      }
+    } catch (error) {
+      console.error("Failed to add product to bag:", error);
+    } finally {
+      setIsAddingToBag(false);
+    }
   };
 
   const handleTitleClick = () => {
@@ -125,9 +137,10 @@ export default function ProductCard({
 
           <button
             onClick={handleAddToBag}
+            disabled={isAddingToBag}
             className="w-full rounded-full bg-[#7b5b45] px-4 py-2.5 text-[11px] font-medium uppercase tracking-[0.16em] text-white transition hover:bg-[#624735]"
           >
-            Add to Bag
+            {isAddingToBag ? "Adding..." : "Add to Bag"}
           </button>
         </div>
       </div>
@@ -199,9 +212,10 @@ export default function ProductCard({
             </span>
             <button
               onClick={handleAddToBag}
+              disabled={isAddingToBag}
               className="rounded-full border border-[#cbb8aa] px-3 py-1.5 text-[10px] font-medium uppercase tracking-[0.14em] text-[#7b5b45] transition hover:bg-[#fbf7f2]"
             >
-              Add
+              {isAddingToBag ? "Adding" : "Add"}
             </button>
           </div>
         </div>
@@ -292,9 +306,10 @@ export default function ProductCard({
 
                 <button
                   onClick={handleAddToBag}
+                  disabled={isAddingToBag}
                   className="desktop-add-btn rounded-full bg-[var(--brand-primary)] px-4 py-2 text-[10px] font-semibold uppercase tracking-[0.16em] text-white transition hover:bg-[var(--brand-primary-strong)]"
                 >
-                  Add
+                  {isAddingToBag ? "Adding" : "Add"}
                 </button>
               </div>
 
@@ -351,8 +366,12 @@ export default function ProductCard({
                   ) : null}
                 </div>
 
-                <button className="card-add-btn" onClick={handleAddToBag}>
-                  +
+                <button
+                  className="card-add-btn"
+                  onClick={handleAddToBag}
+                  disabled={isAddingToBag}
+                >
+                  {isAddingToBag ? "..." : "+"}
                 </button>
               </div>
             </div>
@@ -581,9 +600,10 @@ export default function ProductCard({
 
           <button
             onClick={handleAddToBag}
+            disabled={isAddingToBag}
             className="rounded-full bg-[var(--brand-primary)] px-4 py-2 text-[10px] font-semibold uppercase tracking-[0.16em] text-white transition hover:bg-[var(--brand-primary-strong)]"
           >
-            Add
+            {isAddingToBag ? "Adding" : "Add"}
           </button>
         </div>
 

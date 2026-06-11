@@ -4,8 +4,11 @@ import { getAllProducts } from "@/utils/productApi";
 import { getClientToken } from "@/utils/clientAuth";
 
 export interface CartProduct {
-  _id: string;
+  _id?: string;
+  id?: string | number;
+  productId?: string | number;
   name: string;
+  productName?: string;
   slug?: string;
   description?: string;
   shortDescription?: string;
@@ -16,6 +19,7 @@ export interface CartProduct {
   discountPercent?: number;
   countInStock?: number;
   images?: string[];
+  image?: string;
   isFeatured?: boolean;
   isPublished?: boolean;
   rating?: number;
@@ -54,6 +58,30 @@ const mapStoreItemToCartItem = (
 
 // ✅ Helper function to get token for backend sync
 const getToken = (): string | null => getClientToken();
+
+const getProductId = (product: CartProduct) =>
+  String(product._id ?? product.id ?? product.productId ?? "").trim();
+
+const getProductName = (product: CartProduct) =>
+  String(product.name ?? product.productName ?? "Product").trim();
+
+const getProductImage = (product: CartProduct) => {
+  const firstImage = Array.isArray(product.images)
+    ? product.images.find((image) => String(image || "").trim())
+    : "";
+
+  return String(firstImage || product.image || "/favicon/product.jpeg").trim();
+};
+
+const getProductCategory = (product: CartProduct) =>
+  String(product.category || product.brand || "General").trim() || "General";
+
+const syncCartToBackendIfLoggedIn = async () => {
+  const token = getToken();
+  if (!token) return;
+
+  await useCartStore.getState().syncToBackend(token);
+};
 
 export const mergeGuestCartIntoBackend = async (
   token: string,
@@ -98,40 +126,60 @@ export const saveCartItems = (items: CartItem[]) => {
   notifyCartChanged();
 };
 
-export const addToCart = async (product: CartProduct) => {
+export const addToCart = async (product: CartProduct, quantity = 1) => {
   const store = useCartStore.getState();
-  const existingItem = store.items.find((item) => item.id === product._id);
+  const previousItems = store.items.map((item) => ({ ...item }));
+  const productId = getProductId(product);
+  const productName = getProductName(product);
+  const productPrice = Number(product.price);
+  const requestedQuantity = Math.max(1, Number(quantity) || 1);
+
+  if (!productId || !productName || !Number.isFinite(productPrice) || productPrice <= 0) {
+    throw new Error("Invalid product data. Please refresh and try again.");
+  }
+
+  const existingItem = store.items.find((item) => item.id === productId);
   const maxStock = product.countInStock ?? Number.MAX_SAFE_INTEGER;
 
   if (existingItem && existingItem.quantity >= maxStock) {
-    return;
+    return false;
+  }
+
+  const availableQuantity = existingItem
+    ? Math.max(maxStock - existingItem.quantity, 0)
+    : maxStock;
+  const quantityToAdd = Math.min(requestedQuantity, availableQuantity);
+
+  if (quantityToAdd <= 0) {
+    return false;
   }
 
   store.addItem({
-    id: product._id,
-    name: product.name,
-    price: product.price,
-    quantity: 1,
-    image: product.images?.[0] || "/favicon/product.jpeg",
-    category: product.category || product.brand || "General",
+    id: productId,
+    name: productName,
+    price: productPrice,
+    quantity: quantityToAdd,
+    image: getProductImage(product),
+    category: getProductCategory(product),
   });
-  notifyCartChanged();
 
   // ✅ NEW: Sync to backend if logged in
-  const token = getToken();
-  if (token) {
-    try {
-      await store.syncToBackend(token);
-    } catch (error) {
-      console.error("Failed to sync cart to backend:", error);
-    }
+  try {
+    await syncCartToBackendIfLoggedIn();
+  } catch (error) {
+    useCartStore.setState({ items: previousItems });
+    notifyCartChanged();
+    console.error("Failed to sync cart to backend:", error);
+    throw error;
   }
+
+  notifyCartChanged();
+  return true;
 };
 
 export const removeFromCart = async (_id: string) => {
   const store = useCartStore.getState();
   store.removeItem(_id);
-  notifyCartChanged();
 
   // ✅ NEW: Sync to backend if logged in
   const token = getToken();
@@ -142,6 +190,8 @@ export const removeFromCart = async (_id: string) => {
       console.error("Failed to sync cart to backend:", error);
     }
   }
+
+  notifyCartChanged();
 };
 
 export const updateCartQuantity = async (_id: string, quantity: number) => {
@@ -150,7 +200,6 @@ export const updateCartQuantity = async (_id: string, quantity: number) => {
 
   const store = useCartStore.getState();
   store.updateQuantity(_id, Math.max(1, Math.min(quantity, item.countInStock)));
-  notifyCartChanged();
 
   // ✅ NEW: Sync to backend if logged in
   const token = getToken();
@@ -161,12 +210,13 @@ export const updateCartQuantity = async (_id: string, quantity: number) => {
       console.error("Failed to sync cart to backend:", error);
     }
   }
+
+  notifyCartChanged();
 };
 
 export const clearCart = async () => {
   const store = useCartStore.getState();
   store.clearCart();
-  notifyCartChanged();
 
   // ✅ NEW: Sync to backend if logged in
   const token = getToken();
@@ -177,6 +227,8 @@ export const clearCart = async () => {
       console.error("Failed to sync cart to backend:", error);
     }
   }
+
+  notifyCartChanged();
 };
 
 export type CartSyncResult = {

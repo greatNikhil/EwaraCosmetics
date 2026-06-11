@@ -7,7 +7,7 @@ import type { WishlistItem } from "@/utils/wishlist";
 type MyWishlistProps = {
   wishlistItems: WishlistItem[];
   handleWishlistRemove: (_id: string) => Promise<void> | void;
-  handleWishlistMoveToCart: (item: WishlistItem) => void;
+  handleWishlistMoveToCart: (item: WishlistItem) => Promise<void> | void;
 };
 
 export default function MyWishlist({

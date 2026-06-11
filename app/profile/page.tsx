@@ -36,6 +36,7 @@ import {
   type WishlistItem,
 } from "@/utils/wishlist";
 import { addToCart } from "@/utils/cart";
+import { showAddedToBagToast } from "@/utils/bagToast";
 
 function ProfilePageContent() {
   const [user, setUser] = useState<any>(null);
@@ -746,15 +747,23 @@ function ProfilePageContent() {
     setWishlistItems(items);
   };
 
-  const handleWishlistMoveToCart = (item: WishlistItem) => {
-    addToCart({
-      _id: item._id,
-      name: item.name,
-      price: item.price,
-      images: [item.image || "/favicon/product.jpeg"],
-      category: item.category,
-      brand: item.brand,
-    });
+  const handleWishlistMoveToCart = async (item: WishlistItem) => {
+    try {
+      const added = await addToCart({
+        _id: item._id,
+        name: item.name,
+        price: item.price,
+        images: [item.image || "/favicon/product.jpeg"],
+        category: item.category,
+        brand: item.brand,
+      });
+
+      if (added) {
+        showAddedToBagToast();
+      }
+    } catch (error) {
+      console.error("Failed to move wishlist item to bag:", error);
+    }
   };
 
   return (
