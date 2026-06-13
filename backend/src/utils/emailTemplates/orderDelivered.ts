@@ -6,6 +6,13 @@ export const orderDeliveredTemplate = (deliveryData: {
 }) => {
   const supportEmail =
     process.env.SUPPORT_EMAIL || process.env.EMAIL_FROM || "support@ewaraofficial.com";
+  const appUrl = (
+    process.env.FRONTEND_URL ||
+    process.env.NEXT_PUBLIC_APP_URL ||
+    "https://www.ewaraofficial.com"
+  ).replace(/\/+$/, "");
+  const shopUrl = `${appUrl}/shop`;
+  const wishlistUrl = `${appUrl}/wishlist`;
 
   return `
     <!DOCTYPE html>
@@ -79,10 +86,10 @@ export const orderDeliveredTemplate = (deliveryData: {
 
           <!-- Continue Shopping Button -->
           <div style="text-align: center; margin-bottom: 30px;">
-            <a href="https://ewara.com/shop" style="display: inline-block; background: linear-gradient(135deg, #007bff 0%, #0056b3 100%); color: white; padding: 10px 25px; text-decoration: none; border-radius: 4px; font-weight: 600; font-size: 14px; margin-right: 10px;">
+            <a href="${shopUrl}" style="display: inline-block; background: linear-gradient(135deg, #007bff 0%, #0056b3 100%); color: white; padding: 10px 25px; text-decoration: none; border-radius: 4px; font-weight: 600; font-size: 14px; margin-right: 10px;">
               Continue Shopping
             </a>
-            <a href="https://ewara.com/wishlist" style="display: inline-block; background: #f5f5f5; color: #333; padding: 10px 25px; text-decoration: none; border-radius: 4px; font-weight: 600; font-size: 14px; border: 1px solid #ddd;">
+            <a href="${wishlistUrl}" style="display: inline-block; background: #f5f5f5; color: #333; padding: 10px 25px; text-decoration: none; border-radius: 4px; font-weight: 600; font-size: 14px; border: 1px solid #ddd;">
               View Wishlist
             </a>
           </div>
