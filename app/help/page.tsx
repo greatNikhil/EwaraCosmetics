@@ -51,7 +51,7 @@ const helpItems = [
     id: 6,
     title: "Returns & Support",
     description:
-      "Easy returns within 30 days. Contact support for assistance with exchanges or any concerns.",
+      "Return requests for eligible sealed products can be raised within 7 days. Contact support for exchanges or any concerns.",
     icon: <RotateCcw size={20} />,
   },
 ];
@@ -98,7 +98,7 @@ export default function HelpPage() {
 
           <div className="flex flex-col gap-4 sm:flex-row sm:justify-center">
             <a
-              href="mailto:info@ewaraofficial.com"
+              href="mailto:support@ewaraofficial.com"
               className="inline-flex items-center justify-center gap-2 rounded-full bg-[#7a1f2b] px-6 py-3 text-sm font-semibold text-white shadow-[0_18px_48px_rgba(122,31,43,0.18)] transition duration-300 hover:bg-[#5a1920]"
             >
               <Mail size={16} />

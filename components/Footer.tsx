@@ -14,8 +14,9 @@ const quickLinks = [
   { label: "Contact Us", href: "/help" },
   { label: "Track Order", href: "/orders" },
   { label: "Privacy Policy", href: "/policies/privacy" },
-  { label: "Terms & Conditions", href: "/policies/terms&condtions" },
-  { label: "Refund Policy", href: "/policies/terms&condtions" },
+  { label: "Terms & Conditions", href: "/policies/terms" },
+  { label: "Refund Policy", href: "/policies/refund" },
+  { label: "Shipping Policy", href: "/policies/shipping" },
 ];
 
 const categories = [
@@ -52,8 +53,8 @@ const helpDeskItems = [
   },
   {
     label: "Email",
-    value: "info@ewaraofficial.com",
-    href: "mailto:info@ewaraofficial.com",
+    value: "support@ewaraofficial.com",
+    href: "mailto:support@ewaraofficial.com",
     icon: Mail,
   },
   {
@@ -234,10 +235,6 @@ export default function Footer() {
         <p className="text-[12px] text-white/[0.3]">
           &copy; 2026 Ewara official. All Right Reserved.
         </p>
-        <p className="hidden">
-          © 2026 Ewara official. All Right Reserved.
-        </p>
-
         <p className="text-[12px] text-white/[0.2]">
           Developed by OAN DEVELOPERS
         </p>

@@ -232,3 +232,47 @@ sudo mysql -e "USE ewara; SELECT COUNT(*) AS products FROM products;"
 curl -I https://www.ewaraofficial.com
 curl -I https://api.ewaraofficial.com
 ```
+
+## 10. Analytics, SEO, and Policy Checks
+
+Frontend env supports these optional values:
+
+```env
+NEXT_PUBLIC_GA_MEASUREMENT_ID=G-XXXXXXXXXX
+NEXT_PUBLIC_GOOGLE_SITE_VERIFICATION=your_search_console_verification_token
+NEXT_PUBLIC_FACEBOOK_PIXEL_ID=your_facebook_pixel_id
+```
+
+After adding or changing these values:
+
+```bash
+cd /var/www/ewara
+npm run build
+pm2 restart ewara-frontend --update-env
+pm2 save
+```
+
+Public SEO endpoints:
+
+```bash
+curl -I https://www.ewaraofficial.com/robots.txt
+curl -I https://www.ewaraofficial.com/sitemap.xml
+```
+
+Policy pages to verify before handoff:
+
+- `/policies/privacy`
+- `/policies/terms`
+- `/policies/refund`
+- `/policies/shipping`
+
+## 11. Rate Limiting Persistence
+
+Current backend rate limiting is in-memory. This is acceptable for a single VPS at launch, but limits reset on every backend restart.
+
+If traffic grows or the app moves to multiple servers, migrate rate limiting to a shared store such as Redis:
+
+- Add a Redis instance on the VPS or managed Redis.
+- Use a Redis-backed store for API rate limits.
+- Keep admin/login/password reset endpoints stricter than general product browsing endpoints.
+- Monitor logs for repeated 429 responses before adjusting limits.

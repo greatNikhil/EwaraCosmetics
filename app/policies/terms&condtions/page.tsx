@@ -50,7 +50,7 @@ const termsSections = [
   {
     title: "8. Returns, Refunds, and Replacements",
     body: [
-      "Return, replacement, and refund requests are subject to Ewara’s applicable return policy, hygiene considerations, product condition, and verification by our support team.",
+      "Return, replacement, and refund requests are subject to Ewara's applicable return policy, hygiene considerations, product condition, and verification by our support team.",
       "Products that are damaged, used, tampered with, or not eligible under the applicable return criteria may be declined for refund or replacement.",
     ],
   },
@@ -90,7 +90,7 @@ const termsSections = [
   {
     title: "14. Contact Information",
     body: [
-      "For order-related assistance, policy questions, or customer support, please contact Ewara at info@ewaraofficial.com or call 8545055656.",
+      "For order-related assistance, policy questions, or customer support, please contact Ewara at support@ewaraofficial.com or call +91 8545055656.",
     ],
   },
 ];
@@ -106,7 +106,7 @@ export default function TermsConditionsPage() {
           Terms & Conditions
         </h1>
         <p className="mt-4 max-w-2xl text-sm leading-7 text-[#7b6c61] md:text-base">
-          Last updated: April 25, 2026. These terms describe the rules for using
+          Last updated: June 13, 2026. These terms describe the rules for using
           the Ewara website, placing orders, making payments, and interacting
           with our products and services.
         </p>

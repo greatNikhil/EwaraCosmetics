@@ -704,7 +704,7 @@ function ProfilePageContent() {
     {
       title: "Email support",
       subtitle: "Share details and our team can follow up with you directly.",
-      href: "mailto:info@ewaraofficial.com",
+      href: "mailto:support@ewaraofficial.com",
       external: true,
       icon: Mail,
     },

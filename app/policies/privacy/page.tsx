@@ -70,7 +70,7 @@ const policySections = [
   {
     title: "11. Contact Us",
     body: [
-      "For privacy-related questions, account support, or data requests, please contact Ewara at info@ewaraofficial.com or call 8545055656.",
+      "For privacy-related questions, account support, or data requests, please contact Ewara at support@ewaraofficial.com or call +91 8545055656.",
     ],
   },
 ];
@@ -86,7 +86,7 @@ export default function PrivacyPolicyPage() {
           Privacy Policy
         </h1>
         <p className="mt-4 max-w-2xl text-sm leading-7 text-[#7b6c61] md:text-base">
-          Last updated: April 25, 2026. This policy explains how Ewara collects,
+          Last updated: June 13, 2026. This policy explains how Ewara collects,
           uses, stores, and protects customer information across the website,
           checkout flow, support channels, and account features.
         </p>
