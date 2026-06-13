@@ -1,6 +1,11 @@
 import assert from "node:assert/strict";
 import Coupon from "../models/coupon";
-import { getCouponSource, resolveCouponDiscount } from "../utils/coupon";
+import {
+  getCouponSource,
+  isCouponExpired,
+  normalizeCouponExpiresAt,
+  resolveCouponDiscount,
+} from "../utils/coupon";
 
 const originalFindOne = (Coupon as any).findOne;
 
@@ -71,6 +76,21 @@ export const runCouponTests = async () => {
         subtotal: 1000,
       }),
     /Coupon has expired/
+  );
+
+  const normalizedExpiry = normalizeCouponExpiresAt("2026-06-13");
+  assert.equal(normalizedExpiry?.toISOString(), "2026-06-13T18:29:59.999Z");
+  assert.equal(
+    isCouponExpired("2026-06-13", new Date("2026-06-13T18:29:59.000Z")),
+    false
+  );
+  assert.equal(
+    isCouponExpired("2026-06-13", new Date("2026-06-13T18:30:00.000Z")),
+    true
+  );
+  assert.equal(
+    normalizeCouponExpiresAt(new Date("2026-06-13T00:00:00.000Z"))?.toISOString(),
+    "2026-06-13T18:29:59.999Z"
   );
 
   (Coupon as any).findOne = originalFindOne;

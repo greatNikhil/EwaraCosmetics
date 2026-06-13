@@ -120,7 +120,7 @@ export const validateAdminCouponRequest = (
   res: Response,
   next: NextFunction
 ) => {
-  const { code, type, value, minOrderAmount, maxUses } = req.body;
+  const { code, type, value, minOrderAmount, maxUses, expiresAt } = req.body;
 
   if (code !== undefined && !String(code).trim()) {
     return badRequest(res, "Coupon code is required");
@@ -154,6 +154,14 @@ export const validateAdminCouponRequest = (
 
     if (Number.isNaN(parsedMaxUses) || parsedMaxUses < 1) {
       return badRequest(res, "Max uses must be a valid positive number");
+    }
+  }
+
+  if (expiresAt !== undefined && expiresAt !== null && expiresAt !== "") {
+    const parsedExpiry = new Date(String(expiresAt));
+
+    if (Number.isNaN(parsedExpiry.getTime())) {
+      return badRequest(res, "Coupon expiry date is invalid");
     }
   }
 

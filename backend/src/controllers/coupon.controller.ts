@@ -1,7 +1,7 @@
 import { Request, Response } from "express";
 import { Op } from "sequelize";
 import Coupon from "../models/coupon";
-import { resolveCouponDiscount } from "../utils/coupon";
+import { normalizeCouponExpiresAt, resolveCouponDiscount } from "../utils/coupon";
 
 const serializeCoupon = (coupon: Coupon) => {
   const plain = coupon.get({ plain: true });
@@ -127,7 +127,7 @@ export const createCoupon = async (req: Request, res: Response) => {
       maxUses:
         maxUses !== undefined && maxUses !== null ? Number(maxUses) : undefined,
       usedCount: 0,
-      expiresAt: expiresAt ? new Date(expiresAt) : undefined,
+      expiresAt: normalizeCouponExpiresAt(expiresAt),
     });
 
     return res.status(201).json({
@@ -199,7 +199,7 @@ export const updateCoupon = async (req: Request, res: Response) => {
     }
 
     if (expiresAt !== undefined) {
-      existingCoupon.expiresAt = expiresAt ? new Date(expiresAt) : null;
+      existingCoupon.expiresAt = normalizeCouponExpiresAt(expiresAt);
     }
 
     await existingCoupon.save();

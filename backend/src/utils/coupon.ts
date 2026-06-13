@@ -1,5 +1,50 @@
 import Coupon from "../models/coupon";
 
+const DATE_ONLY_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
+
+export const normalizeCouponExpiresAt = (
+  expiresAt?: string | Date | null
+): Date | null => {
+  if (!expiresAt) return null;
+
+  if (expiresAt instanceof Date) {
+    if (
+      expiresAt.getUTCHours() === 0 &&
+      expiresAt.getUTCMinutes() === 0 &&
+      expiresAt.getUTCSeconds() === 0 &&
+      expiresAt.getUTCMilliseconds() === 0
+    ) {
+      return normalizeCouponExpiresAt(expiresAt.toISOString().slice(0, 10));
+    }
+
+    return expiresAt;
+  }
+
+  const value = String(expiresAt).trim();
+  if (!value) return null;
+
+  if (DATE_ONLY_PATTERN.test(value)) {
+    // Admin date input sends YYYY-MM-DD. Treat that as valid through the
+    // full selected business day in India instead of expiring at midnight.
+    return new Date(`${value}T23:59:59.999+05:30`);
+  }
+
+  const parsedDate = new Date(value);
+  if (Number.isNaN(parsedDate.getTime())) {
+    throw new Error("Invalid coupon expiry date");
+  }
+
+  return parsedDate;
+};
+
+export const isCouponExpired = (
+  expiresAt?: Date | string | null,
+  now = new Date()
+) => {
+  const normalizedExpiry = normalizeCouponExpiresAt(expiresAt);
+  return Boolean(normalizedExpiry && normalizedExpiry.getTime() < now.getTime());
+};
+
 export type CouponSource = {
   code: string;
   type: "percent" | "flat";
@@ -51,7 +96,7 @@ export const resolveCouponDiscount = async ({
     throw new Error("Invalid coupon");
   }
 
-  if (coupon.expiresAt && new Date(coupon.expiresAt) < new Date()) {
+  if (isCouponExpired(coupon.expiresAt)) {
     throw new Error("Coupon has expired");
   }
 
